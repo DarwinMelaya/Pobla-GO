@@ -320,7 +320,7 @@ const SignUp = () => {
                   Choose your role
                 </label>
                 <div className="flex gap-3 mt-2">
-                  {["Waiter", "Cashier", "Admin"].map((role) => (
+                  {["Staff", "Admin"].map((role) => (
                     <button
                       key={role}
                       type="button"
