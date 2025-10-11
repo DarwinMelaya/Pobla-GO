@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
+import AddInventoryModal from "../../components/Modals/Admin/AddInventoryModal";
+import DeleteInventoryModal from "../../components/Modals/Admin/DeleteInventoryModal";
 
 const ManageInventory = () => {
   const [inventory, setInventory] = useState([]);
@@ -11,18 +13,8 @@ const ManageInventory = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [categories, setCategories] = useState([]);
-
-  // Form state
-  const [formData, setFormData] = useState({
-    name: "",
-    category: "",
-    quantity: "",
-    unit: "",
-    expiry_date: "",
-    description: "",
-    supplier: "",
-    purchase_price: "",
-  });
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -82,8 +74,7 @@ const ManageInventory = () => {
   };
 
   // Create or update inventory item
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (formData) => {
     setLoading(true);
     setError("");
     setSuccess("");
@@ -114,7 +105,6 @@ const ManageInventory = () => {
       setSuccess(data.message);
       setShowForm(false);
       setEditingItem(null);
-      resetForm();
       fetchInventory();
     } catch (err) {
       setError(err.message);
@@ -123,28 +113,37 @@ const ManageInventory = () => {
     }
   };
 
-  // Delete inventory item
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) {
-      return;
-    }
+  // Show delete confirmation modal
+  const handleDeleteClick = (item) => {
+    setItemToDelete(item);
+    setShowDeleteModal(true);
+  };
+
+  // Confirm delete inventory item
+  const handleDeleteConfirm = async () => {
+    if (!itemToDelete) return;
 
     setLoading(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/inventory/${id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `${API_BASE}/inventory/${itemToDelete._id}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Failed to delete inventory item");
       }
 
       setSuccess("Inventory item deleted successfully");
+      setShowDeleteModal(false);
+      setItemToDelete(null);
       fetchInventory();
     } catch (err) {
       setError(err.message);
@@ -153,50 +152,22 @@ const ManageInventory = () => {
     }
   };
 
+  // Close delete modal
+  const handleCloseDeleteModal = () => {
+    setShowDeleteModal(false);
+    setItemToDelete(null);
+  };
+
   // Edit inventory item
   const handleEdit = (item) => {
     setEditingItem(item);
-    setFormData({
-      name: item.name,
-      category: item.category,
-      quantity: item.quantity.toString(),
-      unit: item.unit,
-      expiry_date: new Date(item.expiry_date).toISOString().split("T")[0],
-      description: item.description || "",
-      supplier: item.supplier || "",
-      purchase_price: item.purchase_price ? item.purchase_price.toString() : "",
-    });
     setShowForm(true);
-  };
-
-  // Reset form
-  const resetForm = () => {
-    setFormData({
-      name: "",
-      category: "",
-      quantity: "",
-      unit: "",
-      expiry_date: "",
-      description: "",
-      supplier: "",
-      purchase_price: "",
-    });
-  };
-
-  // Handle form input changes
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
   };
 
   // Close form
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingItem(null);
-    resetForm();
     setError("");
     setSuccess("");
   };
@@ -367,7 +338,7 @@ const ManageInventory = () => {
                             Edit
                           </button>
                           <button
-                            onClick={() => handleDelete(item._id)}
+                            onClick={() => handleDeleteClick(item)}
                             className="text-red-600 hover:text-red-700"
                           >
                             Delete
@@ -382,178 +353,41 @@ const ManageInventory = () => {
           )}
         </div>
 
-        {/* Add/Edit Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-            <div className="relative top-20 mx-auto p-5 border border-[#DCDCDC] w-96 shadow-lg rounded-md bg-white">
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-medium text-gray-900">
-                    {editingItem
-                      ? "Edit Inventory Item"
-                      : "Add New Inventory Item"}
-                  </h3>
-                  <button
-                    onClick={handleCloseForm}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <span className="sr-only">Close</span>
-                    <svg
-                      className="h-6 w-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
-                </div>
+        {/* Add/Edit Inventory Modal */}
+        <AddInventoryModal
+          isOpen={showForm}
+          onClose={handleCloseForm}
+          onSubmit={handleSubmit}
+          loading={loading}
+          editingItem={editingItem}
+          initialData={
+            editingItem
+              ? {
+                  name: editingItem.name,
+                  category: editingItem.category,
+                  quantity: editingItem.quantity.toString(),
+                  unit: editingItem.unit,
+                  expiry_date: new Date(editingItem.expiry_date)
+                    .toISOString()
+                    .split("T")[0],
+                  description: editingItem.description || "",
+                  supplier: editingItem.supplier || "",
+                  purchase_price: editingItem.purchase_price
+                    ? editingItem.purchase_price.toString()
+                    : "",
+                }
+              : {}
+          }
+        />
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name *
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Category *
-                    </label>
-                    <input
-                      type="text"
-                      name="category"
-                      value={formData.category}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Quantity *
-                      </label>
-                      <input
-                        type="number"
-                        name="quantity"
-                        value={formData.quantity}
-                        onChange={handleInputChange}
-                        required
-                        min="0"
-                        className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Unit *
-                      </label>
-                      <input
-                        type="text"
-                        name="unit"
-                        value={formData.unit}
-                        onChange={handleInputChange}
-                        required
-                        placeholder="kg, pieces, liters..."
-                        className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Expiry Date *
-                    </label>
-                    <input
-                      type="date"
-                      name="expiry_date"
-                      value={formData.expiry_date}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <textarea
-                      name="description"
-                      value={formData.description}
-                      onChange={handleInputChange}
-                      rows="2"
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Supplier
-                    </label>
-                    <input
-                      type="text"
-                      name="supplier"
-                      value={formData.supplier}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Purchase Price
-                    </label>
-                    <input
-                      type="number"
-                      name="purchase_price"
-                      value={formData.purchase_price}
-                      onChange={handleInputChange}
-                      min="0"
-                      step="0.01"
-                      className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
-                    />
-                  </div>
-
-                  <div className="flex justify-end space-x-3 pt-4">
-                    <button
-                      type="button"
-                      onClick={handleCloseForm}
-                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className="px-4 py-2 text-sm font-medium text-white bg-[#C05050] hover:bg-[#B04040] rounded-md transition-colors disabled:opacity-50"
-                    >
-                      {loading
-                        ? "Saving..."
-                        : editingItem
-                        ? "Update"
-                        : "Add Item"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Delete Confirmation Modal */}
+        <DeleteInventoryModal
+          isOpen={showDeleteModal}
+          onClose={handleCloseDeleteModal}
+          onConfirm={handleDeleteConfirm}
+          loading={loading}
+          itemName={itemToDelete?.name}
+        />
       </div>
     </Layout>
   );
