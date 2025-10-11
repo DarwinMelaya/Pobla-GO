@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import logoClear from "/logoClear.png";
 import bgPobla from "/bgPobla.jpg";
 
 const SignUp = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -11,6 +14,7 @@ const SignUp = () => {
     password: "",
     role: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -20,10 +24,52 @@ const SignUp = () => {
     setFormData({ ...formData, role: selectedRole });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Handle form submission logic here
+
+    // Validate form
+    if (
+      !formData.name ||
+      !formData.email ||
+      !formData.phone ||
+      !formData.password ||
+      !formData.role
+    ) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/auth/signup",
+        formData
+      );
+
+      if (response.data.success) {
+        toast.success("Account created successfully!");
+        // Reset form
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          password: "",
+          role: "",
+        });
+        // Navigate to login page
+        navigate("/login");
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("An error occurred during signup. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -175,9 +221,14 @@ const SignUp = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-[#bf595a] hover:bg-[#a04a4b] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+                disabled={isLoading}
+                className={`w-full font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform shadow-lg ${
+                  isLoading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#bf595a] hover:bg-[#a04a4b] hover:scale-105"
+                } text-white`}
               >
-                Sign up
+                {isLoading ? "Creating Account..." : "Sign up"}
               </button>
 
               {/* Login Link */}

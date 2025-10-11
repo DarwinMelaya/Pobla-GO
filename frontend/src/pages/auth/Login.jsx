@@ -1,22 +1,73 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import logoClear from "/logoClear.png";
 import bgPobla from "/bgPobla.jpg";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     email: "",
     password: "",
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Form submitted:", formData);
-    // Handle form submission logic here
+
+    // Validate form
+    if (!formData.email || !formData.password) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await axios.post(
+        "http://localhost:5000/auth/login",
+        formData
+      );
+
+      if (response.data.success) {
+        // Store user data and token in localStorage
+        localStorage.setItem("token", response.data.token);
+        localStorage.setItem("user", JSON.stringify(response.data.user));
+
+        toast.success("Login successful!");
+
+        // Navigate based on user role or intended destination
+        const from = location.state?.from;
+        if (from) {
+          navigate(from, { replace: true });
+        } else {
+          if (response.data.user.role === "Admin") {
+            navigate("/admin-dashboard", { replace: true });
+          } else if (response.data.user.role === "Cashier") {
+            navigate("/cashier-dashboard", { replace: true });
+          } else if (response.data.user.role === "Waiter") {
+            navigate("/waiter-dashboard", { replace: true });
+          } else {
+            navigate("/dashboard", { replace: true });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("An error occurred during login. Please try again.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -139,9 +190,14 @@ const Login = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full bg-[#bf595a] hover:bg-[#a04a4b] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
+                disabled={isLoading}
+                className={`w-full font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform shadow-lg ${
+                  isLoading
+                    ? "bg-gray-400 cursor-not-allowed"
+                    : "bg-[#bf595a] hover:bg-[#a04a4b] hover:scale-105"
+                } text-white`}
               >
-                Sign In
+                {isLoading ? "Signing In..." : "Sign In"}
               </button>
 
               {/* Sign Up Link */}
