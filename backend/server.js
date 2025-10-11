@@ -39,6 +39,7 @@ app.use(passport.session());
 
 // Routes
 app.use("/auth", require("./routes/auth"));
+app.use("/inventory", require("./routes/inventory"));
 
 // Start server
 const PORT = process.env.PORT || 5000;

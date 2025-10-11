@@ -84,12 +84,12 @@ const AdminSidebar = ({ onNavigate }) => {
   };
 
   return (
-    <div className="bg-[#282c34] h-screen w-64 flex flex-col">
+    <div className="bg-[#362E2E] h-screen w-64 flex flex-col rounded-l-2xl">
       {/* Logo - Fixed at top */}
-      <div className="p-6 border-b border-gray-700 flex-shrink-0">
+      <div className="p-6 border-b border-[#4A3F3F] flex-shrink-0">
         <h1 className="text-xl font-semibold">
           <span className="text-white">POBLA</span>
-          <span className="text-[#bf595a]">GO</span>
+          <span className="text-[#C05050]">GO</span>
         </h1>
       </div>
 
@@ -106,19 +106,19 @@ const AdminSidebar = ({ onNavigate }) => {
             width: 6px;
           }
           nav::-webkit-scrollbar-track {
-            background: #1f2937;
+            background: #2A2222;
             border-radius: 3px;
           }
           nav::-webkit-scrollbar-thumb {
-            background: #4b5563;
+            background: #4A3F3F;
             border-radius: 3px;
             transition: background 0.2s ease;
           }
           nav::-webkit-scrollbar-thumb:hover {
-            background: #6b7280;
+            background: #5A4F4F;
           }
           nav::-webkit-scrollbar-corner {
-            background: #1f2937;
+            background: #2A2222;
           }
         `}</style>
 
@@ -128,18 +128,18 @@ const AdminSidebar = ({ onNavigate }) => {
             onClick={() => handleNavigation(item.path)}
             className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors relative ${
               item.isActive
-                ? "text-[#bf595a] bg-[#bf595a]/10"
+                ? "text-[#C05050] bg-[#EECCCC] rounded-r-none"
                 : "text-white hover:bg-white/10"
             }`}
           >
             <div className="flex items-center space-x-3">
               <item.icon
                 size={20}
-                className={item.isActive ? "text-[#bf595a]" : "text-white"}
+                className={item.isActive ? "text-[#C05050]" : "text-white"}
               />
               <span
                 className={
-                  item.isActive ? "text-[#bf595a] font-medium" : "text-white"
+                  item.isActive ? "text-[#C05050] font-medium" : "text-white"
                 }
               >
                 {item.text}
@@ -148,20 +148,20 @@ const AdminSidebar = ({ onNavigate }) => {
 
             {/* Active indicator bar */}
             {item.isActive && (
-              <div className="absolute right-0 top-0 bottom-0 w-1 bg-[#bf595a] rounded-l-full"></div>
+              <div className="absolute right-0 top-0 bottom-0 w-1 bg-[#C05050] rounded-l-full"></div>
             )}
           </div>
         ))}
       </nav>
 
       {/* Logout Button - Fixed at bottom */}
-      <div className="p-6 border-t border-gray-700 flex-shrink-0">
+      <div className="p-6 border-t border-[#4A3F3F] flex-shrink-0">
         <button
           onClick={handleLogout}
-          className="flex items-center space-x-3 w-full p-3 rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+          className="flex items-center space-x-3 w-full p-3 rounded-lg bg-[#C05050] text-white hover:bg-[#B04040] transition-colors"
         >
           <LogOut size={20} />
-          <span>Logout</span>
+          <span>Log Out</span>
         </button>
       </div>
     </div>

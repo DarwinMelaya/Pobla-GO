@@ -1,5 +1,11 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { LandingPage, Login, SignUp, AdminDashboard } from "../pages";
+import {
+  LandingPage,
+  Login,
+  SignUp,
+  AdminDashboard,
+  ManageInventory,
+} from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
 export const Routers = () => {
@@ -17,6 +23,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Admin">
               <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-inventory"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <ManageInventory />
             </ProtectedRoute>
           }
         />
