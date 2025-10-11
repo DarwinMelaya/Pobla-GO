@@ -37,6 +37,12 @@ const AdminSidebar = ({ onNavigate }) => {
       isActive: location.pathname === "/admin-inventory",
     },
     {
+      icon: FileText,
+      text: "Menu",
+      path: "/admin-menu",
+      isActive: location.pathname === "/admin-menu",
+    },
+    {
       icon: ClipboardList,
       text: "Manage Orders",
       path: "/admin-orders",
