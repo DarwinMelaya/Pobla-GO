@@ -3,14 +3,21 @@ import { Link } from "react-router-dom";
 import logoClear from "/logoClear.png";
 import bgPobla from "/bgPobla.jpg";
 
-const Login = () => {
+const SignUp = () => {
   const [formData, setFormData] = useState({
+    name: "",
     email: "",
+    phone: "",
     password: "",
+    role: "",
   });
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleRoleSelection = (selectedRole) => {
+    setFormData({ ...formData, role: selectedRole });
   };
 
   const handleSubmit = (e) => {
@@ -57,7 +64,7 @@ const Login = () => {
             <h1 className="text-4xl lg:text-5xl font-bold mb-2">POBLACION</h1>
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">PARES ATBP.</h2>
             <p className="text-lg lg:text-xl opacity-90">
-              Welcome back! Sign in to continue your journey
+              Join our community and discover amazing experiences
             </p>
           </div>
         </div>
@@ -70,25 +77,57 @@ const Login = () => {
           <div className="bg-white/10 backdrop-blur-md rounded-3xl shadow-2xl border border-white/20 p-8">
             {/* Header */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-bold text-white mb-2">
-                Welcome Back
-              </h1>
-              <p className="text-white/80">Sign in to your account</p>
+              <h1 className="text-3xl font-bold text-white mb-2">Sign Up</h1>
+              <p className="text-white/80">
+                Create your account to get started
+              </p>
             </div>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Email */}
+              {/* Employee Name */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  Email Address
+                  Employee Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Enter employee name"
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
+                  required
+                />
+              </div>
+
+              {/* Employee Email */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Employee Email
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="Enter your email"
+                  placeholder="Enter employee email"
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
+                  required
+                />
+              </div>
+
+              {/* Employee Phone */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Employee Phone
+                </label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Enter employee phone"
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
                   required
                 />
@@ -104,35 +143,32 @@ const Login = () => {
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="Enter your password"
+                  placeholder="Enter Password"
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
 
-              {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <input
-                    id="remember-me"
-                    name="remember-me"
-                    type="checkbox"
-                    className="h-4 w-4 text-[#bf595a] focus:ring-[#bf595a] border-white/30 rounded bg-white/20"
-                  />
-                  <label
-                    htmlFor="remember-me"
-                    className="ml-2 block text-sm text-white/90"
-                  >
-                    Remember me
-                  </label>
-                </div>
-                <div className="text-sm">
-                  <a
-                    href="#"
-                    className="text-white/80 hover:text-[#bf595a] transition-colors duration-200"
-                  >
-                    Forgot password?
-                  </a>
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Choose your role
+                </label>
+                <div className="flex gap-3 mt-2">
+                  {["Waiter", "Cashier", "Admin"].map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => handleRoleSelection(role)}
+                      className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 backdrop-blur-sm ${
+                        formData.role === role
+                          ? "bg-[#bf595a] text-white shadow-lg border border-white/30"
+                          : "bg-white/20 text-white/90 hover:bg-white/30 border border-white/30"
+                      }`}
+                    >
+                      {role}
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -141,18 +177,18 @@ const Login = () => {
                 type="submit"
                 className="w-full bg-[#bf595a] hover:bg-[#a04a4b] text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg"
               >
-                Sign In
+                Sign up
               </button>
 
-              {/* Sign Up Link */}
+              {/* Login Link */}
               <div className="text-center">
                 <p className="text-white/80">
-                  Don't have an account?{" "}
+                  Already have an account?{" "}
                   <Link
-                    to="/signup"
+                    to="/login"
                     className="text-white hover:text-[#bf595a] font-medium hover:underline transition-colors duration-200"
                   >
-                    Sign up here
+                    Login here
                   </Link>
                 </p>
               </div>
@@ -164,4 +200,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default SignUp;
