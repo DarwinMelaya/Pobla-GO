@@ -115,15 +115,67 @@ const AddInventoryModal = ({
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Unit *
                 </label>
-                <input
-                  type="text"
+                <select
                   name="unit"
                   value={formData.unit}
                   onChange={handleInputChange}
                   required
-                  placeholder="kg, pieces, liters..."
-                  className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
-                />
+                  className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white transition-all duration-200"
+                >
+                  <option value="" className="bg-gray-700 text-white">
+                    Select unit...
+                  </option>
+                  <option value="pieces" className="bg-gray-700 text-white">
+                    Pieces
+                  </option>
+                  <option value="kg" className="bg-gray-700 text-white">
+                    Kilograms (kg)
+                  </option>
+                  <option value="grams" className="bg-gray-700 text-white">
+                    Grams (g)
+                  </option>
+                  <option value="liters" className="bg-gray-700 text-white">
+                    Liters (L)
+                  </option>
+                  <option value="ml" className="bg-gray-700 text-white">
+                    Milliliters (ml)
+                  </option>
+                  <option value="boxes" className="bg-gray-700 text-white">
+                    Boxes
+                  </option>
+                  <option value="packs" className="bg-gray-700 text-white">
+                    Packs
+                  </option>
+                  <option value="bottles" className="bg-gray-700 text-white">
+                    Bottles
+                  </option>
+                  <option value="cans" className="bg-gray-700 text-white">
+                    Cans
+                  </option>
+                  <option value="bags" className="bg-gray-700 text-white">
+                    Bags
+                  </option>
+                  <option value="dozen" className="bg-gray-700 text-white">
+                    Dozen
+                  </option>
+                  <option value="custom" className="bg-gray-700 text-white">
+                    Custom...
+                  </option>
+                </select>
+                {formData.unit === "custom" && (
+                  <input
+                    type="text"
+                    name="customUnit"
+                    placeholder="Enter custom unit"
+                    className="w-full px-3 py-2 mt-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
+                    onChange={(e) => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        unit: e.target.value,
+                      }));
+                    }}
+                  />
+                )}
               </div>
             </div>
 
