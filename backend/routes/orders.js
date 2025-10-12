@@ -581,4 +581,322 @@ router.get("/stats/staff", verifyAuth, verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /orders/sales/daily - Get daily sales summary (Admin only)
+router.get("/sales/daily", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { date } = req.query;
+    const targetDate = date ? new Date(date) : new Date();
+
+    // Set to start and end of day
+    const startOfDay = new Date(targetDate);
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const endOfDay = new Date(targetDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const dailyStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfDay, $lte: endOfDay },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+          payment_methods: {
+            $push: "$payment_method",
+          },
+        },
+      },
+    ]);
+
+    // Get hourly breakdown
+    const hourlyStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfDay, $lte: endOfDay },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: { $hour: "$created_at" },
+          orders: { $sum: 1 },
+          revenue: { $sum: "$total_amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get payment method breakdown
+    const paymentStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfDay, $lte: endOfDay },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$payment_method",
+          count: { $sum: 1 },
+          total_amount: { $sum: "$total_amount" },
+        },
+      },
+    ]);
+
+    res.json({
+      date: targetDate.toISOString().split("T")[0],
+      summary: dailyStats[0] || {
+        total_orders: 0,
+        total_revenue: 0,
+        average_order_value: 0,
+      },
+      hourly_breakdown: hourlyStats,
+      payment_methods: paymentStats,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/sales/weekly - Get weekly sales summary (Admin only)
+router.get("/sales/weekly", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { week_start } = req.query;
+    let startOfWeek;
+
+    if (week_start) {
+      startOfWeek = new Date(week_start);
+    } else {
+      // Get start of current week (Monday)
+      const today = new Date();
+      const dayOfWeek = today.getDay();
+      const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      startOfWeek = new Date(today.setDate(diff));
+    }
+
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(endOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    const weeklyStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfWeek, $lte: endOfWeek },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+        },
+      },
+    ]);
+
+    // Get daily breakdown for the week
+    const dailyBreakdown = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfWeek, $lte: endOfWeek },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: { $dayOfWeek: "$created_at" },
+          orders: { $sum: 1 },
+          revenue: { $sum: "$total_amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    res.json({
+      week_start: startOfWeek.toISOString().split("T")[0],
+      week_end: endOfWeek.toISOString().split("T")[0],
+      summary: weeklyStats[0] || {
+        total_orders: 0,
+        total_revenue: 0,
+        average_order_value: 0,
+      },
+      daily_breakdown: dailyBreakdown,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/sales/monthly - Get monthly sales summary (Admin only)
+router.get("/sales/monthly", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { year, month } = req.query;
+    let targetDate;
+
+    if (year && month) {
+      targetDate = new Date(year, month - 1, 1);
+    } else {
+      targetDate = new Date();
+      targetDate.setDate(1);
+    }
+
+    const startOfMonth = new Date(targetDate);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(
+      targetDate.getFullYear(),
+      targetDate.getMonth() + 1,
+      0
+    );
+    endOfMonth.setHours(23, 59, 59, 999);
+
+    const monthlyStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfMonth, $lte: endOfMonth },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+        },
+      },
+    ]);
+
+    // Get weekly breakdown for the month
+    const weeklyBreakdown = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfMonth, $lte: endOfMonth },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: { $week: "$created_at" },
+          orders: { $sum: 1 },
+          revenue: { $sum: "$total_amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get top selling items for the month
+    const topItems = await OrderItem.aggregate([
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order_id",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      {
+        $unwind: "$order",
+      },
+      {
+        $match: {
+          "order.created_at": { $gte: startOfMonth, $lte: endOfMonth },
+          "order.status": { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$item_name",
+          total_quantity: { $sum: "$quantity" },
+          total_revenue: { $sum: "$total_price" },
+        },
+      },
+      { $sort: { total_quantity: -1 } },
+      { $limit: 10 },
+    ]);
+
+    res.json({
+      year: targetDate.getFullYear(),
+      month: targetDate.getMonth() + 1,
+      month_name: targetDate.toLocaleString("default", { month: "long" }),
+      summary: monthlyStats[0] || {
+        total_orders: 0,
+        total_revenue: 0,
+        average_order_value: 0,
+      },
+      weekly_breakdown: weeklyBreakdown,
+      top_selling_items: topItems,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/transactions - Get detailed transaction records (Admin only)
+router.get("/transactions", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const {
+      date_from,
+      date_to,
+      payment_method,
+      status,
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    let filter = {};
+
+    if (date_from || date_to) {
+      filter.created_at = {};
+      if (date_from) {
+        filter.created_at.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        filter.created_at.$lte = new Date(date_to);
+      }
+    }
+
+    if (payment_method) {
+      filter.payment_method = payment_method;
+    }
+
+    if (status) {
+      filter.status = status;
+    }
+
+    const transactions = await Order.find(filter)
+      .populate("staff_member", "name")
+      .populate({
+        path: "order_items",
+        populate: {
+          path: "menu_item_id",
+          select: "name category",
+        },
+      })
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Order.countDocuments(filter);
+
+    res.json({
+      transactions,
+      totalPages: Math.ceil(total / limit),
+      currentPage: parseInt(page),
+      total,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;
