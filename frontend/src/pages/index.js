@@ -9,6 +9,7 @@ export { default as ManageInventory } from "./Admin/ManageInventory";
 export { default as AdminMenu } from "./Admin/AdminMenu";
 export { default as AdminManageOrders } from "./Admin/AdminManageOrders";
 export { default as AdminReservations } from "./Admin/AdminReservations";
+export { default as AdminViewSales } from "./Admin/AdminViewSales";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";
