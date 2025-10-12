@@ -6,12 +6,10 @@ import {
   Plus,
   Edit,
   Trash2,
-  Eye,
   ToggleLeft,
   ToggleRight,
   Search,
   Filter,
-  X,
 } from "lucide-react";
 
 const AdminMenu = () => {
@@ -28,8 +26,6 @@ const AdminMenu = () => {
   const [categories, setCategories] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -240,33 +236,6 @@ const AdminMenu = () => {
     }
   };
 
-  // Show item details
-  const handleShowDetails = async (item) => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/${item._id}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setSelectedItem(data);
-        setShowDetailsModal(true);
-      }
-    } catch (err) {
-      setError("Failed to fetch item details");
-    }
-  };
-
-  // Close details modal
-  const handleCloseDetailsModal = () => {
-    setShowDetailsModal(false);
-    setSelectedItem(null);
-  };
-
   // Load data on component mount
   useEffect(() => {
     fetchMenuItems();
@@ -455,13 +424,6 @@ const AdminMenu = () => {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => handleShowDetails(item)}
-                      className="flex-1 px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Eye className="w-3 h-3" />
-                      View
-                    </button>
-                    <button
                       onClick={() => handleEdit(item)}
                       className="flex-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200 transition-colors flex items-center justify-center gap-1"
                     >
@@ -528,111 +490,6 @@ const AdminMenu = () => {
           loading={loading}
           itemName={itemToDelete?.name}
         />
-
-        {/* Item Details Modal */}
-        {showDetailsModal && selectedItem && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-hidden">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    {selectedItem.name}
-                  </h2>
-                  <button
-                    onClick={handleCloseDetailsModal}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-
-                {selectedItem.image && (
-                  <div className="mb-4">
-                    <img
-                      src={selectedItem.image}
-                      alt={selectedItem.name}
-                      className="w-full h-64 object-cover rounded-lg"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold text-gray-800">Description</h3>
-                    <p className="text-gray-600">
-                      {selectedItem.description || "No description available"}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="font-semibold text-gray-800">Category</h3>
-                      <p className="text-gray-600">{selectedItem.category}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-800">Price</h3>
-                      <p className="text-gray-600">₱{selectedItem.price}</p>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-gray-800">
-                      Available Quantity
-                    </h3>
-                    <p
-                      className={`text-lg font-medium ${
-                        selectedItem.availableQuantity > 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {selectedItem.availableQuantity || 0} servings can be made
-                    </p>
-                  </div>
-
-                  {selectedItem.preparation_time && (
-                    <div>
-                      <h3 className="font-semibold text-gray-800">
-                        Preparation Time
-                      </h3>
-                      <p className="text-gray-600">
-                        {selectedItem.preparation_time} minutes
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedItem.serving_size && (
-                    <div>
-                      <h3 className="font-semibold text-gray-800">
-                        Serving Size
-                      </h3>
-                      <p className="text-gray-600">
-                        {selectedItem.serving_size}
-                      </p>
-                    </div>
-                  )}
-
-                  {selectedItem.ingredients &&
-                    selectedItem.ingredients.length > 0 && (
-                      <div>
-                        <h3 className="font-semibold text-gray-800">
-                          Ingredients
-                        </h3>
-                        <ul className="list-disc list-inside text-gray-600">
-                          {selectedItem.ingredients.map((ingredient, index) => (
-                            <li key={index}>
-                              {ingredient.inventoryItem?.name || "Unknown"} -{" "}
-                              {ingredient.quantity} {ingredient.unit}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </Layout>
   );

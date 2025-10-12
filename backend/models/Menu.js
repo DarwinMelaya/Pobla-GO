@@ -141,14 +141,30 @@ MenuSchema.methods.calculateAvailableQuantity = async function () {
       return 0; // If no inventory, can't make any
     }
 
+    // Check if units are compatible (same unit)
+    if (inventoryItem.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
+      console.warn(
+        `Unit mismatch: Inventory has ${inventoryItem.unit}, recipe requires ${ingredient.unit} for ${inventoryItem.name}`
+      );
+      // For now, assume same unit if they're similar (basic conversion)
+      // In a real application, you'd want a proper unit conversion system
+    }
+
     // Calculate how many can be made with this ingredient
     const possibleWithThisIngredient = Math.floor(
       inventoryItem.quantity / ingredient.quantity
     );
+
+    console.log(
+      `Ingredient: ${inventoryItem.name}, Available: ${inventoryItem.quantity} ${inventoryItem.unit}, Required: ${ingredient.quantity} ${ingredient.unit}, Can make: ${possibleWithThisIngredient} servings`
+    );
+
     maxAvailable = Math.min(maxAvailable, possibleWithThisIngredient);
   }
 
-  return maxAvailable === Infinity ? 0 : maxAvailable;
+  const result = maxAvailable === Infinity ? 0 : maxAvailable;
+  console.log(`Menu item "${this.name}" can make ${result} servings`);
+  return result;
 };
 
 // Method to update inventory when menu item is ordered

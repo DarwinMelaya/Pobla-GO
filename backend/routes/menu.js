@@ -69,6 +69,11 @@ router.get("/", async (req, res) => {
       })
     );
 
+    // Add cache control headers to prevent stale data
+    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+    res.set("Pragma", "no-cache");
+    res.set("Expires", "0");
+
     res.json(menuItemsWithQuantity);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
