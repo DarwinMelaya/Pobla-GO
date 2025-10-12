@@ -6,6 +6,7 @@ import {
   AdminDashboard,
   ManageInventory,
   AdminMenu,
+  StaffDashboard,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -44,38 +45,12 @@ export const Routers = () => {
           }
         />
 
-        {/* Protected Dashboard Pages */}
+        {/* Protected Staff Pages */}
         <Route
-          path="/dashboard"
+          path="/staff-dashboard"
           element={
-            <ProtectedRoute>
-              <div className="min-h-screen flex items-center justify-center">
-                <h1 className="text-2xl font-bold">Welcome to Dashboard!</h1>
-              </div>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Protected Cashier Pages */}
-        <Route
-          path="/cashier-dashboard"
-          element={
-            <ProtectedRoute requiredRole="Cashier">
-              <div className="min-h-screen flex items-center justify-center">
-                <h1 className="text-2xl font-bold">Cashier Dashboard</h1>
-              </div>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Protected Waiter Pages */}
-        <Route
-          path="/waiter-dashboard"
-          element={
-            <ProtectedRoute requiredRole="Waiter">
-              <div className="min-h-screen flex items-center justify-center">
-                <h1 className="text-2xl font-bold">Waiter Dashboard</h1>
-              </div>
+            <ProtectedRoute requiredRole="Staff">
+              <StaffDashboard />
             </ProtectedRoute>
           }
         />
