@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
 import AddOrders from "../../components/Modals/Admin/AddOrders";
+import StaffPerformanceModal from "../../components/Modals/Admin/StaffPerformanceModal";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -18,6 +19,7 @@ import {
   Edit,
   Trash2,
   Plus,
+  BarChart3,
 } from "lucide-react";
 
 const AdminManageOrders = () => {
@@ -34,6 +36,7 @@ const AdminManageOrders = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
+  const [showStaffPerformanceModal, setShowStaffPerformanceModal] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -477,6 +480,13 @@ const AdminManageOrders = () => {
             <p className="text-gray-600">View and manage all customer orders</p>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={() => setShowStaffPerformanceModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <BarChart3 size={20} />
+              <span>Staff Performance</span>
+            </button>
             <button
               onClick={openAddOrderModal}
               className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -976,6 +986,12 @@ const AdminManageOrders = () => {
           onCreateTestMenuData={createTestMenuData}
           onDebugDatabase={debugDatabase}
           onForceTestData={forceTestData}
+        />
+
+        {/* Staff Performance Modal */}
+        <StaffPerformanceModal
+          isOpen={showStaffPerformanceModal}
+          onClose={() => setShowStaffPerformanceModal(false)}
         />
       </div>
     </Layout>

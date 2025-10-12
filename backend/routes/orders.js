@@ -413,4 +413,82 @@ router.get("/stats/summary", verifyAuth, async (req, res) => {
   }
 });
 
+// GET /orders/stats/staff - Get staff performance statistics (Admin only)
+router.get("/stats/staff", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { date_from, date_to } = req.query;
+
+    let filter = {};
+    if (date_from || date_to) {
+      filter.created_at = {};
+      if (date_from) {
+        filter.created_at.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        filter.created_at.$lte = new Date(date_to);
+      }
+    }
+
+    const staffStats = await Order.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: "$staff_member",
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+          pending_orders: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
+          },
+          completed_orders: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+          cancelled_orders: {
+            $sum: { $cond: [{ $eq: ["$status", "cancelled"] }, 1, 0] },
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "staff_info",
+        },
+      },
+      {
+        $unwind: "$staff_info",
+      },
+      {
+        $project: {
+          staff_id: "$_id",
+          staff_name: "$staff_info.name",
+          staff_role: "$staff_info.role",
+          total_orders: 1,
+          total_revenue: 1,
+          average_order_value: 1,
+          pending_orders: 1,
+          completed_orders: 1,
+          cancelled_orders: 1,
+          completion_rate: {
+            $cond: [
+              { $gt: ["$total_orders", 0] },
+              { $multiply: [{ $divide: ["$completed_orders", "$total_orders"] }, 100] },
+              0,
+            ],
+          },
+        },
+      },
+      { $sort: { total_orders: -1 } },
+    ]);
+
+    res.json({
+      staff_performance: staffStats,
+      total_staff: staffStats.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;
