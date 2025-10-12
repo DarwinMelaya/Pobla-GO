@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
 import AddMenuModal from "../../components/Modals/Admin/AddMenuModal";
 import DeleteMenuModal from "../../components/Modals/Admin/DeleteMenuModal";
+import ViewMenuModal from "../../components/Modals/Admin/ViewMenuModal";
+import toast from "react-hot-toast";
 import {
   Plus,
   Edit,
@@ -10,14 +12,13 @@ import {
   ToggleRight,
   Search,
   Filter,
+  Eye,
 } from "lucide-react";
 
 const AdminMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [availableInventory, setAvailableInventory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
@@ -26,6 +27,8 @@ const AdminMenu = () => {
   const [categories, setCategories] = useState([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [itemToView, setItemToView] = useState(null);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -60,7 +63,7 @@ const AdminMenu = () => {
       const data = await response.json();
       setMenuItems(data);
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -109,8 +112,6 @@ const AdminMenu = () => {
   // Create or update menu item
   const handleSubmit = async (formData) => {
     setLoading(true);
-    setError("");
-    setSuccess("");
 
     try {
       const token = getAuthToken();
@@ -135,7 +136,7 @@ const AdminMenu = () => {
       }
 
       const data = await response.json();
-      setSuccess(
+      toast.success(
         editingItem
           ? "Menu item updated successfully"
           : "Menu item created successfully"
@@ -144,7 +145,7 @@ const AdminMenu = () => {
       setEditingItem(null);
       fetchMenuItems();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -175,12 +176,12 @@ const AdminMenu = () => {
         throw new Error("Failed to delete menu item");
       }
 
-      setSuccess("Menu item deleted successfully");
+      toast.success("Menu item deleted successfully");
       setShowDeleteModal(false);
       setItemToDelete(null);
       fetchMenuItems();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -190,6 +191,18 @@ const AdminMenu = () => {
   const handleCloseDeleteModal = () => {
     setShowDeleteModal(false);
     setItemToDelete(null);
+  };
+
+  // Show view modal
+  const handleViewClick = (item) => {
+    setItemToView(item);
+    setShowViewModal(true);
+  };
+
+  // Close view modal
+  const handleCloseViewModal = () => {
+    setShowViewModal(false);
+    setItemToView(null);
   };
 
   // Edit menu item
@@ -202,8 +215,6 @@ const AdminMenu = () => {
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingItem(null);
-    setError("");
-    setSuccess("");
   };
 
   // Toggle availability
@@ -227,10 +238,10 @@ const AdminMenu = () => {
       }
 
       const data = await response.json();
-      setSuccess(data.message);
+      toast.success(data.message);
       fetchMenuItems();
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -264,18 +275,6 @@ const AdminMenu = () => {
             Add New Menu Item
           </button>
         </div>
-
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-            {success}
-          </div>
-        )}
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            {error}
-          </div>
-        )}
 
         {/* Search and Filter */}
         <div className="bg-white p-4 rounded-lg shadow mb-6 border border-[#DCDCDC]">
@@ -424,6 +423,13 @@ const AdminMenu = () => {
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
+                      onClick={() => handleViewClick(item)}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors flex items-center justify-center"
+                      title="View Details"
+                    >
+                      <Eye className="w-3 h-3" />
+                    </button>
+                    <button
                       onClick={() => handleEdit(item)}
                       className="flex-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200 transition-colors flex items-center justify-center gap-1"
                     >
@@ -489,6 +495,13 @@ const AdminMenu = () => {
           onConfirm={handleDeleteConfirm}
           loading={loading}
           itemName={itemToDelete?.name}
+        />
+
+        {/* View Menu Modal */}
+        <ViewMenuModal
+          isOpen={showViewModal}
+          onClose={handleCloseViewModal}
+          menuItem={itemToView}
         />
       </div>
     </Layout>
