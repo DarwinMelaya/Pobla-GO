@@ -24,6 +24,8 @@ const AddOrders = ({
   const [showCashPayment, setShowCashPayment] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
+  const [tableStatus, setTableStatus] = useState(null);
+  const [checkingTable, setCheckingTable] = useState(false);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -31,6 +33,35 @@ const AddOrders = ({
   // Get auth token from localStorage
   const getAuthToken = () => {
     return localStorage.getItem("token");
+  };
+
+  // Check table availability
+  const checkTableAvailability = async (tableNumber) => {
+    if (!tableNumber) return;
+    
+    setCheckingTable(true);
+    try {
+      const token = getAuthToken();
+      const response = await fetch(`${API_BASE}/orders/tables/${tableNumber}/status`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const status = await response.json();
+        setTableStatus(status);
+        
+        if (!status.available) {
+          toast.error(`Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking table status:", error);
+    } finally {
+      setCheckingTable(false);
+    }
   };
 
   // Format currency
@@ -43,11 +74,18 @@ const AddOrders = ({
 
   // Add item to order
   const addItemToOrder = (menuItem) => {
+    const availableServings = menuItem.availableServings || menuItem.servings || 0;
     const existingItem = orderForm.order_items.find(
       (item) => item.menu_item_id === menuItem._id
     );
 
     if (existingItem) {
+      // Check if we can add more of this item
+      if (existingItem.quantity >= availableServings) {
+        toast.error(`Only ${availableServings} servings available for ${menuItem.name}`);
+        return;
+      }
+      
       // Update quantity if item already exists
       setOrderForm((prev) => ({
         ...prev,
@@ -62,6 +100,12 @@ const AddOrders = ({
         ),
       }));
     } else {
+      // Check if item has available servings
+      if (availableServings <= 0) {
+        toast.error(`No servings available for ${menuItem.name}`);
+        return;
+      }
+
       // Add new item
       const newItem = {
         item_name: menuItem.name,
@@ -84,6 +128,19 @@ const AddOrders = ({
     if (newQuantity <= 0) {
       removeItemFromOrder(index);
       return;
+    }
+
+    // Find the menu item to check available servings
+    const orderItem = orderForm.order_items[index];
+    if (orderItem && orderItem.menu_item_id) {
+      const menuItem = menuItems.find(item => item._id === orderItem.menu_item_id);
+      if (menuItem) {
+        const availableServings = menuItem.availableServings || menuItem.servings || 0;
+        if (newQuantity > availableServings) {
+          toast.error(`Only ${availableServings} servings available for ${menuItem.name}`);
+          return;
+        }
+      }
     }
 
     setOrderForm((prev) => ({
@@ -185,6 +242,15 @@ const AddOrders = ({
       });
 
       if (!response.ok) {
+        const errorData = await response.json();
+        if (errorData.message && errorData.message.includes("currently occupied")) {
+          toast.error(errorData.message);
+          // Update table status if provided
+          if (errorData.tableStatus) {
+            setTableStatus(errorData.tableStatus);
+          }
+          return;
+        }
         throw new Error("Failed to create order");
       }
 
@@ -554,11 +620,21 @@ const AddOrders = ({
                     orderForm.order_items.find(
                       (orderItem) => orderItem.menu_item_id === item._id
                     )?.quantity || 0;
+                  const availableServings = item.availableServings || item.servings || 0;
+                  const isOutOfStock = availableServings <= 0;
+                  const isLowStock = availableServings <= 2 && availableServings > 0;
+                  
                   return (
                     <div
                       key={item._id || index}
-                      className="relative bg-[#C05050] rounded-lg p-4 cursor-pointer hover:bg-[#B04040] transition-colors min-h-[100px] flex flex-col justify-between"
-                      onClick={() => addItemToOrder(item)}
+                      className={`relative rounded-lg p-4 cursor-pointer transition-colors min-h-[100px] flex flex-col justify-between ${
+                        isOutOfStock 
+                          ? "bg-gray-400 cursor-not-allowed opacity-60" 
+                          : isLowStock 
+                            ? "bg-orange-500 hover:bg-orange-600" 
+                            : "bg-[#C05050] hover:bg-[#B04040]"
+                      }`}
+                      onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
                       {/* Quantity Badge */}
                       {itemQuantity > 0 && (
@@ -575,6 +651,16 @@ const AddOrders = ({
                         <p className="text-xs opacity-90">
                           {formatCurrency(item.price || 0)}
                         </p>
+                        {/* Show available servings with status indicator */}
+                        <div className="text-xs opacity-75 mt-1">
+                          <p>Servings: {availableServings}</p>
+                          {isOutOfStock && (
+                            <p className="text-red-200 font-bold">OUT OF STOCK</p>
+                          )}
+                          {isLowStock && !isOutOfStock && (
+                            <p className="text-yellow-200 font-bold">LOW STOCK</p>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -801,18 +887,49 @@ const AddOrders = ({
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Table Number *
                     </label>
-                    <input
-                      type="text"
-                      value={orderForm.table_number}
-                      onChange={(e) =>
-                        setOrderForm((prev) => ({
-                          ...prev,
-                          table_number: e.target.value,
-                        }))
-                      }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                      placeholder="Enter table number"
-                    />
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={orderForm.table_number}
+                        onChange={(e) => {
+                          setOrderForm((prev) => ({
+                            ...prev,
+                            table_number: e.target.value,
+                          }));
+                          // Clear table status when table number changes
+                          setTableStatus(null);
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                        placeholder="Enter table number"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => checkTableAvailability(orderForm.table_number)}
+                        disabled={!orderForm.table_number || checkingTable}
+                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                      >
+                        {checkingTable ? "Checking..." : "Check"}
+                      </button>
+                    </div>
+                    {/* Table Status Indicator */}
+                    {tableStatus && (
+                      <div className={`mt-2 p-2 rounded-lg text-sm ${
+                        tableStatus.available 
+                          ? "bg-green-100 text-green-800 border border-green-300" 
+                          : "bg-red-100 text-red-800 border border-red-300"
+                      }`}>
+                        {tableStatus.available ? (
+                          <span>✅ Table {orderForm.table_number} is available</span>
+                        ) : (
+                          <div>
+                            <span>❌ Table {orderForm.table_number} is occupied</span>
+                            <div className="text-xs mt-1">
+                              Customer: {tableStatus.customer} | Status: {tableStatus.status} | Staff: {tableStatus.staff}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">

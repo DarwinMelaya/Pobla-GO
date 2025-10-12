@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
 import AddOrders from "../../components/Modals/Admin/AddOrders";
 import StaffPerformanceModal from "../../components/Modals/Admin/StaffPerformanceModal";
+import TableStatusModal from "../../components/Modals/Admin/TableStatusModal";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -37,6 +38,7 @@ const AdminManageOrders = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
   const [showStaffPerformanceModal, setShowStaffPerformanceModal] = useState(false);
+  const [showTableStatusModal, setShowTableStatusModal] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -480,6 +482,13 @@ const AdminManageOrders = () => {
             <p className="text-gray-600">View and manage all customer orders</p>
           </div>
           <div className="flex space-x-3">
+            <button
+              onClick={() => setShowTableStatusModal(true)}
+              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+            >
+              <Table size={20} />
+              <span>Table Status</span>
+            </button>
             <button
               onClick={() => setShowStaffPerformanceModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -992,6 +1001,12 @@ const AdminManageOrders = () => {
         <StaffPerformanceModal
           isOpen={showStaffPerformanceModal}
           onClose={() => setShowStaffPerformanceModal(false)}
+        />
+
+        {/* Table Status Modal */}
+        <TableStatusModal
+          isOpen={showTableStatusModal}
+          onClose={() => setShowTableStatusModal(false)}
         />
       </div>
     </Layout>

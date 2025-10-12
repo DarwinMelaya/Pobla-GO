@@ -172,6 +172,11 @@ MenuSchema.methods.calculateAvailableQuantity = async function () {
   return result;
 };
 
+// Method to check if sufficient servings are available
+MenuSchema.methods.hasSufficientServings = function (quantity = 1) {
+  return this.servings >= quantity;
+};
+
 // Method to update inventory when menu item is ordered
 MenuSchema.methods.updateInventoryOnOrder = async function (quantity = 1) {
   const Inventory = mongoose.model("Inventory");

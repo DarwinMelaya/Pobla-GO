@@ -67,6 +67,63 @@ OrderSchema.virtual("order_items", {
   foreignField: "order_id",
 });
 
+// Static method to check if a table is available
+OrderSchema.statics.isTableAvailable = async function (tableNumber) {
+  const activeOrder = await this.findOne({
+    table_number: tableNumber,
+    status: { $in: ["pending", "preparing", "ready"] },
+  });
+  return !activeOrder; // Table is available if no active order exists
+};
+
+// Static method to get table status
+OrderSchema.statics.getTableStatus = async function (tableNumber) {
+  const activeOrder = await this.findOne({
+    table_number: tableNumber,
+    status: { $in: ["pending", "preparing", "ready"] },
+  }).populate("staff_member", "name");
+
+  if (!activeOrder) {
+    return { available: true, order: null };
+  }
+
+  return {
+    available: false,
+    order: activeOrder,
+    status: activeOrder.status,
+    customer: activeOrder.customer_name,
+    staff: activeOrder.staff_member?.name || "Unknown",
+  };
+};
+
+// Static method to get all table statuses
+OrderSchema.statics.getAllTableStatuses = async function () {
+  const activeOrders = await this.find({
+    status: { $in: ["pending", "preparing", "ready"] },
+  }).populate("staff_member", "name");
+
+  const tableStatuses = {};
+
+  // Get all unique table numbers from active orders
+  const tableNumbers = [
+    ...new Set(activeOrders.map((order) => order.table_number)),
+  ];
+
+  // Mark occupied tables
+  tableNumbers.forEach((tableNumber) => {
+    const order = activeOrders.find((o) => o.table_number === tableNumber);
+    tableStatuses[tableNumber] = {
+      available: false,
+      order: order,
+      status: order.status,
+      customer: order.customer_name,
+      staff: order.staff_member?.name || "Unknown",
+    };
+  });
+
+  return tableStatuses;
+};
+
 // Ensure virtual fields are serialized
 OrderSchema.set("toJSON", { virtuals: true });
 OrderSchema.set("toObject", { virtuals: true });

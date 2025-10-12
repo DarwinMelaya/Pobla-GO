@@ -39,6 +39,38 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+// GET /menu/stock - Get menu items with stock information (Admin only)
+router.get("/stock", verifyAdmin, async (req, res) => {
+  try {
+    const menuItems = await Menu.find({})
+      .populate("ingredients.inventoryItem", "name category unit quantity")
+      .populate("created_by", "name")
+      .sort({ createdAt: -1 });
+
+    const menuItemsWithStock = await Promise.all(
+      menuItems.map(async (item) => {
+        const availableQuantity = await item.calculateAvailableQuantity();
+        return {
+          ...item.toObject(),
+          availableQuantity,
+          availableServings: item.servings,
+          stockStatus:
+            item.servings <= 0
+              ? "out_of_stock"
+              : item.servings <= 2
+              ? "low_stock"
+              : "in_stock",
+        };
+      })
+    );
+
+    res.json(menuItemsWithStock);
+  } catch (error) {
+    console.error("Menu stock API error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // GET /menu - Get all menu items (public access)
 router.get("/", async (req, res) => {
   try {
@@ -63,13 +95,14 @@ router.get("/", async (req, res) => {
     console.log("Found menu items:", menuItems.length);
     console.log("Raw menu items from DB:", menuItems);
 
-    // Add available quantity to each menu item
+    // Add available quantity and servings info to each menu item
     const menuItemsWithQuantity = await Promise.all(
       menuItems.map(async (item) => {
         const availableQuantity = await item.calculateAvailableQuantity();
         return {
           ...item.toObject(),
           availableQuantity,
+          availableServings: item.servings, // Include current servings
         };
       })
     );

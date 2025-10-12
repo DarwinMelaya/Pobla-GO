@@ -157,6 +157,16 @@ router.post("/", verifyAuth, async (req, res) => {
       });
     }
 
+    // Check if table is available
+    const isTableAvailable = await Order.isTableAvailable(table_number);
+    if (!isTableAvailable) {
+      const tableStatus = await Order.getTableStatus(table_number);
+      return res.status(400).json({
+        message: `Table ${table_number} is currently occupied. Current order status: ${tableStatus.status}`,
+        tableStatus: tableStatus,
+      });
+    }
+
     // Calculate total amount
     let total_amount = 0;
     const validated_items = [];
@@ -201,17 +211,29 @@ router.post("/", verifyAuth, async (req, res) => {
 
     await OrderItem.insertMany(orderItems);
 
-    // Update inventory for menu items
+    // Update inventory and servings for menu items
     for (const item of order_items) {
       if (item.menu_item_id) {
         try {
           const menuItem = await Menu.findById(item.menu_item_id);
           if (menuItem) {
+            // Check if sufficient servings are available
+            if (!menuItem.hasSufficientServings(item.quantity)) {
+              return res.status(400).json({
+                message: `Insufficient servings for ${menuItem.name}. Available: ${menuItem.servings}, Required: ${item.quantity}`,
+              });
+            }
+
+            // Update inventory (ingredients)
             await menuItem.updateInventoryOnOrder(item.quantity);
+
+            // Reduce servings
+            menuItem.servings -= item.quantity;
+            await menuItem.save();
           }
         } catch (error) {
           console.error(
-            `Failed to update inventory for menu item ${item.menu_item_id}:`,
+            `Failed to update inventory/servings for menu item ${item.menu_item_id}:`,
             error
           );
           // Continue processing other items
@@ -294,6 +316,28 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
+    // If order is being cancelled, restore servings
+    if (status === "cancelled" && order.status !== "cancelled") {
+      const orderItems = await OrderItem.find({ order_id: order._id });
+      for (const item of orderItems) {
+        if (item.menu_item_id) {
+          try {
+            const menuItem = await Menu.findById(item.menu_item_id);
+            if (menuItem) {
+              // Restore servings
+              menuItem.servings += item.quantity;
+              await menuItem.save();
+            }
+          } catch (error) {
+            console.error(
+              `Failed to restore servings for menu item ${item.menu_item_id}:`,
+              error
+            );
+          }
+        }
+      }
+    }
+
     order.status = status;
     await order.save();
 
@@ -340,6 +384,26 @@ router.delete("/:id", verifyAuth, async (req, res) => {
       order.staff_member.toString() !== req.user._id.toString()
     ) {
       return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Restore servings for menu items before deleting
+    const orderItems = await OrderItem.find({ order_id: order._id });
+    for (const item of orderItems) {
+      if (item.menu_item_id) {
+        try {
+          const menuItem = await Menu.findById(item.menu_item_id);
+          if (menuItem) {
+            // Restore servings
+            menuItem.servings += item.quantity;
+            await menuItem.save();
+          }
+        } catch (error) {
+          console.error(
+            `Failed to restore servings for menu item ${item.menu_item_id}:`,
+            error
+          );
+        }
+      }
     }
 
     // Delete order items first
@@ -413,6 +477,27 @@ router.get("/stats/summary", verifyAuth, async (req, res) => {
   }
 });
 
+// GET /orders/tables/status - Get all table statuses
+router.get("/tables/status", verifyAuth, async (req, res) => {
+  try {
+    const tableStatuses = await Order.getAllTableStatuses();
+    res.json({ tableStatuses });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/tables/:tableNumber/status - Get specific table status
+router.get("/tables/:tableNumber/status", verifyAuth, async (req, res) => {
+  try {
+    const { tableNumber } = req.params;
+    const tableStatus = await Order.getTableStatus(tableNumber);
+    res.json(tableStatus);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // GET /orders/stats/staff - Get staff performance statistics (Admin only)
 router.get("/stats/staff", verifyAuth, verifyAdmin, async (req, res) => {
   try {
@@ -473,7 +558,12 @@ router.get("/stats/staff", verifyAuth, verifyAdmin, async (req, res) => {
           completion_rate: {
             $cond: [
               { $gt: ["$total_orders", 0] },
-              { $multiply: [{ $divide: ["$completed_orders", "$total_orders"] }, 100] },
+              {
+                $multiply: [
+                  { $divide: ["$completed_orders", "$total_orders"] },
+                  100,
+                ],
+              },
               0,
             ],
           },
