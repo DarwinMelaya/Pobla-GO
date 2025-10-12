@@ -51,8 +51,8 @@ const verifyAdmin = async (req, res, next) => {
   next();
 };
 
-// GET /orders - Get all orders (Admin only)
-router.get("/", verifyAuth, verifyAdmin, async (req, res) => {
+// GET /orders - Get all orders (Admin and Staff)
+router.get("/", verifyAuth, async (req, res) => {
   try {
     const {
       status,
@@ -126,11 +126,8 @@ router.get("/:id", verifyAuth, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Check if user can access this order (Admin or Staff who created it)
-    if (
-      req.user.role !== "Admin" &&
-      order.staff_member._id.toString() !== req.user._id.toString()
-    ) {
+    // Check if user can access this order (Admin or Staff)
+    if (req.user.role !== "Admin" && req.user.role !== "Staff") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -249,11 +246,8 @@ router.put("/:id", verifyAuth, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Check if user can update this order (Admin or Staff who created it)
-    if (
-      req.user.role !== "Admin" &&
-      order.staff_member.toString() !== req.user._id.toString()
-    ) {
+    // Check if user can update this order (Admin or Staff)
+    if (req.user.role !== "Admin" && req.user.role !== "Staff") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -295,11 +289,8 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
       return res.status(404).json({ message: "Order not found" });
     }
 
-    // Check if user can update this order (Admin or Staff who created it)
-    if (
-      req.user.role !== "Admin" &&
-      order.staff_member.toString() !== req.user._id.toString()
-    ) {
+    // Check if user can update this order (Admin or Staff)
+    if (req.user.role !== "Admin" && req.user.role !== "Staff") {
       return res.status(403).json({ message: "Access denied" });
     }
 
@@ -334,13 +325,21 @@ router.put("/:id/payment", verifyAuth, verifyAdmin, async (req, res) => {
   }
 });
 
-// DELETE /orders/:id - Delete order (Admin only)
-router.delete("/:id", verifyAuth, verifyAdmin, async (req, res) => {
+// DELETE /orders/:id - Delete order (Admin and Staff)
+router.delete("/:id", verifyAuth, async (req, res) => {
   try {
     const order = await Order.findById(req.params.id);
 
     if (!order) {
       return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Check if user can delete this order (Admin or Staff who created it)
+    if (
+      req.user.role !== "Admin" &&
+      order.staff_member.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied" });
     }
 
     // Delete order items first
@@ -355,8 +354,8 @@ router.delete("/:id", verifyAuth, verifyAdmin, async (req, res) => {
   }
 });
 
-// GET /orders/stats/summary - Get order statistics (Admin only)
-router.get("/stats/summary", verifyAuth, verifyAdmin, async (req, res) => {
+// GET /orders/stats/summary - Get order statistics (Admin and Staff)
+router.get("/stats/summary", verifyAuth, async (req, res) => {
   try {
     const { date_from, date_to } = req.query;
 
