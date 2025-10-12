@@ -43,6 +43,8 @@ const AdminManageOrders = () => {
     payment_method: "cash",
     order_items: [],
   });
+  const [cashAmount, setCashAmount] = useState("");
+  const [showCashPayment, setShowCashPayment] = useState(false);
   const [stats, setStats] = useState({
     total_orders: 0,
     total_revenue: 0,
@@ -235,6 +237,14 @@ const AdminManageOrders = () => {
         return;
       }
 
+      // Validate cash payment if payment method is cash
+      if (orderForm.payment_method === "cash" && !isCashPaymentValid()) {
+        toast.error(
+          "Cash amount must be greater than or equal to total amount"
+        );
+        return;
+      }
+
       const token = getAuthToken();
       const response = await fetch(`${API_BASE}/orders`, {
         method: "POST",
@@ -258,6 +268,8 @@ const AdminManageOrders = () => {
         payment_method: "cash",
         order_items: [],
       });
+      setCashAmount("");
+      setShowCashPayment(false);
       fetchOrders();
       fetchStats();
     } catch (error) {
@@ -502,9 +514,31 @@ const AdminManageOrders = () => {
     );
   };
 
+  // Calculate change for cash payment
+  const calculateChange = () => {
+    const total = calculateTotal();
+    const cash = parseFloat(cashAmount) || 0;
+    return cash - total;
+  };
+
+  // Handle cash amount input
+  const handleCashAmountChange = (value) => {
+    // Only allow numbers and decimal point
+    const cleanValue = value.replace(/[^0-9.]/g, "");
+    setCashAmount(cleanValue);
+  };
+
+  // Check if cash payment is valid
+  const isCashPaymentValid = () => {
+    const total = calculateTotal();
+    const cash = parseFloat(cashAmount) || 0;
+    return cash >= total && total > 0;
+  };
+
   // Open add order modal
   const openAddOrderModal = () => {
     setShowAddOrderModal(true);
+    setShowCashPayment(orderForm.payment_method === "cash");
     fetchMenuItems();
   };
 
@@ -1148,12 +1182,18 @@ const AdminManageOrders = () => {
                     </label>
                     <select
                       value={orderForm.payment_method}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setOrderForm((prev) => ({
                           ...prev,
                           payment_method: e.target.value,
-                        }))
-                      }
+                        }));
+                        if (e.target.value === "cash") {
+                          setShowCashPayment(true);
+                        } else {
+                          setShowCashPayment(false);
+                          setCashAmount("");
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
                     >
                       <option value="cash">Cash</option>
@@ -1179,6 +1219,58 @@ const AdminManageOrders = () => {
                     />
                   </div>
                 </div>
+
+                {/* Cash Payment Section */}
+                {showCashPayment && (
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="text-md font-medium text-gray-900 mb-3">
+                      Cash Payment
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Total Amount
+                        </label>
+                        <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
+                          {formatCurrency(calculateTotal())}
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Cash Received
+                        </label>
+                        <input
+                          type="text"
+                          value={cashAmount}
+                          onChange={(e) =>
+                            handleCashAmountChange(e.target.value)
+                          }
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Change
+                        </label>
+                        <div
+                          className={`px-3 py-2 border rounded-lg font-medium ${
+                            calculateChange() >= 0
+                              ? "bg-green-100 border-green-300 text-green-700"
+                              : "bg-red-100 border-red-300 text-red-700"
+                          }`}
+                        >
+                          {formatCurrency(Math.max(0, calculateChange()))}
+                        </div>
+                      </div>
+                    </div>
+                    {calculateChange() < 0 && (
+                      <div className="mt-2 text-sm text-red-600">
+                        ⚠️ Insufficient cash amount
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Menu Items Selection */}
                 <div>
@@ -1373,9 +1465,18 @@ const AdminManageOrders = () => {
                 </button>
                 <button
                   onClick={createOrder}
-                  className="px-4 py-2 bg-[#C05050] text-white rounded-lg hover:bg-[#B04040] transition-colors"
+                  disabled={
+                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                  }
+                  className={`px-4 py-2 rounded-lg transition-colors ${
+                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-[#C05050] text-white hover:bg-[#B04040]"
+                  }`}
                 >
-                  Create Order
+                  {orderForm.payment_method === "cash" && !isCashPaymentValid()
+                    ? "Insufficient Cash Amount"
+                    : "Create Order"}
                 </button>
               </div>
             </div>
