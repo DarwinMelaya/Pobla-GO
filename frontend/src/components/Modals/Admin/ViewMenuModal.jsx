@@ -83,35 +83,29 @@ const ViewMenuModal = ({ isOpen, onClose, menuItem }) => {
               </div>
             )}
 
+            {/* Servings */}
+            <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600/50">
+              <Users className="w-5 h-5 text-[#C05050]" />
+              <div>
+                <p className="text-sm text-gray-400">Servings</p>
+                <p className="font-semibold text-white">
+                  {menuItem.servings || 1}
+                </p>
+              </div>
+            </div>
+
             {/* Serving Size */}
             {menuItem.serving_size && (
               <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600/50">
-                <Users className="w-5 h-5 text-[#C05050]" />
+                <Package className="w-5 h-5 text-[#C05050]" />
                 <div>
                   <p className="text-sm text-gray-400">Serving Size</p>
                   <p className="font-semibold text-white">
-                    {menuItem.serving_size} servings
+                    {menuItem.serving_size}
                   </p>
                 </div>
               </div>
             )}
-
-            {/* Available Quantity */}
-            <div className="flex items-center gap-3 p-4 bg-gray-700/50 rounded-lg border border-gray-600/50">
-              <Package className="w-5 h-5 text-[#C05050]" />
-              <div>
-                <p className="text-sm text-gray-400">Available Quantity</p>
-                <p
-                  className={`font-semibold ${
-                    menuItem.availableQuantity > 0
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {menuItem.availableQuantity || 0} servings
-                </p>
-              </div>
-            </div>
           </div>
 
           {/* Ingredients */}

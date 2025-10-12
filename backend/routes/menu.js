@@ -144,6 +144,7 @@ router.post("/", verifyAdmin, async (req, res) => {
       ingredients,
       preparation_time,
       serving_size,
+      servings,
       is_available,
     } = req.body;
 
@@ -191,6 +192,7 @@ router.post("/", verifyAdmin, async (req, res) => {
       ingredients,
       preparation_time,
       serving_size,
+      servings: servings || 1,
       is_available: is_available !== undefined ? is_available : true,
       created_by: req.user._id,
     });
@@ -221,6 +223,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       ingredients,
       preparation_time,
       serving_size,
+      servings,
       is_available,
     } = req.body;
 
@@ -265,6 +268,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     if (preparation_time !== undefined)
       menuItem.preparation_time = preparation_time;
     if (serving_size !== undefined) menuItem.serving_size = serving_size;
+    if (servings !== undefined) menuItem.servings = servings;
     if (is_available !== undefined) menuItem.is_available = is_available;
 
     await menuItem.save();

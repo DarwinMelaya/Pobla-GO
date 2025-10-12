@@ -19,6 +19,7 @@ const AddMenuModal = ({
     ingredients: initialData.ingredients || [],
     preparation_time: initialData.preparation_time || "",
     serving_size: initialData.serving_size || "",
+    servings: initialData.servings || 1,
     is_available:
       initialData.is_available !== undefined ? initialData.is_available : true,
   });
@@ -147,6 +148,7 @@ const AddMenuModal = ({
       preparation_time: formData.preparation_time
         ? parseInt(formData.preparation_time)
         : undefined,
+      servings: parseInt(formData.servings) || 1,
     });
   };
 
@@ -162,6 +164,7 @@ const AddMenuModal = ({
         ingredients: initialData.ingredients || [],
         preparation_time: initialData.preparation_time || "",
         serving_size: initialData.serving_size || "",
+        servings: initialData.servings || 1,
         is_available:
           initialData.is_available !== undefined
             ? initialData.is_available
@@ -256,7 +259,7 @@ const AddMenuModal = ({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Price (₱) *
@@ -286,6 +289,22 @@ const AddMenuModal = ({
                   min="0"
                   className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
                   placeholder="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Servings *
+                </label>
+                <input
+                  type="number"
+                  name="servings"
+                  value={formData.servings}
+                  onChange={handleInputChange}
+                  required
+                  min="1"
+                  className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
+                  placeholder="1"
                 />
               </div>
 

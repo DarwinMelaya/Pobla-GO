@@ -61,6 +61,11 @@ const MenuSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  servings: {
+    type: Number,
+    min: 1,
+    default: 1,
+  },
   is_available: {
     type: Boolean,
     default: true,

@@ -401,24 +401,18 @@ const AdminMenu = () => {
                     </span>
                   </div>
 
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-xs text-gray-500">Servings:</span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {item.servings || 1}
+                    </span>
+                  </div>
+
                   {item.preparation_time && (
                     <p className="text-xs text-gray-500 mb-2">
                       Prep time: {item.preparation_time} minutes
                     </p>
                   )}
-
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-xs text-gray-500">Available:</span>
-                    <span
-                      className={`text-sm font-medium ${
-                        item.availableQuantity > 0
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {item.availableQuantity || 0} servings
-                    </span>
-                  </div>
 
                   {/* Actions */}
                   <div className="flex gap-2">
@@ -481,6 +475,7 @@ const AdminMenu = () => {
                     })) || [],
                   preparation_time: editingItem.preparation_time,
                   serving_size: editingItem.serving_size,
+                  servings: editingItem.servings,
                   is_available: editingItem.is_available,
                 }
               : {}
