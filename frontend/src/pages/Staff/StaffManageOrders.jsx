@@ -36,6 +36,8 @@ const StaffManageOrders = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
   const [showTableStatusModal, setShowTableStatusModal] = useState(false);
+  const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
+  const [orderToDelete, setOrderToDelete] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -241,15 +243,19 @@ const StaffManageOrders = () => {
     }
   };
 
+  // Open delete confirmation modal
+  const openDeleteConfirmModal = (order) => {
+    setOrderToDelete(order);
+    setShowDeleteConfirmModal(true);
+  };
+
   // Delete order
-  const deleteOrder = async (orderId) => {
-    if (!window.confirm("Are you sure you want to delete this order?")) {
-      return;
-    }
+  const deleteOrder = async () => {
+    if (!orderToDelete) return;
 
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/orders/${orderId}`, {
+      const response = await fetch(`${API_BASE}/orders/${orderToDelete._id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -263,10 +269,18 @@ const StaffManageOrders = () => {
 
       toast.success("Order deleted successfully");
       fetchOrders();
+      setShowDeleteConfirmModal(false);
+      setOrderToDelete(null);
     } catch (error) {
       console.error("Error deleting order:", error);
       toast.error("Failed to delete order");
     }
+  };
+
+  // Cancel delete
+  const cancelDelete = () => {
+    setShowDeleteConfirmModal(false);
+    setOrderToDelete(null);
   };
 
   // Get status color
@@ -769,7 +783,7 @@ const StaffManageOrders = () => {
                           </select>
 
                           <button
-                            onClick={() => deleteOrder(order._id)}
+                            onClick={() => openDeleteConfirmModal(order)}
                             className="text-red-600 hover:text-red-700 transition-colors"
                             title="Delete Order"
                           >
@@ -992,6 +1006,95 @@ const StaffManageOrders = () => {
           isOpen={showTableStatusModal}
           onClose={() => setShowTableStatusModal(false)}
         />
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirmModal && orderToDelete && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white/95 backdrop-blur-md rounded-lg w-full max-w-md border border-gray-200/50 shadow-2xl">
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-200 flex items-center space-x-3">
+                <div className="p-2 bg-red-100 rounded-lg">
+                  <Trash2 size={24} className="text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete Order
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="px-6 py-4">
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    Are you sure you want to delete this order?
+                  </p>
+
+                  {/* Order Details */}
+                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Order ID:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        #{orderToDelete._id.slice(-8)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Customer:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {orderToDelete.customer_name}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Table:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {orderToDelete.table_number}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Total:</span>
+                      <span className="text-sm font-medium text-gray-900">
+                        {formatCurrency(orderToDelete.total_amount)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600">Status:</span>
+                      <span
+                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                          orderToDelete.status
+                        )}`}
+                      >
+                        {getStatusIcon(orderToDelete.status)}
+                        <span className="ml-1 capitalize">
+                          {orderToDelete.status}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={cancelDelete}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={deleteOrder}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-medium flex items-center space-x-2"
+                >
+                  <Trash2 size={16} />
+                  <span>Delete Order</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

@@ -26,6 +26,8 @@ const AddOrders = ({
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [tableStatus, setTableStatus] = useState(null);
   const [checkingTable, setCheckingTable] = useState(false);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -38,23 +40,28 @@ const AddOrders = ({
   // Check table availability
   const checkTableAvailability = async (tableNumber) => {
     if (!tableNumber) return;
-    
+
     setCheckingTable(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/orders/tables/${tableNumber}/status`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await fetch(
+        `${API_BASE}/orders/tables/${tableNumber}/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.ok) {
         const status = await response.json();
         setTableStatus(status);
-        
+
         if (!status.available) {
-          toast.error(`Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`);
+          toast.error(
+            `Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`
+          );
         }
       }
     } catch (error) {
@@ -74,7 +81,8 @@ const AddOrders = ({
 
   // Add item to order
   const addItemToOrder = (menuItem) => {
-    const availableServings = menuItem.availableServings || menuItem.servings || 0;
+    const availableServings =
+      menuItem.availableServings || menuItem.servings || 0;
     const existingItem = orderForm.order_items.find(
       (item) => item.menu_item_id === menuItem._id
     );
@@ -82,10 +90,12 @@ const AddOrders = ({
     if (existingItem) {
       // Check if we can add more of this item
       if (existingItem.quantity >= availableServings) {
-        toast.error(`Only ${availableServings} servings available for ${menuItem.name}`);
+        toast.error(
+          `Only ${availableServings} servings available for ${menuItem.name}`
+        );
         return;
       }
-      
+
       // Update quantity if item already exists
       setOrderForm((prev) => ({
         ...prev,
@@ -133,11 +143,16 @@ const AddOrders = ({
     // Find the menu item to check available servings
     const orderItem = orderForm.order_items[index];
     if (orderItem && orderItem.menu_item_id) {
-      const menuItem = menuItems.find(item => item._id === orderItem.menu_item_id);
+      const menuItem = menuItems.find(
+        (item) => item._id === orderItem.menu_item_id
+      );
       if (menuItem) {
-        const availableServings = menuItem.availableServings || menuItem.servings || 0;
+        const availableServings =
+          menuItem.availableServings || menuItem.servings || 0;
         if (newQuantity > availableServings) {
-          toast.error(`Only ${availableServings} servings available for ${menuItem.name}`);
+          toast.error(
+            `Only ${availableServings} servings available for ${menuItem.name}`
+          );
           return;
         }
       }
@@ -231,6 +246,7 @@ const AddOrders = ({
         return;
       }
 
+      setIsCreatingOrder(true);
       const token = getAuthToken();
       const response = await fetch(`${API_BASE}/orders`, {
         method: "POST",
@@ -243,7 +259,10 @@ const AddOrders = ({
 
       if (!response.ok) {
         const errorData = await response.json();
-        if (errorData.message && errorData.message.includes("currently occupied")) {
+        if (
+          errorData.message &&
+          errorData.message.includes("currently occupied")
+        ) {
           toast.error(errorData.message);
           // Update table status if provided
           if (errorData.tableStatus) {
@@ -260,6 +279,8 @@ const AddOrders = ({
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order");
+    } finally {
+      setIsCreatingOrder(false);
     }
   };
 
@@ -278,23 +299,26 @@ const AddOrders = ({
   };
 
   // Print receipt function
-  const printReceipt = () => {
+  const printReceipt = async () => {
     if (orderForm.order_items.length === 0) {
       toast.error("No items to print");
       return;
     }
 
-    const printWindow = window.open("", "_blank");
-    const currentDate = new Date().toLocaleString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    setIsPrintingReceipt(true);
 
-    const receiptContent = `
+    try {
+      const printWindow = window.open("", "_blank");
+      const currentDate = new Date().toLocaleString("en-US", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+
+      const receiptContent = `
       <!DOCTYPE html>
       <html>
       <head>
@@ -493,15 +517,21 @@ const AddOrders = ({
       </html>
     `;
 
-    printWindow.document.write(receiptContent);
-    printWindow.document.close();
+      printWindow.document.write(receiptContent);
+      printWindow.document.close();
 
-    // Wait for content to load then print
-    printWindow.onload = () => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    };
+      // Wait for content to load then print
+      printWindow.onload = () => {
+        printWindow.focus();
+        printWindow.print();
+        printWindow.close();
+      };
+    } catch (error) {
+      console.error("Error printing receipt:", error);
+      toast.error("Failed to print receipt");
+    } finally {
+      setIsPrintingReceipt(false);
+    }
   };
 
   // Initialize cash payment state when modal opens
@@ -620,19 +650,21 @@ const AddOrders = ({
                     orderForm.order_items.find(
                       (orderItem) => orderItem.menu_item_id === item._id
                     )?.quantity || 0;
-                  const availableServings = item.availableServings || item.servings || 0;
+                  const availableServings =
+                    item.availableServings || item.servings || 0;
                   const isOutOfStock = availableServings <= 0;
-                  const isLowStock = availableServings <= 2 && availableServings > 0;
-                  
+                  const isLowStock =
+                    availableServings <= 2 && availableServings > 0;
+
                   return (
                     <div
                       key={item._id || index}
                       className={`relative rounded-lg p-4 cursor-pointer transition-colors min-h-[100px] flex flex-col justify-between ${
-                        isOutOfStock 
-                          ? "bg-gray-400 cursor-not-allowed opacity-60" 
-                          : isLowStock 
-                            ? "bg-orange-500 hover:bg-orange-600" 
-                            : "bg-[#C05050] hover:bg-[#B04040]"
+                        isOutOfStock
+                          ? "bg-gray-400 cursor-not-allowed opacity-60"
+                          : isLowStock
+                          ? "bg-orange-500 hover:bg-orange-600"
+                          : "bg-[#C05050] hover:bg-[#B04040]"
                       }`}
                       onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
@@ -655,10 +687,14 @@ const AddOrders = ({
                         <div className="text-xs opacity-75 mt-1">
                           <p>Servings: {availableServings}</p>
                           {isOutOfStock && (
-                            <p className="text-red-200 font-bold">OUT OF STOCK</p>
+                            <p className="text-red-200 font-bold">
+                              OUT OF STOCK
+                            </p>
                           )}
                           {isLowStock && !isOutOfStock && (
-                            <p className="text-yellow-200 font-bold">LOW STOCK</p>
+                            <p className="text-yellow-200 font-bold">
+                              LOW STOCK
+                            </p>
                           )}
                         </div>
                       </div>
@@ -825,25 +861,50 @@ const AddOrders = ({
                 <button
                   onClick={createOrder}
                   disabled={
-                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                    isCreatingOrder ||
+                    (orderForm.payment_method === "cash" &&
+                      !isCashPaymentValid())
                   }
-                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium ${
-                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                    isCreatingOrder ||
+                    (orderForm.payment_method === "cash" &&
+                      !isCashPaymentValid())
                       ? "bg-gray-400 text-gray-200 cursor-not-allowed"
                       : "bg-green-600 text-white hover:bg-green-700"
                   }`}
                 >
-                  {orderForm.payment_method === "cash" && !isCashPaymentValid()
-                    ? "Insufficient Cash Amount"
-                    : "Pay"}
+                  {isCreatingOrder ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin mr-2" />
+                      Processing...
+                    </>
+                  ) : orderForm.payment_method === "cash" &&
+                    !isCashPaymentValid() ? (
+                    "Insufficient Cash Amount"
+                  ) : (
+                    "Pay"
+                  )}
                 </button>
 
                 <button
                   onClick={printReceipt}
-                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
-                  disabled={orderForm.order_items.length === 0}
+                  disabled={
+                    isPrintingReceipt || orderForm.order_items.length === 0
+                  }
+                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                    isPrintingReceipt || orderForm.order_items.length === 0
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
                 >
-                  Print Receipt
+                  {isPrintingReceipt ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin mr-2" />
+                      Printing...
+                    </>
+                  ) : (
+                    "Print Receipt"
+                  )}
                 </button>
               </div>
             </div>
@@ -904,7 +965,9 @@ const AddOrders = ({
                       />
                       <button
                         type="button"
-                        onClick={() => checkTableAvailability(orderForm.table_number)}
+                        onClick={() =>
+                          checkTableAvailability(orderForm.table_number)
+                        }
                         disabled={!orderForm.table_number || checkingTable}
                         className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                       >
@@ -913,18 +976,25 @@ const AddOrders = ({
                     </div>
                     {/* Table Status Indicator */}
                     {tableStatus && (
-                      <div className={`mt-2 p-2 rounded-lg text-sm ${
-                        tableStatus.available 
-                          ? "bg-green-100 text-green-800 border border-green-300" 
-                          : "bg-red-100 text-red-800 border border-red-300"
-                      }`}>
+                      <div
+                        className={`mt-2 p-2 rounded-lg text-sm ${
+                          tableStatus.available
+                            ? "bg-green-100 text-green-800 border border-green-300"
+                            : "bg-red-100 text-red-800 border border-red-300"
+                        }`}
+                      >
                         {tableStatus.available ? (
-                          <span>✅ Table {orderForm.table_number} is available</span>
+                          <span>
+                            ✅ Table {orderForm.table_number} is available
+                          </span>
                         ) : (
                           <div>
-                            <span>❌ Table {orderForm.table_number} is occupied</span>
+                            <span>
+                              ❌ Table {orderForm.table_number} is occupied
+                            </span>
                             <div className="text-xs mt-1">
-                              Customer: {tableStatus.customer} | Status: {tableStatus.status} | Staff: {tableStatus.staff}
+                              Customer: {tableStatus.customer} | Status:{" "}
+                              {tableStatus.status} | Staff: {tableStatus.staff}
                             </div>
                           </div>
                         )}
