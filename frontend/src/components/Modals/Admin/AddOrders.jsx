@@ -22,6 +22,7 @@ const AddOrders = ({
   });
   const [cashAmount, setCashAmount] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -194,6 +195,233 @@ const AddOrders = ({
     onClose();
   };
 
+  // Print receipt function
+  const printReceipt = () => {
+    if (orderForm.order_items.length === 0) {
+      toast.error("No items to print");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    const currentDate = new Date().toLocaleString("en-US", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+
+    const receiptContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Receipt - Order #${Date.now().toString().slice(-6)}</title>
+        <style>
+          @media print {
+            body { margin: 0; padding: 0; }
+            .no-print { display: none !important; }
+          }
+          body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            margin: 0;
+            padding: 10px;
+            background: white;
+            color: black;
+          }
+          .receipt {
+            max-width: 300px;
+            margin: 0 auto;
+            border: 1px solid #000;
+            padding: 10px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 1px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+          }
+          .business-name {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+          }
+          .business-details {
+            font-size: 10px;
+            margin-bottom: 5px;
+          }
+          .order-info {
+            margin: 10px 0;
+            font-size: 11px;
+          }
+          .order-info div {
+            margin: 2px 0;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+          }
+          .items-table th,
+          .items-table td {
+            padding: 2px 4px;
+            text-align: left;
+            border-bottom: 1px dotted #000;
+          }
+          .items-table th {
+            font-weight: bold;
+            text-align: center;
+          }
+          .items-table .qty { text-align: center; width: 20px; }
+          .items-table .price { text-align: right; width: 50px; }
+          .items-table .amount { text-align: right; width: 50px; }
+          .total-section {
+            border-top: 2px solid #000;
+            margin-top: 10px;
+            padding-top: 10px;
+          }
+          .total-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+          }
+          .total-amount {
+            font-weight: bold;
+            font-size: 14px;
+            border-top: 1px solid #000;
+            padding-top: 5px;
+          }
+          .payment-info {
+            margin: 10px 0;
+            border-top: 1px dashed #000;
+            padding-top: 10px;
+          }
+          .payment-line {
+            display: flex;
+            justify-content: space-between;
+            margin: 2px 0;
+          }
+          .footer {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 10px;
+            border-top: 1px dashed #000;
+            padding-top: 10px;
+          }
+          .divider {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="receipt">
+          <div class="header">
+            <div class="business-name">POBLACION PARES FAST FOOD CHAIN</div>
+            <div class="business-details">Cleofas, Jamie James Ramos-Prop</div>
+            <div class="business-details">Villa Mendez (Pob.)</div>
+            <div class="business-details">Mogpog, Marinduque</div>
+            <div class="divider"></div>
+            <div>Order #${Date.now().toString().slice(-6)}</div>
+            <div>Date: ${currentDate}</div>
+          </div>
+
+          <div class="order-info">
+            <div><strong>Customer:</strong> ${
+              orderForm.customer_name || "Walk-in"
+            }</div>
+            <div><strong>Table:</strong> ${
+              orderForm.table_number || "N/A"
+            }</div>
+            <div><strong>Payment:</strong> ${orderForm.payment_method.toUpperCase()}</div>
+            ${
+              orderForm.notes
+                ? `<div><strong>Notes:</strong> ${orderForm.notes}</div>`
+                : ""
+            }
+          </div>
+
+          <table class="items-table">
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="qty">Qty</th>
+                <th class="price">Price</th>
+                <th class="amount">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderForm.order_items
+                .map(
+                  (item) => `
+                <tr>
+                  <td>${item.item_name}</td>
+                  <td class="qty">${item.quantity}</td>
+                  <td class="price">${formatCurrency(item.price)}</td>
+                  <td class="amount">${formatCurrency(item.total_price)}</td>
+                </tr>
+              `
+                )
+                .join("")}
+            </tbody>
+          </table>
+
+          <div class="total-section">
+            <div class="total-line">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(calculateTotal())}</span>
+            </div>
+            <div class="total-line">
+              <span>Tax (0%):</span>
+              <span>${formatCurrency(0)}</span>
+            </div>
+            <div class="total-amount">
+              <span>TOTAL:</span>
+              <span>${formatCurrency(calculateTotal())}</span>
+            </div>
+          </div>
+
+          ${
+            orderForm.payment_method === "cash"
+              ? `
+            <div class="payment-info">
+              <div class="payment-line">
+                <span>Cash Received:</span>
+                <span>${formatCurrency(parseFloat(cashAmount) || 0)}</span>
+              </div>
+              <div class="payment-line">
+                <span>Change:</span>
+                <span>${formatCurrency(Math.max(0, calculateChange()))}</span>
+              </div>
+            </div>
+          `
+              : ""
+          }
+
+          <div class="footer">
+            <div>Thank you for your order!</div>
+            <div>Please come again</div>
+            <div class="divider"></div>
+            <div>Receipt printed on: ${currentDate}</div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(receiptContent);
+    printWindow.document.close();
+
+    // Wait for content to load then print
+    printWindow.onload = () => {
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    };
+  };
+
   // Initialize cash payment state when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -205,154 +433,24 @@ const AddOrders = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 backdrop-blur-md rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-200/50 shadow-2xl">
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-          <h3 className="text-lg font-medium text-gray-900">
-            Create New Order
-          </h3>
+      <div className="bg-white/95 backdrop-blur-md rounded-lg w-full max-w-7xl h-[90vh] border border-gray-200/50 shadow-2xl flex flex-col">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="text-xl font-bold text-gray-900">Add New Order</h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg"
           >
             <XCircle size={24} />
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-6">
-          {/* Order Information */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Customer Name *
-              </label>
-              <input
-                type="text"
-                value={orderForm.customer_name}
-                onChange={(e) =>
-                  setOrderForm((prev) => ({
-                    ...prev,
-                    customer_name: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                placeholder="Enter customer name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Table Number *
-              </label>
-              <input
-                type="text"
-                value={orderForm.table_number}
-                onChange={(e) =>
-                  setOrderForm((prev) => ({
-                    ...prev,
-                    table_number: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                placeholder="Enter table number"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Payment Method
-              </label>
-              <select
-                value={orderForm.payment_method}
-                onChange={(e) => {
-                  setOrderForm((prev) => ({
-                    ...prev,
-                    payment_method: e.target.value,
-                  }));
-                  if (e.target.value === "cash") {
-                    setShowCashPayment(true);
-                  } else {
-                    setShowCashPayment(false);
-                    setCashAmount("");
-                  }
-                }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-              >
-                <option value="cash">Cash</option>
-                <option value="card">Card</option>
-                <option value="digital">Digital</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Notes
-              </label>
-              <input
-                type="text"
-                value={orderForm.notes}
-                onChange={(e) =>
-                  setOrderForm((prev) => ({
-                    ...prev,
-                    notes: e.target.value,
-                  }))
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                placeholder="Special instructions or notes"
-              />
-            </div>
-          </div>
-
-          {/* Cash Payment Section */}
-          {showCashPayment && (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h4 className="text-md font-medium text-gray-900 mb-3">
-                Cash Payment
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Total Amount
-                  </label>
-                  <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-700 font-medium">
-                    {formatCurrency(calculateTotal())}
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cash Received
-                  </label>
-                  <input
-                    type="text"
-                    value={cashAmount}
-                    onChange={(e) => handleCashAmountChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                    placeholder="0.00"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Change
-                  </label>
-                  <div
-                    className={`px-3 py-2 border rounded-lg font-medium ${
-                      calculateChange() >= 0
-                        ? "bg-green-100 border-green-300 text-green-700"
-                        : "bg-red-100 border-red-300 text-red-700"
-                    }`}
-                  >
-                    {formatCurrency(Math.max(0, calculateChange()))}
-                  </div>
-                </div>
-              </div>
-              {calculateChange() < 0 && (
-                <div className="mt-2 text-sm text-red-600">
-                  ⚠️ Insufficient cash amount
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Menu Items Selection */}
-          <div>
-            <h4 className="text-md font-medium text-gray-900 mb-3">
-              Select Menu Items
+        {/* Main POS Layout */}
+        <div className="flex-1 flex overflow-hidden">
+          {/* Left Column - Menu Items */}
+          <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
+            <h4 className="text-lg font-semibold text-gray-900 mb-4">
+              Menu Items
             </h4>
 
             {menuItemsLoading ? (
@@ -364,14 +462,10 @@ const AddOrders = ({
               </div>
             ) : menuItems.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500">No available menu items found</p>
-                <p className="text-sm text-gray-400 mt-1">
-                  Either no menu items exist or none are marked as available
+                <p className="text-gray-500 mb-4">
+                  No available menu items found
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Check the Menu section to add items or enable availability
-                </p>
-                <div className="flex justify-center space-x-2 mt-4">
+                <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     onClick={onFetchMenuItems}
                     className="px-3 py-2 bg-[#C05050] text-white rounded-lg hover:bg-[#B04040] transition-colors text-sm"
@@ -399,37 +493,34 @@ const AddOrders = ({
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3">
                 {menuItems.map((item, index) => {
+                  const itemQuantity =
+                    orderForm.order_items.find(
+                      (orderItem) => orderItem.menu_item_id === item._id
+                    )?.quantity || 0;
                   return (
                     <div
                       key={item._id || index}
-                      className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50"
+                      className="relative bg-[#C05050] rounded-lg p-4 cursor-pointer hover:bg-[#B04040] transition-colors min-h-[100px] flex flex-col justify-between"
+                      onClick={() => addItemToOrder(item)}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <h5 className="font-medium text-gray-900">
-                            {item.name || "No name"}
-                          </h5>
-                          <p className="text-sm text-gray-600">
-                            {item.category || "No category"}
-                          </p>
+                      {/* Quantity Badge */}
+                      {itemQuantity > 0 && (
+                        <div className="absolute top-2 right-2 bg-white text-[#C05050] rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold border-2 border-white">
+                          {itemQuantity}
                         </div>
-                        <span className="text-sm font-medium text-green-600">
-                          {formatCurrency(item.price || 0)}
-                        </span>
-                      </div>
-                      {item.description && (
-                        <p className="text-xs text-gray-500 mb-2">
-                          {item.description}
-                        </p>
                       )}
-                      <button
-                        onClick={() => addItemToOrder(item)}
-                        className="w-full px-3 py-1 text-xs bg-[#C05050] text-white rounded hover:bg-[#B04040] transition-colors"
-                      >
-                        Add to Order
-                      </button>
+
+                      {/* Item Info */}
+                      <div className="text-center text-white">
+                        <h5 className="font-medium text-sm mb-1 truncate">
+                          {item.name || "No name"}
+                        </h5>
+                        <p className="text-xs opacity-90">
+                          {formatCurrency(item.price || 0)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
@@ -437,93 +528,283 @@ const AddOrders = ({
             )}
           </div>
 
-          {/* Order Items */}
-          {orderForm.order_items.length > 0 && (
-            <div>
-              <h4 className="text-md font-medium text-gray-900 mb-3">
-                Order Items
-              </h4>
-              <div className="space-y-2">
-                {orderForm.order_items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium text-gray-900">
+          {/* Middle Column - Order Summary */}
+          <div className="w-1/3 border-r border-gray-200 flex flex-col">
+            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
+              <div className="grid grid-cols-4 gap-2 text-sm font-medium text-gray-700">
+                <div>ID</div>
+                <div>Item</div>
+                <div>Qty</div>
+                <div>Price</div>
+              </div>
+            </div>
+
+            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+              {orderForm.order_items.length === 0 ? (
+                <div className="text-center text-gray-500 py-8">
+                  No items in order
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {orderForm.order_items.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-4 gap-2 text-sm bg-white p-2 rounded border"
+                    >
+                      <div className="text-gray-600">#{index + 1}</div>
+                      <div className="font-medium truncate">
                         {item.item_name}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {formatCurrency(item.price)} each
-                      </p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() =>
-                          updateItemQuantity(index, item.quantity - 1)
-                        }
-                        className="p-1 text-gray-600 hover:text-gray-800"
-                      >
-                        <Minus size={16} />
-                      </button>
-                      <span className="w-8 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() =>
-                          updateItemQuantity(index, item.quantity + 1)
-                        }
-                        className="p-1 text-gray-600 hover:text-gray-800"
-                      >
-                        <Plus size={16} />
-                      </button>
-                      <span className="w-20 text-right font-medium">
+                      </div>
+                      <div className="text-center">{item.quantity}</div>
+                      <div className="text-right font-medium">
                         {formatCurrency(item.total_price)}
-                      </span>
-                      <button
-                        onClick={() => removeItemFromOrder(index)}
-                        className="p-1 text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={() =>
+                  setOrderForm((prev) => ({ ...prev, order_items: [] }))
+                }
+                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                disabled={orderForm.order_items.length === 0}
+              >
+                Delete All
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column - Receipt Preview & Payment */}
+          <div className="w-1/3 p-4 overflow-y-auto">
+            <div className="bg-white border border-gray-300 rounded-lg p-4">
+              {/* Receipt Header */}
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-bold text-gray-900">
+                  Poblacion Pares Fast Food Chain
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Cleofas, Jamie James Ramos-Prop
+                </p>
+                <p className="text-sm text-gray-600">Villa Mendez (Pob.)</p>
+                <p className="text-sm text-gray-600">Mogpog, Marinduque</p>
+                <div className="border-t border-gray-300 my-2"></div>
               </div>
 
-              {/* Total */}
-              <div className="mt-4 p-3 bg-[#C05050] text-white rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-lg font-medium">Total Amount:</span>
-                  <span className="text-xl font-bold">
-                    {formatCurrency(calculateTotal())}
-                  </span>
+              {/* Receipt Table */}
+              <div className="mb-4">
+                <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-700 border-b border-gray-300 pb-1">
+                  <div>Item</div>
+                  <div className="text-center">Qty</div>
+                  <div className="text-right">Unit Price</div>
+                  <div className="text-right">Amount</div>
+                </div>
+
+                {orderForm.order_items.length === 0 ? (
+                  <div className="text-center text-gray-500 py-4 text-sm">
+                    No items
+                  </div>
+                ) : (
+                  <div className="space-y-1 mt-2">
+                    {orderForm.order_items.map((item, index) => (
+                      <div
+                        key={index}
+                        className="grid grid-cols-4 gap-2 text-xs"
+                      >
+                        <div className="truncate">{item.item_name}</div>
+                        <div className="text-center">{item.quantity}</div>
+                        <div className="text-right">
+                          {formatCurrency(item.price)}
+                        </div>
+                        <div className="text-right font-medium">
+                          {formatCurrency(item.total_price)}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="border-t border-gray-300 mt-2 pt-2">
+                  <div className="flex justify-between items-center font-bold text-sm">
+                    <span>Total amount:</span>
+                    <span>{formatCurrency(calculateTotal())}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Section */}
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Total:
+                  </label>
+                  <input
+                    type="text"
+                    value={formatCurrency(calculateTotal())}
+                    readOnly
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cash:
+                  </label>
+                  <input
+                    type="text"
+                    value={cashAmount}
+                    onChange={(e) => handleCashAmountChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                    placeholder="0.00"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Balance:
+                  </label>
+                  <input
+                    type="text"
+                    value={formatCurrency(Math.max(0, calculateChange()))}
+                    readOnly
+                    className={`w-full px-3 py-2 border rounded-lg ${
+                      calculateChange() >= 0
+                        ? "bg-green-100 border-green-300 text-green-700"
+                        : "bg-red-100 border-red-300 text-red-700"
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <button
+                  onClick={createOrder}
+                  disabled={
+                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                  }
+                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium ${
+                    orderForm.payment_method === "cash" && !isCashPaymentValid()
+                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  }`}
+                >
+                  {orderForm.payment_method === "cash" && !isCashPaymentValid()
+                    ? "Insufficient Cash Amount"
+                    : "Pay"}
+                </button>
+
+                <button
+                  onClick={printReceipt}
+                  className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                  disabled={orderForm.order_items.length === 0}
+                >
+                  Print Receipt
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Section - Order Details (Collapsible) */}
+        <div className="border-t border-gray-200 bg-gray-50">
+          <div className="px-4 py-2 bg-gray-100 border-b border-gray-200">
+            <button
+              onClick={() => setShowOrderDetails(!showOrderDetails)}
+              className="text-sm font-medium text-gray-700 hover:text-gray-900"
+            >
+              {showOrderDetails ? "▼" : "▶"} Order Details
+            </button>
+          </div>
+
+          {showOrderDetails && (
+            <div className="p-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Order Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={orderForm.customer_name}
+                      onChange={(e) =>
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          customer_name: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      placeholder="Enter customer name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Table Number *
+                    </label>
+                    <input
+                      type="text"
+                      value={orderForm.table_number}
+                      onChange={(e) =>
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          table_number: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      placeholder="Enter table number"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Payment Method
+                    </label>
+                    <select
+                      value={orderForm.payment_method}
+                      onChange={(e) => {
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          payment_method: e.target.value,
+                        }));
+                        if (e.target.value === "cash") {
+                          setShowCashPayment(true);
+                        } else {
+                          setShowCashPayment(false);
+                          setCashAmount("");
+                        }
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                    >
+                      <option value="cash">Cash</option>
+                      <option value="card">Card</option>
+                      <option value="digital">Digital</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Notes
+                    </label>
+                    <input
+                      type="text"
+                      value={orderForm.notes}
+                      onChange={(e) =>
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          notes: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      placeholder="Special instructions or notes"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
-
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={createOrder}
-            disabled={
-              orderForm.payment_method === "cash" && !isCashPaymentValid()
-            }
-            className={`px-4 py-2 rounded-lg transition-colors ${
-              orderForm.payment_method === "cash" && !isCashPaymentValid()
-                ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                : "bg-[#C05050] text-white hover:bg-[#B04040]"
-            }`}
-          >
-            {orderForm.payment_method === "cash" && !isCashPaymentValid()
-              ? "Insufficient Cash Amount"
-              : "Create Order"}
-          </button>
         </div>
       </div>
     </div>
