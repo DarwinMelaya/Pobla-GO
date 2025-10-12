@@ -7,6 +7,7 @@ export { default as SignUp } from "./auth/SignUp";
 export { default as AdminDashboard } from "./Admin/AdminDashboard";
 export { default as ManageInventory } from "./Admin/ManageInventory";
 export { default as AdminMenu } from "./Admin/AdminMenu";
+export { default as AdminManageOrders } from "./Admin/AdminManageOrders";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";
