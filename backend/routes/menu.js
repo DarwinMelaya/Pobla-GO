@@ -53,10 +53,15 @@ router.get("/", async (req, res) => {
       filter.is_available = available === "true";
     }
 
+    console.log("Menu filter:", filter);
+
     const menuItems = await Menu.find(filter)
       .populate("ingredients.inventoryItem", "name category unit")
       .populate("created_by", "name")
       .sort({ createdAt: -1 });
+
+    console.log("Found menu items:", menuItems.length);
+    console.log("Raw menu items from DB:", menuItems);
 
     // Add available quantity to each menu item
     const menuItemsWithQuantity = await Promise.all(
@@ -69,6 +74,8 @@ router.get("/", async (req, res) => {
       })
     );
 
+    console.log("Menu items with quantity:", menuItemsWithQuantity.length);
+
     // Add cache control headers to prevent stale data
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
     res.set("Pragma", "no-cache");
@@ -76,6 +83,7 @@ router.get("/", async (req, res) => {
 
     res.json(menuItemsWithQuantity);
   } catch (error) {
+    console.error("Menu API error:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });
@@ -343,6 +351,94 @@ router.get("/inventory/available", verifyAdmin, async (req, res) => {
 
     res.json(inventoryItems);
   } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /menu/debug - Debug endpoint to check database connection
+router.get("/debug", async (req, res) => {
+  try {
+    const totalItems = await Menu.countDocuments();
+    const availableItems = await Menu.countDocuments({ is_available: true });
+    const sampleItems = await Menu.find().limit(3).select("name is_available");
+
+    res.json({
+      totalItems,
+      availableItems,
+      sampleItems,
+      message: "Database connection working",
+    });
+  } catch (error) {
+    console.error("Debug endpoint error:", error);
+    res.status(500).json({ message: "Database error", error: error.message });
+  }
+});
+
+// POST /menu/test-data - Create sample menu items for testing (Admin only)
+router.post("/test-data", verifyAdmin, async (req, res) => {
+  try {
+    // Check if test data already exists
+    const existingItems = await Menu.find({ name: { $regex: /^Test/ } });
+    if (existingItems.length > 0) {
+      return res.json({
+        message: "Test data already exists",
+        count: existingItems.length,
+      });
+    }
+
+    // Get the first admin user to use as created_by
+    const adminUser = await User.findOne({ role: "Admin" });
+    if (!adminUser) {
+      return res.status(400).json({ message: "No admin user found" });
+    }
+
+    // Create sample menu items
+    const sampleItems = [
+      {
+        name: "Test Burger",
+        description: "A delicious test burger",
+        category: "Main Course",
+        price: 12.99,
+        ingredients: [],
+        is_available: true,
+        created_by: adminUser._id,
+      },
+      {
+        name: "Test Pizza",
+        description: "A tasty test pizza",
+        category: "Main Course",
+        price: 15.99,
+        ingredients: [],
+        is_available: true,
+        created_by: adminUser._id,
+      },
+      {
+        name: "Test Salad",
+        description: "Fresh test salad",
+        category: "Appetizer",
+        price: 8.99,
+        ingredients: [],
+        is_available: true,
+        created_by: adminUser._id,
+      },
+      {
+        name: "Test Drink",
+        description: "Refreshing test beverage",
+        category: "Beverage",
+        price: 3.99,
+        ingredients: [],
+        is_available: true,
+        created_by: adminUser._id,
+      },
+    ];
+
+    const createdItems = await Menu.insertMany(sampleItems);
+    res.json({
+      message: "Test data created successfully",
+      count: createdItems.length,
+    });
+  } catch (error) {
+    console.error("Error creating test data:", error);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 });

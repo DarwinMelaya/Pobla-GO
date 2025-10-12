@@ -1,0 +1,417 @@
+const express = require("express");
+const router = express.Router();
+const Order = require("../models/Order");
+const OrderItem = require("../models/OrderItem");
+const Menu = require("../models/Menu");
+const User = require("../models/User");
+
+// Middleware to verify authentication
+const verifyAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. No token provided.",
+      });
+    }
+
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "yourSecretKey"
+    );
+
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid token.",
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: "Invalid token.",
+    });
+  }
+};
+
+// Middleware to verify admin role
+const verifyAdmin = async (req, res, next) => {
+  if (req.user.role !== "Admin") {
+    return res.status(403).json({
+      success: false,
+      message: "Access denied. Admin role required.",
+    });
+  }
+  next();
+};
+
+// GET /orders - Get all orders (Admin only)
+router.get("/", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const {
+      status,
+      table_number,
+      date_from,
+      date_to,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    let filter = {};
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (table_number) {
+      filter.table_number = table_number;
+    }
+
+    if (date_from || date_to) {
+      filter.created_at = {};
+      if (date_from) {
+        filter.created_at.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        filter.created_at.$lte = new Date(date_to);
+      }
+    }
+
+    const orders = await Order.find(filter)
+      .populate("staff_member", "name")
+      .populate({
+        path: "order_items",
+        populate: {
+          path: "menu_item_id",
+          select: "name category",
+        },
+      })
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Order.countDocuments(filter);
+
+    res.json({
+      orders,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/:id - Get specific order
+router.get("/:id", verifyAuth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id)
+      .populate("staff_member", "name")
+      .populate({
+        path: "order_items",
+        populate: {
+          path: "menu_item_id",
+          select: "name category description",
+        },
+      });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Check if user can access this order (Admin or Staff who created it)
+    if (
+      req.user.role !== "Admin" &&
+      order.staff_member._id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// POST /orders - Create new order
+router.post("/", verifyAuth, async (req, res) => {
+  try {
+    const { customer_name, table_number, order_items, notes, payment_method } =
+      req.body;
+
+    // Validate required fields
+    if (
+      !customer_name ||
+      !table_number ||
+      !order_items ||
+      !Array.isArray(order_items) ||
+      order_items.length === 0
+    ) {
+      return res.status(400).json({
+        message:
+          "Missing required fields: customer_name, table_number, and order_items array",
+      });
+    }
+
+    // Calculate total amount
+    let total_amount = 0;
+    const validated_items = [];
+
+    for (const item of order_items) {
+      if (!item.item_name || !item.quantity || !item.price) {
+        return res.status(400).json({
+          message: "Each order item must have item_name, quantity, and price",
+        });
+      }
+
+      const item_total = item.quantity * item.price;
+      total_amount += item_total;
+
+      validated_items.push({
+        item_name: item.item_name,
+        quantity: item.quantity,
+        price: item.price,
+        total_price: item_total,
+        menu_item_id: item.menu_item_id || null,
+        special_instructions: item.special_instructions || "",
+      });
+    }
+
+    // Create the order
+    const order = new Order({
+      customer_name,
+      table_number,
+      total_amount,
+      staff_member: req.user._id,
+      notes: notes || "",
+      payment_method: payment_method || "cash",
+    });
+
+    await order.save();
+
+    // Create order items
+    const orderItems = validated_items.map((item) => ({
+      ...item,
+      order_id: order._id,
+    }));
+
+    await OrderItem.insertMany(orderItems);
+
+    // Update inventory for menu items
+    for (const item of order_items) {
+      if (item.menu_item_id) {
+        try {
+          const menuItem = await Menu.findById(item.menu_item_id);
+          if (menuItem) {
+            await menuItem.updateInventoryOnOrder(item.quantity);
+          }
+        } catch (error) {
+          console.error(
+            `Failed to update inventory for menu item ${item.menu_item_id}:`,
+            error
+          );
+          // Continue processing other items
+        }
+      }
+    }
+
+    // Populate the response
+    await order.populate("staff_member", "name");
+    await order.populate({
+      path: "order_items",
+      populate: {
+        path: "menu_item_id",
+        select: "name category",
+      },
+    });
+
+    res.status(201).json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT /orders/:id - Update order
+router.put("/:id", verifyAuth, async (req, res) => {
+  try {
+    const { status, payment_status, notes } = req.body;
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Check if user can update this order (Admin or Staff who created it)
+    if (
+      req.user.role !== "Admin" &&
+      order.staff_member.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    // Update fields
+    if (status !== undefined) order.status = status;
+    if (payment_status !== undefined) order.payment_status = payment_status;
+    if (notes !== undefined) order.notes = notes;
+
+    await order.save();
+
+    // Populate the response
+    await order.populate("staff_member", "name");
+    await order.populate({
+      path: "order_items",
+      populate: {
+        path: "menu_item_id",
+        select: "name category",
+      },
+    });
+
+    res.json(order);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT /orders/:id/status - Update order status
+router.put("/:id/status", verifyAuth, async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Check if user can update this order (Admin or Staff who created it)
+    if (
+      req.user.role !== "Admin" &&
+      order.staff_member.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    order.status = status;
+    await order.save();
+
+    res.json({ message: "Order status updated successfully", order });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// PUT /orders/:id/payment - Update payment status
+router.put("/:id/payment", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { payment_status, payment_method } = req.body;
+
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (payment_status !== undefined) order.payment_status = payment_status;
+    if (payment_method !== undefined) order.payment_method = payment_method;
+
+    await order.save();
+
+    res.json({ message: "Payment status updated successfully", order });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// DELETE /orders/:id - Delete order (Admin only)
+router.delete("/:id", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // Delete order items first
+    await OrderItem.deleteMany({ order_id: order._id });
+
+    // Delete the order
+    await Order.findByIdAndDelete(req.params.id);
+
+    res.json({ message: "Order deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/stats/summary - Get order statistics (Admin only)
+router.get("/stats/summary", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { date_from, date_to } = req.query;
+
+    let filter = {};
+    if (date_from || date_to) {
+      filter.created_at = {};
+      if (date_from) {
+        filter.created_at.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        filter.created_at.$lte = new Date(date_to);
+      }
+    }
+
+    const stats = await Order.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+          pending_orders: {
+            $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
+          },
+          completed_orders: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+
+    const statusBreakdown = await Order.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: "$status",
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    res.json({
+      summary: stats[0] || {
+        total_orders: 0,
+        total_revenue: 0,
+        average_order_value: 0,
+        pending_orders: 0,
+        completed_orders: 0,
+      },
+      statusBreakdown,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+module.exports = router;
