@@ -1,11 +1,11 @@
-import AdminSidebar from "../Sidebar/AdminSidebar";
+import StaffSidebar from "../Sidebar/StaffSidebar";
 import { Outlet } from "react-router-dom";
 
 const Layout = ({ children }) => {
   return (
     <div className="flex h-screen bg-gray-100">
-      {/* Admin Sidebar */}
-      <AdminSidebar />
+      {/* Staff Sidebar */}
+      <StaffSidebar />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">

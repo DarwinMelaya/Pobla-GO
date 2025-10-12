@@ -9,6 +9,9 @@ import {
   AdminManageOrders,
   AdminReservations,
   StaffDashboard,
+  StaffMenu,
+  StaffManageOrders,
+  StaffManageReservation,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -69,6 +72,30 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Staff">
               <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-menu"
+          element={
+            <ProtectedRoute requiredRole="Staff">
+              <StaffMenu />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-orders"
+          element={
+            <ProtectedRoute requiredRole="Staff">
+              <StaffManageOrders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-reservations"
+          element={
+            <ProtectedRoute requiredRole="Staff">
+              <StaffManageReservation />
             </ProtectedRoute>
           }
         />

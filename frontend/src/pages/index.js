@@ -12,3 +12,6 @@ export { default as AdminReservations } from "./Admin/AdminReservations";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";
+export { default as StaffMenu } from "./Staff/StaffMenu";
+export { default as StaffManageOrders } from "./Staff/StaffManageOrders";
+export { default as StaffManageReservation } from "./Staff/StaffManageReservation";

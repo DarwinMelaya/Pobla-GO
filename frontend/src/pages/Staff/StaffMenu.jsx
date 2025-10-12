@@ -1,10 +1,11 @@
 import Layout from "../../components/Layout/Layout";
-const StaffDashboard = () => {
+
+const StaffMenu = () => {
   return (
     <Layout>
-      <div>StaffDashboard</div>
+      <div>StaffMenu</div>
     </Layout>
   );
 };
 
-export default StaffDashboard;
+export default StaffMenu;
