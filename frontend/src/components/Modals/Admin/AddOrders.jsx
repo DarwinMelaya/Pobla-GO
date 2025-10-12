@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { XCircle, Plus, Minus, Trash2, RefreshCw } from "lucide-react";
+import { XCircle, Plus, Minus, Trash2, RefreshCw, Search } from "lucide-react";
 
 const AddOrders = ({
   isOpen,
@@ -23,6 +23,7 @@ const AddOrders = ({
   const [cashAmount, setCashAmount] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+  const [menuSearchTerm, setMenuSearchTerm] = useState("");
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -34,9 +35,9 @@ const AddOrders = ({
 
   // Format currency
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-PH", {
       style: "currency",
-      currency: "USD",
+      currency: "PHP",
     }).format(amount);
   };
 
@@ -134,6 +135,21 @@ const AddOrders = ({
     const total = calculateTotal();
     const cash = parseFloat(cashAmount) || 0;
     return cash >= total && total > 0;
+  };
+
+  // Filter menu items based on search term
+  const getFilteredMenuItems = () => {
+    if (!menuSearchTerm.trim()) {
+      return menuItems;
+    }
+
+    return menuItems.filter(
+      (item) =>
+        item.name.toLowerCase().includes(menuSearchTerm.toLowerCase()) ||
+        item.category.toLowerCase().includes(menuSearchTerm.toLowerCase()) ||
+        (item.description &&
+          item.description.toLowerCase().includes(menuSearchTerm.toLowerCase()))
+    );
   };
 
   // Create new order
@@ -453,6 +469,29 @@ const AddOrders = ({
               Menu Items
             </h4>
 
+            {/* Search Input */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search
+                  size={20}
+                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                />
+                <input
+                  type="text"
+                  placeholder="Search menu items..."
+                  value={menuSearchTerm}
+                  onChange={(e) => setMenuSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-sm"
+                />
+              </div>
+              {menuSearchTerm && (
+                <div className="mt-2 text-xs text-gray-500">
+                  {getFilteredMenuItems().length} of {menuItems.length} items
+                  found
+                </div>
+              )}
+            </div>
+
             {menuItemsLoading ? (
               <div className="flex justify-center items-center py-8">
                 <RefreshCw size={24} className="animate-spin text-[#C05050]" />
@@ -492,9 +531,25 @@ const AddOrders = ({
                   </button>
                 </div>
               </div>
+            ) : getFilteredMenuItems().length === 0 ? (
+              <div className="text-center py-8">
+                <Search size={48} className="mx-auto text-gray-400 mb-4" />
+                <p className="text-gray-500 mb-2">No menu items found</p>
+                <p className="text-sm text-gray-400">
+                  Try adjusting your search terms
+                </p>
+                {menuSearchTerm && (
+                  <button
+                    onClick={() => setMenuSearchTerm("")}
+                    className="mt-2 px-3 py-1 text-sm text-[#C05050] hover:text-[#B04040] transition-colors"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {menuItems.map((item, index) => {
+                {getFilteredMenuItems().map((item, index) => {
                   const itemQuantity =
                     orderForm.order_items.find(
                       (orderItem) => orderItem.menu_item_id === item._id
