@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
 import { XCircle, Plus, Minus, Trash2, RefreshCw, Search } from "lucide-react";
 
@@ -28,6 +28,7 @@ const AddOrders = ({
   const [checkingTable, setCheckingTable] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -209,13 +210,25 @@ const AddOrders = ({
     return cash >= total && total > 0;
   };
 
-  // Filter menu items based on search term
-  const getFilteredMenuItems = () => {
-    if (!menuSearchTerm.trim()) {
-      return menuItems;
-    }
+  // Memoized unique categories
+  const categories = useMemo(() => {
+    if (!menuItems.length) return ["All"];
+    const allCats = menuItems.map((item) => item.category || "Misc");
+    return ["All", ...Array.from(new Set(allCats))];
+  }, [menuItems]);
 
-    return menuItems.filter(
+  // Modified getFilteredMenuItems to also filter by selectedCategory
+  const getFilteredMenuItems = () => {
+    let filtered = menuItems;
+    if (selectedCategory && selectedCategory !== "All") {
+      filtered = filtered.filter(
+        (item) => (item.category || "Misc") === selectedCategory
+      );
+    }
+    if (!menuSearchTerm.trim()) {
+      return filtered;
+    }
+    return filtered.filter(
       (item) =>
         item.name.toLowerCase().includes(menuSearchTerm.toLowerCase()) ||
         item.category.toLowerCase().includes(menuSearchTerm.toLowerCase()) ||
@@ -544,44 +557,60 @@ const AddOrders = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 backdrop-blur-md rounded-lg w-full max-w-7xl h-[90vh] border border-gray-200/50 shadow-2xl flex flex-col">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 dark">
+      <div className="bg-[#1f1f1f] rounded-2xl w-full max-w-5xl h-[90vh] border border-[#383838] shadow-2xl flex flex-col overflow-hidden transition-all duration-300">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <h3 className="text-xl font-bold text-gray-900">Add New Order</h3>
+        <div className="px-10 py-5 border-b border-[#383838] flex justify-between items-center bg-[#262626] rounded-t-2xl">
+          <h3 className="text-2xl font-bold text-[#f5f5f5] tracking-wide">
+            Place Order
+          </h3>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg"
+            className="text-[#ababab] hover:text-[#f6b100] p-3 hover:bg-[#353535] rounded-lg transition-all"
           >
-            <XCircle size={24} />
+            <XCircle size={28} />
           </button>
         </div>
 
         {/* Main POS Layout */}
         <div className="flex-1 flex overflow-hidden">
-          {/* Left Column - Menu Items */}
-          <div className="w-1/3 border-r border-gray-200 p-4 overflow-y-auto">
-            <h4 className="text-lg font-semibold text-gray-900 mb-4">
+          {/* Left - Menu Items */}
+          <div className="w-1/3 border-r border-[#383838] p-6 overflow-y-auto bg-[#181818]">
+            <h4 className="text-xl font-semibold text-[#f5f5f5] mb-4">
               Menu Items
             </h4>
+            {/* Category selection UI */}
+            <div className="flex flex-wrap gap-3 mb-6">
+              {categories.map((cat, i) => (
+                <button
+                  key={cat + i}
+                  className={`px-5 py-2 rounded-full font-bold transition-all duration-200 text-sm shadow-lg border-2 focus:outline-none ${
+                    selectedCategory === cat
+                      ? "bg-[#f6b100] text-[#1f1f1f] border-[#f6b100]"
+                      : "bg-[#232323] text-[#ababab] border-[#353535] hover:bg-[#353535] hover:text-[#f6b100]"
+                  }`}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
 
             {/* Search Input */}
-            <div className="mb-4">
-              <div className="relative">
-                <Search
-                  size={20}
-                  className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  type="text"
-                  placeholder="Search menu items..."
-                  value={menuSearchTerm}
-                  onChange={(e) => setMenuSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-sm"
-                />
-              </div>
+            <div className="mb-6 relative">
+              <Search
+                size={20}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ababab]"
+              />
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                value={menuSearchTerm}
+                onChange={(e) => setMenuSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-[#232323] border border-[#353535] rounded-lg text-sm text-[#f5f5f5] ring-0 focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] shadow"
+              />
               {menuSearchTerm && (
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-[#ababab]">
                   {getFilteredMenuItems().length} of {menuItems.length} items
                   found
                 </div>
@@ -590,38 +619,38 @@ const AddOrders = ({
 
             {menuItemsLoading ? (
               <div className="flex justify-center items-center py-8">
-                <RefreshCw size={24} className="animate-spin text-[#C05050]" />
-                <span className="ml-2 text-gray-600">
+                <RefreshCw size={26} className="animate-spin text-[#f6b100]" />
+                <span className="ml-2 text-[#f5f5f5]">
                   Loading menu items...
                 </span>
               </div>
             ) : menuItems.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">
+                <p className="text-[#ababab] mb-4">
                   No available menu items found
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
                   <button
                     onClick={onFetchMenuItems}
-                    className="px-3 py-2 bg-[#C05050] text-white rounded-lg hover:bg-[#B04040] transition-colors text-sm"
+                    className="px-4 py-2 bg-[#f6b100] text-[#1f1f1f] rounded-lg font-semibold hover:bg-[#dab000] transition-colors text-sm shadow-lg"
                   >
                     Retry
                   </button>
                   <button
                     onClick={onCreateTestMenuData}
-                    className="px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm shadow-lg"
                   >
                     Create Test Data
                   </button>
                   <button
                     onClick={onDebugDatabase}
-                    className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-lg"
                   >
                     Debug DB
                   </button>
                   <button
                     onClick={onForceTestData}
-                    className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm shadow-lg"
                   >
                     Force Test
                   </button>
@@ -629,22 +658,22 @@ const AddOrders = ({
               </div>
             ) : getFilteredMenuItems().length === 0 ? (
               <div className="text-center py-8">
-                <Search size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500 mb-2">No menu items found</p>
-                <p className="text-sm text-gray-400">
+                <Search size={48} className="mx-auto text-[#383838] mb-4" />
+                <p className="text-[#ababab] mb-2">No menu items found</p>
+                <p className="text-sm text-[#383838]">
                   Try adjusting your search terms
                 </p>
                 {menuSearchTerm && (
                   <button
                     onClick={() => setMenuSearchTerm("")}
-                    className="mt-2 px-3 py-1 text-sm text-[#C05050] hover:text-[#B04040] transition-colors"
+                    className="mt-2 px-3 py-1 text-sm text-[#f6b100] hover:underline"
                   >
                     Clear search
                   </button>
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 {getFilteredMenuItems().map((item, index) => {
                   const itemQuantity =
                     orderForm.order_items.find(
@@ -659,42 +688,39 @@ const AddOrders = ({
                   return (
                     <div
                       key={item._id || index}
-                      className={`relative rounded-lg p-4 cursor-pointer transition-colors min-h-[100px] flex flex-col justify-between ${
+                      className={`relative rounded-lg p-4 min-h-[100px] shadow cursor-pointer transition-colors flex flex-col justify-between border-2 ${
                         isOutOfStock
-                          ? "bg-gray-400 cursor-not-allowed opacity-60"
+                          ? "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed"
                           : isLowStock
-                          ? "bg-orange-500 hover:bg-orange-600"
-                          : "bg-[#C05050] hover:bg-[#B04040]"
+                          ? "bg-[#38301b] border-yellow-600"
+                          : "bg-[#262626] border-[#383838] hover:border-[#f6b100]"
                       }`}
                       onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
-                      {/* Quantity Badge */}
+                      {/* Quantity badge */}
                       {itemQuantity > 0 && (
-                        <div className="absolute top-2 right-2 bg-white text-[#C05050] rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold border-2 border-white">
+                        <div className="absolute top-2 right-2 bg-[#f6b100] text-[#232323] rounded-full w-7 h-7 flex items-center justify-center text-base font-bold shadow border-2 border-[#383838]">
                           {itemQuantity}
                         </div>
                       )}
-
-                      {/* Item Info */}
-                      <div className="text-center text-white">
-                        <h5 className="font-medium text-sm mb-1 truncate">
+                      <div className="text-center">
+                        <h5 className="font-medium text-base text-[#f5f5f5] mb-1 truncate">
                           {item.name || "No name"}
                         </h5>
-                        <p className="text-xs opacity-90">
+                        <p className="text-sm text-[#f6b100] font-semibold">
                           {formatCurrency(item.price || 0)}
                         </p>
-                        {/* Show available servings with status indicator */}
-                        <div className="text-xs opacity-75 mt-1">
+                        <div className="mt-1 text-xs">
                           <p>Servings: {availableServings}</p>
                           {isOutOfStock && (
-                            <p className="text-red-200 font-bold">
+                            <span className="inline-block mt-1 px-2 py-1 bg-[#313131] text-red-400 text-xs font-bold rounded">
                               OUT OF STOCK
-                            </p>
+                            </span>
                           )}
                           {isLowStock && !isOutOfStock && (
-                            <p className="text-yellow-200 font-bold">
+                            <span className="inline-block mt-1 px-2 py-1 bg-[#50440a] text-[#f6b100] text-xs font-bold rounded">
                               LOW STOCK
-                            </p>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -705,35 +731,34 @@ const AddOrders = ({
             )}
           </div>
 
-          {/* Middle Column - Order Summary */}
-          <div className="w-1/3 border-r border-gray-200 flex flex-col">
-            <div className="bg-gray-100 px-4 py-3 border-b border-gray-200">
-              <div className="grid grid-cols-4 gap-2 text-sm font-medium text-gray-700">
+          {/* Middle - Order Summary */}
+          <div className="w-1/3 border-r border-[#383838] flex flex-col bg-[#232323]">
+            <div className="bg-[#181818] px-6 py-4 border-b border-[#383838]">
+              <div className="grid grid-cols-4 gap-2 text-base font-bold text-[#ababab]">
                 <div>ID</div>
                 <div>Item</div>
                 <div>Qty</div>
                 <div>Price</div>
               </div>
             </div>
-
-            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+            <div className="flex-1 p-6 overflow-y-auto">
               {orderForm.order_items.length === 0 ? (
-                <div className="text-center text-gray-500 py-8">
+                <div className="text-center text-[#ababab] py-8">
                   No items in order
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {orderForm.order_items.map((item, index) => (
                     <div
                       key={index}
-                      className="grid grid-cols-4 gap-2 text-sm bg-white p-2 rounded border"
+                      className="grid grid-cols-4 gap-2 text-base bg-[#262626] text-[#f5f5f5] p-3 rounded-lg border border-[#383838] shadow"
                     >
-                      <div className="text-gray-600">#{index + 1}</div>
+                      <div>#{index + 1}</div>
                       <div className="font-medium truncate">
                         {item.item_name}
                       </div>
                       <div className="text-center">{item.quantity}</div>
-                      <div className="text-right font-medium">
+                      <div className="text-right font-semibold text-[#f6b100]">
                         {formatCurrency(item.total_price)}
                       </div>
                     </div>
@@ -741,13 +766,12 @@ const AddOrders = ({
                 </div>
               )}
             </div>
-
-            <div className="p-4 border-t border-gray-200">
+            <div className="px-6 py-4 border-t border-[#383838]">
               <button
                 onClick={() =>
                   setOrderForm((prev) => ({ ...prev, order_items: [] }))
                 }
-                className="w-full px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                className="w-full px-5 py-3 bg-[#ff4747] text-white rounded-lg font-semibold hover:bg-[#c0392b] transition shadow-sm"
                 disabled={orderForm.order_items.length === 0}
               >
                 Delete All
@@ -755,107 +779,102 @@ const AddOrders = ({
             </div>
           </div>
 
-          {/* Right Column - Receipt Preview & Payment */}
-          <div className="w-1/3 p-4 overflow-y-auto">
-            <div className="bg-white border border-gray-300 rounded-lg p-4">
-              {/* Receipt Header */}
-              <div className="text-center mb-4">
-                <h3 className="text-lg font-bold text-gray-900">
-                  Poblacion Pares Fast Food Chain
+          {/* Right - Receipt Preview & Payment */}
+          <div className="w-1/3 p-6 bg-[#1f1f1f] overflow-y-auto">
+            <div className="bg-[#232323] border border-[#383838] rounded-xl p-6 shadow-lg">
+              <div className="text-center mb-6">
+                <h3 className="text-2xl font-bold text-[#f5f5f5]">
+                  POBLACION PARES
                 </h3>
-                <p className="text-sm text-gray-600">
+                <p className="text-xs text-[#ababab]">
                   Cleofas, Jamie James Ramos-Prop
                 </p>
-                <p className="text-sm text-gray-600">Villa Mendez (Pob.)</p>
-                <p className="text-sm text-gray-600">Mogpog, Marinduque</p>
-                <div className="border-t border-gray-300 my-2"></div>
+                <p className="text-xs text-[#ababab]">
+                  Villa Mendez (Pob.), Mogpog, Marinduque
+                </p>
+                <div className="border-t border-[#353535] my-2"></div>
               </div>
-
               {/* Receipt Table */}
               <div className="mb-4">
-                <div className="grid grid-cols-4 gap-2 text-xs font-medium text-gray-700 border-b border-gray-300 pb-1">
+                <div className="grid grid-cols-4 gap-2 text-xs font-medium text-[#ababab] border-b border-[#353535] pb-1">
                   <div>Item</div>
                   <div className="text-center">Qty</div>
                   <div className="text-right">Unit Price</div>
                   <div className="text-right">Amount</div>
                 </div>
-
                 {orderForm.order_items.length === 0 ? (
-                  <div className="text-center text-gray-500 py-4 text-sm">
+                  <div className="text-center text-[#ababab] py-4 text-sm">
                     No items
                   </div>
                 ) : (
-                  <div className="space-y-1 mt-2">
+                  <div className="space-y-1 mt-3">
                     {orderForm.order_items.map((item, index) => (
                       <div
                         key={index}
-                        className="grid grid-cols-4 gap-2 text-xs"
+                        className="grid grid-cols-4 gap-2 text-xs text-[#f5f5f5]"
                       >
                         <div className="truncate">{item.item_name}</div>
                         <div className="text-center">{item.quantity}</div>
                         <div className="text-right">
                           {formatCurrency(item.price)}
                         </div>
-                        <div className="text-right font-medium">
+                        <div className="text-right font-bold">
                           {formatCurrency(item.total_price)}
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-
-                <div className="border-t border-gray-300 mt-2 pt-2">
-                  <div className="flex justify-between items-center font-bold text-sm">
-                    <span>Total amount:</span>
-                    <span>{formatCurrency(calculateTotal())}</span>
+                <div className="border-t border-[#383838] mt-3 pt-3">
+                  <div className="flex justify-between items-center font-bold text-base">
+                    <span>Total:</span>
+                    <span className="text-[#f6b100]">
+                      {formatCurrency(calculateTotal())}
+                    </span>
                   </div>
                 </div>
               </div>
-
               {/* Payment Section */}
-              <div className="space-y-3 mb-4">
+              <div className="space-y-3 mb-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[#ababab] mb-1">
                     Total:
                   </label>
                   <input
                     type="text"
                     value={formatCurrency(calculateTotal())}
                     readOnly
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-700"
+                    className="w-full px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] font-semibold"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[#ababab] mb-1">
                     Cash:
                   </label>
                   <input
                     type="text"
                     value={cashAmount}
                     onChange={(e) => handleCashAmountChange(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                    className="w-full px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab]"
                     placeholder="0.00"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs font-medium text-[#ababab] mb-1">
                     Balance:
                   </label>
                   <input
                     type="text"
                     value={formatCurrency(Math.max(0, calculateChange()))}
                     readOnly
-                    className={`w-full px-3 py-2 border rounded-lg ${
+                    className={`w-full px-3 py-2 border rounded-lg font-semibold ${
                       calculateChange() >= 0
-                        ? "bg-green-100 border-green-300 text-green-700"
-                        : "bg-red-100 border-red-300 text-red-700"
+                        ? "bg-[#222d23] border-[#2d6222] text-[#92ecb3]"
+                        : "bg-[#2e2020] border-[#a12c2c] text-[#ffb1b1]"
                     }`}
                   />
                 </div>
               </div>
-
               {/* Action Buttons */}
               <div className="space-y-2">
                 <button
@@ -865,12 +884,12 @@ const AddOrders = ({
                     (orderForm.payment_method === "cash" &&
                       !isCashPaymentValid())
                   }
-                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                  className={`w-full px-6 py-3 rounded-lg font-bold flex items-center justify-center text-lg shadow transition-all duration-200 ${
                     isCreatingOrder ||
                     (orderForm.payment_method === "cash" &&
                       !isCashPaymentValid())
-                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                      : "bg-green-600 text-white hover:bg-green-700"
+                      ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                      : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000]"
                   }`}
                 >
                   {isCreatingOrder ? (
@@ -885,16 +904,15 @@ const AddOrders = ({
                     "Pay"
                   )}
                 </button>
-
                 <button
                   onClick={printReceipt}
                   disabled={
                     isPrintingReceipt || orderForm.order_items.length === 0
                   }
-                  className={`w-full px-4 py-3 rounded-lg transition-colors font-medium flex items-center justify-center ${
+                  className={`w-full px-6 py-3 rounded-lg font-bold flex items-center justify-center text-lg shadow transition-all ${
                     isPrintingReceipt || orderForm.order_items.length === 0
-                      ? "bg-gray-400 text-gray-200 cursor-not-allowed"
-                      : "bg-green-600 text-white hover:bg-green-700"
+                      ? "bg-gray-600 text-gray-400 cursor-not-allowed"
+                      : "bg-[#232323] text-[#f5f5f5] hover:bg-[#333333]"
                   }`}
                 >
                   {isPrintingReceipt ? (
@@ -912,23 +930,22 @@ const AddOrders = ({
         </div>
 
         {/* Bottom Section - Order Details (Collapsible) */}
-        <div className="border-t border-gray-200 bg-gray-50">
-          <div className="px-4 py-2 bg-gray-100 border-b border-gray-200">
+        <div className="border-t border-[#383838] bg-[#232323]">
+          <div className="px-6 py-3 bg-[#181818] border-b border-[#383838]">
             <button
               onClick={() => setShowOrderDetails(!showOrderDetails)}
-              className="text-sm font-medium text-gray-700 hover:text-gray-900"
+              className="text-base font-bold text-[#f6b100] hover:underline"
             >
               {showOrderDetails ? "▼" : "▶"} Order Details
             </button>
           </div>
-
           {showOrderDetails && (
-            <div className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Order Information */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#f6b100] mb-1">
                       Customer Name *
                     </label>
                     <input
@@ -940,12 +957,12 @@ const AddOrders = ({
                           customer_name: e.target.value,
                         }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      className="w-full px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab]"
                       placeholder="Enter customer name"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#f6b100] mb-1">
                       Table Number *
                     </label>
                     <div className="flex space-x-2">
@@ -957,10 +974,9 @@ const AddOrders = ({
                             ...prev,
                             table_number: e.target.value,
                           }));
-                          // Clear table status when table number changes
                           setTableStatus(null);
                         }}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                        className="flex-1 px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab]"
                         placeholder="Enter table number"
                       />
                       <button
@@ -969,7 +985,7 @@ const AddOrders = ({
                           checkTableAvailability(orderForm.table_number)
                         }
                         disabled={!orderForm.table_number || checkingTable}
-                        className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow"
                       >
                         {checkingTable ? "Checking..." : "Check"}
                       </button>
@@ -977,10 +993,10 @@ const AddOrders = ({
                     {/* Table Status Indicator */}
                     {tableStatus && (
                       <div
-                        className={`mt-2 p-2 rounded-lg text-sm ${
+                        className={`mt-3 p-3 rounded-xl text-sm font-bold ${
                           tableStatus.available
-                            ? "bg-green-100 text-green-800 border border-green-300"
-                            : "bg-red-100 text-red-800 border border-red-300"
+                            ? "bg-[#222d23] text-[#4ec57a] border border-[#4ec57a]"
+                            : "bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]"
                         }`}
                       >
                         {tableStatus.available ? (
@@ -988,21 +1004,20 @@ const AddOrders = ({
                             ✅ Table {orderForm.table_number} is available
                           </span>
                         ) : (
-                          <div>
-                            <span>
-                              ❌ Table {orderForm.table_number} is occupied
-                            </span>
-                            <div className="text-xs mt-1">
+                          <span>
+                            ❌ Table {orderForm.table_number} is occupied
+                            <br />
+                            <span className="text-xs font-normal block mt-1">
                               Customer: {tableStatus.customer} | Status:{" "}
                               {tableStatus.status} | Staff: {tableStatus.staff}
-                            </div>
-                          </div>
+                            </span>
+                          </span>
                         )}
                       </div>
                     )}
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#f6b100] mb-1">
                       Payment Method
                     </label>
                     <select
@@ -1012,14 +1027,13 @@ const AddOrders = ({
                           ...prev,
                           payment_method: e.target.value,
                         }));
-                        if (e.target.value === "cash") {
-                          setShowCashPayment(true);
-                        } else {
+                        if (e.target.value === "cash") setShowCashPayment(true);
+                        else {
                           setShowCashPayment(false);
                           setCashAmount("");
                         }
                       }}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      className="w-full px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100]"
                     >
                       <option value="cash">Cash</option>
                       <option value="card">Card</option>
@@ -1027,7 +1041,7 @@ const AddOrders = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-bold text-[#f6b100] mb-1">
                       Notes
                     </label>
                     <input
@@ -1039,7 +1053,7 @@ const AddOrders = ({
                           notes: e.target.value,
                         }))
                       }
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                      className="w-full px-3 py-2 bg-[#181818] border border-[#353535] rounded-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab]"
                       placeholder="Special instructions or notes"
                     />
                   </div>

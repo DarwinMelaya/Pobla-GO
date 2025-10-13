@@ -9,6 +9,7 @@ import {
   XCircle,
   AlertCircle,
   Clock as ClockIcon,
+  X,
 } from "lucide-react";
 
 const ViewReservationModal = ({ isOpen, onClose, reservation }) => {
@@ -45,24 +46,21 @@ const ViewReservationModal = ({ isOpen, onClose, reservation }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800/95 backdrop-blur-md rounded-lg w-full max-w-2xl max-h-[90vh] border border-gray-700/50 shadow-2xl overflow-hidden flex flex-col">
-        <div className="p-6 pb-4 flex-shrink-0 border-b border-gray-700/50">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#C05050]" />
-              Reservation Details
-            </h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-700/50 rounded-lg transition-colors duration-200"
-            >
-              <XCircle className="w-5 h-5 text-gray-400" />
-            </button>
-          </div>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1f1f1f] rounded-2xl w-full max-w-xl max-h-[90vh] border border-[#383838] shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-8 py-5 border-b border-[#383838] flex justify-between items-center bg-[#262626] rounded-t-2xl">
+          <h2 className="text-2xl font-bold text-[#f5f5f5]">
+            Reservation Details
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-[#ababab] hover:text-[#f6b100] p-3 hover:bg-[#353535] rounded-lg"
+            type="button"
+          >
+            <X className="w-7 h-7" />
+          </button>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-8 py-4 bg-[#232323]">
           <div className="space-y-6">
             {/* Status Badge */}
             <div className="flex justify-center">

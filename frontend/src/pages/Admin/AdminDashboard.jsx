@@ -521,122 +521,59 @@ const AdminDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
+      <div className="bg-[#1f1f1f] min-h-screen rounded-r-2xl p-8">
+        {/* Header section */}
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-            <p className="text-gray-600">
-              Welcome back! Here's what's happening today.
-            </p>
+            <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">Dashboard</h1>
+            <p className="text-[#ababab]">Welcome back! Here's what's happening today.</p>
           </div>
-          <div className="text-sm text-gray-500">
-            Last updated: {new Date().toLocaleString()}
+          <div className="text-sm text-[#ababab]">Last updated: {new Date().toLocaleString()}</div>
+        </div>
+
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
+            <p className="text-md text-[#ababab] font-semibold">Total Revenue</p>
+            <div className="text-2xl font-bold text-[#f6b100] my-2">₱{dashboardData.orders.totalRevenue.toLocaleString()}</div>
+            <div className="text-xs text-green-500 flex items-center">+12.5% from last month</div>
+          </div>
+          <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
+            <p className="text-md text-[#ababab] font-semibold">Total Orders</p>
+            <div className="text-2xl font-bold text-[#f5f5f5] my-2">{dashboardData.orders.total}</div>
+            <div className="text-xs text-blue-400 flex items-center">{dashboardData.orders.pending} pending</div>
+          </div>
+          <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
+            <p className="text-md text-[#ababab] font-semibold">Reservations</p>
+            <div className="text-2xl font-bold text-[#e3bfff] my-2">{dashboardData.reservations.total}</div>
+            <div className="text-xs text-purple-300 flex items-center">{dashboardData.reservations.pending} pending</div>
+          </div>
+          <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
+            <p className="text-md text-[#ababab] font-semibold">Low Stock Items</p>
+            <div className="text-2xl font-bold text-[#ffbd4f] my-2">{dashboardData.inventory.lowStock}</div>
+            <div className="text-xs text-orange-400 flex items-center">Needs attention</div>
           </div>
         </div>
 
-        {/* Key Metrics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Total Revenue */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Total Revenue
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  ₱{dashboardData.orders.totalRevenue.toLocaleString()}
-                </p>
-                <p className="text-sm text-green-600 flex items-center mt-1">
-                  <TrendingUp className="w-4 h-4 mr-1" />
-                  +12.5% from last month
-                </p>
-              </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
-            </div>
-          </div>
-
-          {/* Total Orders */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Total Orders
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {dashboardData.orders.total}
-                </p>
-                <p className="text-sm text-blue-600 flex items-center mt-1">
-                  <ShoppingCart className="w-4 h-4 mr-1" />
-                  {dashboardData.orders.pending} pending
-                </p>
-              </div>
-              <ShoppingCart className="w-8 h-8 text-blue-500" />
-            </div>
-          </div>
-
-          {/* Reservations */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-purple-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Reservations
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {dashboardData.reservations.total}
-                </p>
-                <p className="text-sm text-purple-600 flex items-center mt-1">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  {dashboardData.reservations.pending} pending
-                </p>
-              </div>
-              <Calendar className="w-8 h-8 text-purple-500" />
-            </div>
-          </div>
-
-          {/* Inventory Alerts */}
-          <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">
-                  Low Stock Items
-                </p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {dashboardData.inventory.lowStock}
-                </p>
-                <p className="text-sm text-orange-600 flex items-center mt-1">
-                  <AlertTriangle className="w-4 h-4 mr-1" />
-                  Needs attention
-                </p>
-              </div>
-              <Package className="w-8 h-8 text-orange-500" />
-            </div>
-          </div>
-        </div>
-
-        {/* Charts and Analytics Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Orders Status Pie Chart */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+        {/* Chart cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Orders Status
-              </h3>
-              <PieChart className="w-5 h-5 text-gray-500" />
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">Orders Status</h3>
+              <PieChart className="w-5 h-5 text-[#ababab]" />
             </div>
             <div className="h-64">
               {chartData.ordersPieData ? (
                 <Pie data={chartData.ordersPieData} options={pieChartOptions} />
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <PieChart className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">Loading chart data...</p>
-                  </div>
+                <div className="h-full flex items-center justify-center bg-[#262626] rounded-lg">
+                  <PieChart className="w-12 h-12 text-[#383838] mx-auto mb-2" />
+                  <p className="text-[#ababab]">Loading chart data...</p>
                 </div>
               )}
             </div>
           </div>
+          {/* Add more chart cards as in your original UI, but keep bg and styles consistent */}
         </div>
 
         {/* Table Performance & Status Charts */}

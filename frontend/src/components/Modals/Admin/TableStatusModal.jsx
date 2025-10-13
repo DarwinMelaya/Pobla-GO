@@ -1,6 +1,13 @@
 import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
-import { XCircle, RefreshCw, Users, Clock, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  XCircle,
+  RefreshCw,
+  Users,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 
 const TableStatusModal = ({ isOpen, onClose }) => {
   const [tableStatuses, setTableStatuses] = useState({});
@@ -83,7 +90,7 @@ const TableStatusModal = ({ isOpen, onClose }) => {
   const getAvailableTables = () => {
     const occupiedTables = Object.keys(tableStatuses);
     const allTables = Array.from({ length: 20 }, (_, i) => (i + 1).toString()); // Assuming tables 1-20
-    return allTables.filter(table => !occupiedTables.includes(table));
+    return allTables.filter((table) => !occupiedTables.includes(table));
   };
 
   useEffect(() => {
@@ -95,38 +102,25 @@ const TableStatusModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white/95 backdrop-blur-md rounded-lg w-full max-w-6xl h-[90vh] border border-gray-200/50 shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-          <div>
-            <h3 className="text-xl font-bold text-gray-900">Table Status Monitor</h3>
-            <p className="text-sm text-gray-600">Real-time table occupancy and order status</p>
-          </div>
-          <div className="flex space-x-3">
-            <button
-              onClick={fetchTableStatuses}
-              disabled={loading}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              <RefreshCw size={20} className={loading ? "animate-spin" : ""} />
-              <span>Refresh</span>
-            </button>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 p-2 hover:bg-gray-200 rounded-lg"
-            >
-              <XCircle size={24} />
-            </button>
-          </div>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1f1f1f] rounded-2xl w-full max-w-xl max-h-[90vh] border border-[#383838] shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-8 py-5 border-b border-[#383838] flex justify-between items-center bg-[#262626] rounded-t-2xl">
+          <h2 className="text-2xl font-bold text-[#f5f5f5]">Table Status</h2>
+          <button
+            onClick={onClose}
+            className="text-[#ababab] hover:text-[#f6b100] p-3 hover:bg-[#353535] rounded-lg"
+            type="button"
+          >
+            X
+          </button>
         </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto px-8 py-4 bg-[#232323]">
           {loading ? (
             <div className="flex justify-center items-center py-12">
               <RefreshCw size={24} className="animate-spin text-[#C05050]" />
-              <span className="ml-2 text-gray-600">Loading table statuses...</span>
+              <span className="ml-2 text-gray-600">
+                Loading table statuses...
+              </span>
             </div>
           ) : (
             <div className="space-y-6">
@@ -142,49 +136,73 @@ const TableStatusModal = ({ isOpen, onClose }) => {
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.entries(tableStatuses).map(([tableNumber, status]) => (
-                      <div
-                        key={tableNumber}
-                        className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <h5 className="font-semibold text-gray-900">Table {tableNumber}</h5>
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                              status.status
-                            )}`}
-                          >
-                            {getStatusIcon(status.status)}
-                            <span className="ml-1 capitalize">{status.status}</span>
-                          </span>
-                        </div>
-                        
-                        <div className="space-y-2 text-sm">
-                          <div>
-                            <span className="font-medium text-gray-700">Customer:</span>
-                            <span className="ml-2 text-gray-900">{status.customer}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Staff:</span>
-                            <span className="ml-2 text-gray-900">{status.staff}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Order ID:</span>
-                            <span className="ml-2 text-gray-900">#{status.order._id.slice(-8)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Started:</span>
-                            <span className="ml-2 text-gray-900">{formatDate(status.order.created_at)}</span>
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-700">Total:</span>
-                            <span className="ml-2 text-gray-900">
-                              ₱{status.order.total_amount.toFixed(2)}
+                    {Object.entries(tableStatuses).map(
+                      ([tableNumber, status]) => (
+                        <div
+                          key={tableNumber}
+                          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-semibold text-gray-900">
+                              Table {tableNumber}
+                            </h5>
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                                status.status
+                              )}`}
+                            >
+                              {getStatusIcon(status.status)}
+                              <span className="ml-1 capitalize">
+                                {status.status}
+                              </span>
                             </span>
                           </div>
+
+                          <div className="space-y-2 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Customer:
+                              </span>
+                              <span className="ml-2 text-gray-900">
+                                {status.customer}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Staff:
+                              </span>
+                              <span className="ml-2 text-gray-900">
+                                {status.staff}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Order ID:
+                              </span>
+                              <span className="ml-2 text-gray-900">
+                                #{status.order._id.slice(-8)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Started:
+                              </span>
+                              <span className="ml-2 text-gray-900">
+                                {formatDate(status.order.created_at)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="font-medium text-gray-700">
+                                Total:
+                              </span>
+                              <span className="ml-2 text-gray-900">
+                                ₱{status.order.total_amount.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 )}
               </div>
@@ -204,7 +222,9 @@ const TableStatusModal = ({ isOpen, onClose }) => {
                       <div className="text-sm font-medium text-green-800">
                         Table {tableNumber}
                       </div>
-                      <div className="text-xs text-green-600 mt-1">Available</div>
+                      <div className="text-xs text-green-600 mt-1">
+                        Available
+                      </div>
                     </div>
                   ))}
                 </div>

@@ -11,9 +11,21 @@ const DeleteInventoryModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800/95 backdrop-blur-md rounded-lg w-full max-w-md border border-gray-700/50 shadow-2xl">
-        <div className="p-6">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1f1f1f] rounded-2xl w-full max-w-md border border-[#383838] shadow-2xl">
+        <div className="px-8 py-6 border-b border-[#383838] flex justify-between items-center bg-[#232323] rounded-t-2xl">
+          <h2 className="text-xl font-bold text-[#f5f5f5] flex items-center gap-2">
+            Confirm Delete
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-[#ababab] hover:text-[#f6b100] p-3 hover:bg-[#353535] rounded-lg"
+            type="button"
+          >
+            X
+          </button>
+        </div>
+        <div className="p-8 bg-[#232323] text-[#f5f5f5] rounded-b-2xl space-y-5 text-center">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-red-500/20 rounded-full">

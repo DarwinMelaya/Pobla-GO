@@ -188,34 +188,29 @@ const ManageInventory = () => {
 
   return (
     <Layout>
-      <div className="bg-[#EECCCC] min-h-screen p-6 rounded-r-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Manage Inventory</h1>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            Add New Item
-          </button>
+      <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-[#f5f5f5]">Manage Inventory</h1>
+          <button className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow">Add New Item</button>
         </div>
 
-        {/* Success/Error Messages */}
+        {/* Success/Error: alert cards now dark accent, white/yellow/red text */}
         {success && (
-          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
+          <div className="bg-green-900 border border-green-600 text-green-200 px-4 py-3 rounded mb-4">
             {success}
           </div>
         )}
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <div className="bg-red-900 border border-red-600 text-red-200 px-4 py-3 rounded mb-4">
             {error}
           </div>
         )}
 
-        {/* Search and Filter */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6 border border-[#DCDCDC]">
+        {/* Filter/search card */}
+        <div className="bg-[#232323] p-4 rounded-lg shadow mb-6 border border-[#383838]">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Search Items
               </label>
               <input
@@ -223,126 +218,73 @@ const ManageInventory = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Search by name..."
-                className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#b5b5b5]"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Category
-              </label>
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">Filter by Category</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
               >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
+                  <option key={category} value={category}>{category}</option>
                 ))}
               </select>
             </div>
             <div className="flex items-end">
               <button
-                onClick={() => {
-                  setSearchTerm("");
-                  setCategoryFilter("");
-                }}
-                className="w-full bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-md transition-colors"
-              >
-                Clear Filters
-              </button>
+                onClick={() => { setSearchTerm(""); setCategoryFilter(""); }}
+                className="w-full bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-md font-bold transition-colors"
+              >Clear Filters</button>
             </div>
           </div>
         </div>
 
-        {/* Inventory Table */}
-        <div className="bg-white rounded-lg shadow overflow-hidden border border-[#DCDCDC]">
+        <div className="bg-[#232323] rounded-lg shadow overflow-hidden border border-[#383838]">
           {loading ? (
             <div className="p-8 text-center">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#C05050]"></div>
-              <p className="mt-2 text-gray-600">Loading...</p>
+              <p className="mt-2 text-[#ababab]">Loading...</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-[#F5F5F5]">
+              <table className="min-w-full divide-y divide-[#383838]">
+                <thead className="bg-[#292929]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Name
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Category
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Quantity
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Unit
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Expiry Date
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Supplier
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Unit</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Expiry Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Supplier</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-[#232323]">
                   {inventory.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan="7"
-                        className="px-6 py-4 text-center text-gray-500"
-                      >
-                        No inventory items found
-                      </td>
+                      <td colSpan="7" className="px-6 py-4 text-center text-[#ababab]">No inventory items found</td>
                     </tr>
                   ) : (
                     inventory.map((item) => (
-                      <tr key={item._id} className="hover:bg-gray-50">
+                      <tr key={item._id} className="hover:bg-[#282828]">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.name}
-                          </div>
+                          <div className="text-sm font-bold text-[#f5f5f5]">{item.name}</div>
                           {item.description && (
-                            <div className="text-sm text-gray-500">
-                              {item.description}
-                            </div>
+                            <div className="text-sm text-[#cccccc]">{item.description}</div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.category}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.quantity}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.unit}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(item.expiry_date).toLocaleDateString()}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {item.supplier || "-"}
-                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.category}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">{item.quantity}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.unit}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{new Date(item.expiry_date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.supplier || "-"}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button
-                            onClick={() => handleEdit(item)}
-                            className="text-[#C05050] hover:text-[#B04040] mr-3"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteClick(item)}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            Delete
-                          </button>
+                          <button onClick={() => handleEdit(item)} className="text-[#f6b100] hover:text-[#dab000] mr-4 font-bold">Edit</button>
+                          <button onClick={() => handleDeleteClick(item)} className="text-red-500 hover:text-red-600 font-bold">Delete</button>
                         </td>
                       </tr>
                     ))

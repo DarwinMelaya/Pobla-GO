@@ -151,8 +151,6 @@ const AdminManageOrders = () => {
         });
       }
 
-      
-
       if (!response.ok) {
         const errorText = await response.text();
         console.error("Menu API error response:", errorText);
@@ -174,20 +172,15 @@ const AdminManageOrders = () => {
         menuItemsArray = [];
       }
 
-      
-
       // Filter for available items
       const availableItems = menuItemsArray.filter(
         (item) => item.is_available === true
       );
-      
 
       // Test if items have the expected structure
       if (availableItems.length > 0) {
         // verified item structure
       }
-
-      
 
       // Force set some test data if no items found
       if (availableItems.length === 0 && menuItemsArray.length > 0) {
@@ -195,8 +188,6 @@ const AdminManageOrders = () => {
       } else {
         setMenuItems(availableItems);
       }
-
-      
     } catch (error) {
       console.error("Error fetching menu items:", error);
       toast.error(`Failed to fetch menu items: ${error.message}`);
@@ -469,12 +460,16 @@ const AdminManageOrders = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="bg-[#1f1f1f] min-h-screen rounded-r-2xl p-8 space-y-8">
         {/* Header */}
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Manage Orders</h1>
-            <p className="text-gray-600">View and manage all customer orders</p>
+            <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
+              Manage Orders
+            </h1>
+            <p className="text-[#cccccc]">
+              View and manage all customer orders
+            </p>
           </div>
           <div className="flex space-x-3">
             <button
@@ -512,12 +507,12 @@ const AdminManageOrders = () => {
         </div>
 
         {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Orders</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-[#cccccc]">Total Orders</p>
+                <p className="text-2xl font-bold text-[#f5f5f5]">
                   {stats.total_orders}
                 </p>
               </div>
@@ -527,11 +522,11 @@ const AdminManageOrders = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-[#cccccc]">Total Revenue</p>
+                <p className="text-2xl font-bold text-[#f5f5f5]">
                   {formatCurrency(stats.total_revenue)}
                 </p>
               </div>
@@ -541,11 +536,11 @@ const AdminManageOrders = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Avg Order Value</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-sm text-[#cccccc]">Avg Order Value</p>
+                <p className="text-2xl font-bold text-[#f5f5f5]">
                   {formatCurrency(stats.average_order_value)}
                 </p>
               </div>
@@ -555,10 +550,10 @@ const AdminManageOrders = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Pending Orders</p>
+                <p className="text-sm text-[#cccccc]">Pending Orders</p>
                 <p className="text-2xl font-bold text-yellow-600">
                   {stats.pending_orders}
                 </p>
@@ -569,10 +564,10 @@ const AdminManageOrders = () => {
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600">Completed Orders</p>
+                <p className="text-sm text-[#cccccc]">Completed Orders</p>
                 <p className="text-2xl font-bold text-green-600">
                   {stats.completed_orders}
                 </p>
@@ -585,10 +580,10 @@ const AdminManageOrders = () => {
         </div>
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-lg shadow-sm border">
+        <div className="bg-[#232323] p-4 rounded-xl shadow-sm border border-[#383838] mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Search
               </label>
               <div className="relative">
@@ -601,19 +596,19 @@ const AdminManageOrders = () => {
                   placeholder="Customer name..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                  className="w-full pl-10 pr-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Status
               </label>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
               >
                 <option value="">All Status</option>
                 <option value="pending">Pending</option>
@@ -625,7 +620,7 @@ const AdminManageOrders = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Table Number
               </label>
               <input
@@ -633,38 +628,38 @@ const AdminManageOrders = () => {
                 placeholder="Table #"
                 value={tableFilter}
                 onChange={(e) => setTableFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Date From
               </label>
               <input
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Date To
               </label>
               <input
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
               />
             </div>
 
             <div className="flex items-end">
               <button
                 onClick={clearFilters}
-                className="w-full px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="w-full px-4 py-2 text-[#cccccc] border border-[#383838] rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Clear Filters
               </button>
@@ -673,138 +668,145 @@ const AdminManageOrders = () => {
         </div>
 
         {/* Orders Table */}
-        <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900">
+        <div className="bg-[#232323] rounded-xl shadow-sm border border-[#383838] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[#383838]">
+            <h3 className="text-lg font-bold text-[#f5f5f5]">
               Orders ({totalOrders})
             </h3>
           </div>
 
           {loading ? (
             <div className="flex justify-center items-center py-12">
-              <RefreshCw size={24} className="animate-spin text-[#C05050]" />
-              <span className="ml-2 text-gray-600">Loading orders...</span>
+              <RefreshCw size={24} className="animate-spin text-[#f6b100]" />
+              <span className="ml-2 text-[#b5b5b5]">Loading orders...</span>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-[#292929]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Order ID
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Customer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Table
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Total
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Date
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Staff
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.map((order) => (
-                    <tr key={order._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        #{order._id.slice(-8)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.customer_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.table_number}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
-                            order.status
-                          )}`}
-                        >
-                          {getStatusIcon(order.status)}
-                          <span className="ml-1 capitalize">
-                            {order.status}
-                          </span>
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {formatCurrency(order.total_amount)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {formatDate(order.created_at)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {order.staff_member?.name || "Unknown"}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => viewOrderDetails(order._id)}
-                            className="text-[#C05050] hover:text-[#B04040] transition-colors"
-                            title="View Details"
-                          >
-                            <Eye size={16} />
-                          </button>
-
-                          <select
-                            value={order.status}
-                            onChange={(e) =>
-                              updateOrderStatus(order._id, e.target.value)
-                            }
-                            className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="preparing">Preparing</option>
-                            <option value="ready">Ready</option>
-                            <option value="completed">Completed</option>
-                            <option value="cancelled">Cancelled</option>
-                          </select>
-
-                          <button
-                            onClick={() => openDeleteConfirmModal(order)}
-                            className="text-red-600 hover:text-red-700 transition-colors"
-                            title="Delete Order"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
+                <tbody className="bg-[#232323]">
+                  {orders.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="8"
+                        className="px-6 py-4 text-center text-[#ababab]"
+                      >
+                        No orders found
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    orders.map((order) => (
+                      <tr key={order._id} className="hover:bg-[#262626]">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-[#f5f5f5]">
+                          #{order._id.slice(-8)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
+                          {order.customer_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
+                          {order.table_number}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                              order.status === "pending"
+                                ? "bg-yellow-700 text-white"
+                                : order.status === "preparing"
+                                ? "bg-blue-700 text-white"
+                                : order.status === "ready"
+                                ? "bg-green-700 text-white"
+                                : order.status === "completed"
+                                ? "bg-gray-700 text-white"
+                                : order.status === "cancelled"
+                                ? "bg-red-700 text-white"
+                                : "bg-[#383838] text-[#f5f5f5]"
+                            }`}
+                          >
+                            {getStatusIcon(order.status)}
+                            <span className="ml-1 capitalize">
+                              {order.status}
+                            </span>
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f6b100] font-bold">
+                          {formatCurrency(order.total_amount)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">
+                          {formatDate(order.created_at)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">
+                          {order.staff_member?.name || "Unknown"}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => viewOrderDetails(order._id)}
+                              className="text-[#f6b100] hover:text-[#dab000] font-bold transition-colors"
+                              title="View Details"
+                            >
+                              <Eye size={16} />
+                            </button>
+                            <select
+                              value={order.status}
+                              onChange={(e) =>
+                                updateOrderStatus(order._id, e.target.value)
+                              }
+                              className="text-xs border border-[#383838] rounded px-2 py-1 focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
+                            >
+                              <option value="pending">Pending</option>
+                              <option value="preparing">Preparing</option>
+                              <option value="ready">Ready</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            <button
+                              onClick={() => openDeleteConfirmModal(order)}
+                              className="text-red-500 hover:text-red-700 font-bold transition-colors"
+                              title="Delete Order"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
-
-              {orders.length === 0 && (
-                <div className="text-center py-12">
-                  <Calendar size={48} className="mx-auto text-gray-400" />
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">
-                    No orders found
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Try adjusting your search or filter criteria.
-                  </p>
-                </div>
-              )}
             </div>
           )}
 
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-              <div className="text-sm text-gray-700">
+              <div className="text-sm text-[#cccccc]">
                 Showing page {currentPage} of {totalPages} ({totalOrders} total
                 orders)
               </div>
@@ -812,14 +814,14 @@ const AdminManageOrders = () => {
                 <button
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage === 1}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1 text-sm border border-[#383838] rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Previous
                 </button>
                 <button
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage === totalPages}
-                  className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-1 text-sm border border-[#383838] rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                 </button>
@@ -833,7 +835,7 @@ const AdminManageOrders = () => {
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
               <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">
+                <h3 className="text-lg font-medium text-[#f5f5f5]">
                   Order Details
                 </h3>
                 <button
@@ -848,15 +850,15 @@ const AdminManageOrders = () => {
                 {/* Order Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Order ID
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       #{selectedOrder._id.slice(-8)}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Status
                     </label>
                     <span
@@ -871,50 +873,50 @@ const AdminManageOrders = () => {
                     </span>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Customer
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.customer_name}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Table
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.table_number}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Total Amount
                     </label>
-                    <p className="text-sm text-gray-900 font-medium">
+                    <p className="text-sm text-[#f5f5f5] font-medium">
                       {formatCurrency(selectedOrder.total_amount)}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Payment Status
                     </label>
-                    <p className="text-sm text-gray-900 capitalize">
+                    <p className="text-sm text-[#f5f5f5] capitalize">
                       {selectedOrder.payment_status}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Staff Member
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.staff_member?.name || "Unknown"}
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Order Date
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       {formatDate(selectedOrder.created_at)}
                     </p>
                   </div>
@@ -922,10 +924,10 @@ const AdminManageOrders = () => {
 
                 {selectedOrder.notes && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-[#cccccc]">
                       Notes
                     </label>
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.notes}
                     </p>
                   </div>
@@ -933,7 +935,7 @@ const AdminManageOrders = () => {
 
                 {/* Order Items */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-[#cccccc] mb-2">
                     Order Items
                   </label>
                   <div className="space-y-2">
@@ -943,19 +945,19 @@ const AdminManageOrders = () => {
                         className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
                       >
                         <div>
-                          <p className="text-sm font-medium text-gray-900">
+                          <p className="text-sm font-medium text-[#f5f5f5]">
                             {item.item_name}
                           </p>
-                          <p className="text-xs text-gray-500">
+                          <p className="text-xs text-[#cccccc]">
                             Qty: {item.quantity} × {formatCurrency(item.price)}
                           </p>
                           {item.special_instructions && (
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-[#cccccc]">
                               Note: {item.special_instructions}
                             </p>
                           )}
                         </div>
-                        <p className="text-sm font-medium text-gray-900">
+                        <p className="text-sm font-medium text-[#f5f5f5]">
                           {formatCurrency(item.total_price)}
                         </p>
                       </div>
@@ -967,7 +969,7 @@ const AdminManageOrders = () => {
               <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
                 <button
                   onClick={() => setShowOrderDetails(false)}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-[#cccccc] border border-[#383838] rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Close
                 </button>
@@ -1014,10 +1016,10 @@ const AdminManageOrders = () => {
                   <Trash2 size={24} className="text-red-600" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-[#f5f5f5]">
                     Delete Order
                   </h3>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-[#cccccc]">
                     This action cannot be undone
                   </p>
                 </div>
@@ -1026,38 +1028,38 @@ const AdminManageOrders = () => {
               {/* Content */}
               <div className="px-6 py-4">
                 <div className="space-y-3">
-                  <p className="text-gray-700">
+                  <p className="text-[#cccccc]">
                     Are you sure you want to delete this order?
                   </p>
 
                   {/* Order Details */}
-                  <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                  <div className="bg-[#181818] rounded-lg p-4 space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Order ID:</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm text-[#cccccc]">Order ID:</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">
                         #{orderToDelete._id.slice(-8)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Customer:</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm text-[#cccccc]">Customer:</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">
                         {orderToDelete.customer_name}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Table:</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm text-[#cccccc]">Table:</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">
                         {orderToDelete.table_number}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Total:</span>
-                      <span className="text-sm font-medium text-gray-900">
+                      <span className="text-sm text-[#cccccc]">Total:</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">
                         {formatCurrency(orderToDelete.total_amount)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-sm text-gray-600">Status:</span>
+                      <span className="text-sm text-[#cccccc]">Status:</span>
                       <span
                         className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
                           orderToDelete.status
@@ -1077,7 +1079,7 @@ const AdminManageOrders = () => {
               <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
                 <button
                   onClick={cancelDelete}
-                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                  className="px-4 py-2 text-[#cccccc] border border-[#383838] rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 >
                   Cancel
                 </button>
