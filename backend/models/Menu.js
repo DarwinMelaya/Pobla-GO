@@ -148,9 +148,7 @@ MenuSchema.methods.calculateAvailableQuantity = async function () {
 
     // Check if units are compatible (same unit)
     if (inventoryItem.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
-      console.warn(
-        `Unit mismatch: Inventory has ${inventoryItem.unit}, recipe requires ${ingredient.unit} for ${inventoryItem.name}`
-      );
+      // unit mismatch; skipping conversion in this version
       // For now, assume same unit if they're similar (basic conversion)
       // In a real application, you'd want a proper unit conversion system
     }
@@ -160,15 +158,10 @@ MenuSchema.methods.calculateAvailableQuantity = async function () {
       inventoryItem.quantity / ingredient.quantity
     );
 
-    console.log(
-      `Ingredient: ${inventoryItem.name}, Available: ${inventoryItem.quantity} ${inventoryItem.unit}, Required: ${ingredient.quantity} ${ingredient.unit}, Can make: ${possibleWithThisIngredient} servings`
-    );
-
     maxAvailable = Math.min(maxAvailable, possibleWithThisIngredient);
   }
 
   const result = maxAvailable === Infinity ? 0 : maxAvailable;
-  console.log(`Menu item "${this.name}" can make ${result} servings`);
   return result;
 };
 

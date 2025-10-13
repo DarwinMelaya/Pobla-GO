@@ -129,10 +129,6 @@ const StaffManageOrders = () => {
     setMenuItemsLoading(true);
     try {
       const token = getAuthToken();
-      console.log(
-        "Fetching menu items with token:",
-        token ? "Token exists" : "No token"
-      );
 
       // First try to get all menu items to see what's available
       let response;
@@ -144,7 +140,6 @@ const StaffManageOrders = () => {
           },
         });
       } catch (authError) {
-        console.log("Auth request failed, trying without auth:", authError);
         response = await fetch(`${API_BASE}/menu`, {
           headers: {
             "Content-Type": "application/json",
@@ -152,7 +147,7 @@ const StaffManageOrders = () => {
         });
       }
 
-      console.log("Menu API response status:", response.status);
+      
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -161,10 +156,6 @@ const StaffManageOrders = () => {
       }
 
       const data = await response.json();
-      console.log("All menu items fetched:", data.length, "items");
-      console.log("All menu items:", data);
-      console.log("Data type:", typeof data);
-      console.log("Is array:", Array.isArray(data));
 
       // Handle different response formats
       let menuItemsArray = [];
@@ -179,37 +170,29 @@ const StaffManageOrders = () => {
         menuItemsArray = [];
       }
 
-      console.log("Processed menu items array:", menuItemsArray);
+      
 
       // Filter for available items
       const availableItems = menuItemsArray.filter(
         (item) => item.is_available === true
       );
-      console.log("Available menu items:", availableItems.length, "items");
-      console.log("Available items:", availableItems);
+      
 
       // Test if items have the expected structure
       if (availableItems.length > 0) {
-        console.log("First item structure:", {
-          _id: availableItems[0]._id,
-          name: availableItems[0].name,
-          price: availableItems[0].price,
-          category: availableItems[0].category,
-          is_available: availableItems[0].is_available,
-        });
+        // verified item structure
       }
 
-      console.log("Setting menuItems state to:", availableItems);
+      
 
       // Force set some test data if no items found
       if (availableItems.length === 0 && menuItemsArray.length > 0) {
-        console.log("No available items found, using all items");
         setMenuItems(menuItemsArray);
       } else {
         setMenuItems(availableItems);
       }
 
-      console.log("MenuItems state updated");
+      
     } catch (error) {
       console.error("Error fetching menu items:", error);
       toast.error(`Failed to fetch menu items: ${error.message}`);
@@ -427,7 +410,6 @@ const StaffManageOrders = () => {
     try {
       const response = await fetch(`${API_BASE}/menu/debug`);
       const data = await response.json();
-      console.log("Debug data:", data);
       toast.success(
         `Debug: ${data.totalItems} total, ${data.availableItems} available`
       );
@@ -457,7 +439,6 @@ const StaffManageOrders = () => {
         is_available: true,
       },
     ];
-    console.log("Setting hardcoded test data:", testItems);
     setMenuItems(testItems);
     toast.success("Hardcoded test data set");
   };
@@ -479,8 +460,7 @@ const StaffManageOrders = () => {
 
   // Debug useEffect for menuItems
   useEffect(() => {
-    console.log("MenuItems state changed:", menuItems);
-    console.log("MenuItems length:", menuItems.length);
+    // menuItems state changed
   }, [menuItems]);
 
   return (

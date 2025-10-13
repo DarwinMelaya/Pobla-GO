@@ -85,15 +85,10 @@ router.get("/", async (req, res) => {
       filter.is_available = available === "true";
     }
 
-    console.log("Menu filter:", filter);
-
     const menuItems = await Menu.find(filter)
       .populate("ingredients.inventoryItem", "name category unit")
       .populate("created_by", "name")
       .sort({ createdAt: -1 });
-
-    console.log("Found menu items:", menuItems.length);
-    console.log("Raw menu items from DB:", menuItems);
 
     // Add available quantity and servings info to each menu item
     const menuItemsWithQuantity = await Promise.all(
@@ -106,8 +101,6 @@ router.get("/", async (req, res) => {
         };
       })
     );
-
-    console.log("Menu items with quantity:", menuItemsWithQuantity.length);
 
     // Add cache control headers to prevent stale data
     res.set("Cache-Control", "no-cache, no-store, must-revalidate");
