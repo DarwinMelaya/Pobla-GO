@@ -189,9 +189,16 @@ const ManageInventory = () => {
   return (
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-[#f5f5f5]">Manage Inventory</h1>
-          <button className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow">Add New Item</button>
+        <div className="flex justify-between items-center mb-8 relative z-10">
+          <h1 className="text-3xl font-bold text-[#f5f5f5]">
+            Manage Inventory
+          </h1>
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow"
+          >
+            Add New Item
+          </button>
         </div>
 
         {/* Success/Error: alert cards now dark accent, white/yellow/red text */}
@@ -222,7 +229,9 @@ const ManageInventory = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#cccccc] mb-1">Filter by Category</label>
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                Filter by Category
+              </label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -230,15 +239,22 @@ const ManageInventory = () => {
               >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
-                  <option key={category} value={category}>{category}</option>
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="flex items-end">
               <button
-                onClick={() => { setSearchTerm(""); setCategoryFilter(""); }}
+                onClick={() => {
+                  setSearchTerm("");
+                  setCategoryFilter("");
+                }}
                 className="w-full bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-md font-bold transition-colors"
-              >Clear Filters</button>
+              >
+                Clear Filters
+              </button>
             </div>
           </div>
         </div>
@@ -254,37 +270,80 @@ const ManageInventory = () => {
               <table className="min-w-full divide-y divide-[#383838]">
                 <thead className="bg-[#292929]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Category</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Unit</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Expiry Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Supplier</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Unit
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Expiry Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Supplier
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-[#232323]">
                   {inventory.length === 0 ? (
                     <tr>
-                      <td colSpan="7" className="px-6 py-4 text-center text-[#ababab]">No inventory items found</td>
+                      <td
+                        colSpan="7"
+                        className="px-6 py-4 text-center text-[#ababab]"
+                      >
+                        No inventory items found
+                      </td>
                     </tr>
                   ) : (
                     inventory.map((item) => (
                       <tr key={item._id} className="hover:bg-[#282828]">
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-[#f5f5f5]">{item.name}</div>
+                          <div className="text-sm font-bold text-[#f5f5f5]">
+                            {item.name}
+                          </div>
                           {item.description && (
-                            <div className="text-sm text-[#cccccc]">{item.description}</div>
+                            <div className="text-sm text-[#cccccc]">
+                              {item.description}
+                            </div>
                           )}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.category}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">{item.quantity}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.unit}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{new Date(item.expiry_date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">{item.supplier || "-"}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
+                          {item.category}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
+                          {item.quantity}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
+                          {item.unit}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
+                          {new Date(item.expiry_date).toLocaleDateString()}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
+                          {item.supplier || "-"}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <button onClick={() => handleEdit(item)} className="text-[#f6b100] hover:text-[#dab000] mr-4 font-bold">Edit</button>
-                          <button onClick={() => handleDeleteClick(item)} className="text-red-500 hover:text-red-600 font-bold">Delete</button>
+                          <button
+                            onClick={() => handleEdit(item)}
+                            className="text-[#f6b100] hover:text-[#dab000] mr-4 font-bold"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => handleDeleteClick(item)}
+                            className="text-red-500 hover:text-red-600 font-bold"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))

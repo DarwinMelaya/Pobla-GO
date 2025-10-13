@@ -232,25 +232,47 @@ const AdminReservations = () => {
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">Reservations</h1>
-          <button className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow">Add Reservation</button>
+        <div className="flex justify-between items-center mb-8 relative z-10">
+          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
+            Reservations
+          </h1>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow"
+          >
+            Add Reservation
+          </button>
         </div>
         {/* Filters: card bg-[#232323], high contrast labels/inputs */}
         <div className="bg-[#232323] rounded-lg shadow-sm border border-[#383838] p-4 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#b5b5b5] w-4 h-4" />
-              <input type="text" placeholder="Search reservations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]" />
+              <input
+                type="text"
+                placeholder="Search reservations..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+              />
             </div>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
+            >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
               <option value="confirmed">Confirmed</option>
               <option value="cancelled">Cancelled</option>
               <option value="completed">Completed</option>
             </select>
-            <input type="date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
+            />
           </div>
         </div>
         {/* Table/lists: dark bg, white/yellow text, high contrast status chips */}
@@ -269,11 +291,21 @@ const AdminReservations = () => {
               <table className="w-full">
                 <thead className="bg-[#292929] border-b border-[#383838]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">Table</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">Date & Time</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Customer
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Table
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Date & Time
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-[#232323]">
@@ -283,8 +315,12 @@ const AdminReservations = () => {
                         <div className="flex items-center">
                           <User className="w-4 h-4 text-[#b5b5b5] mr-2" />
                           <div>
-                            <div className="text-sm font-bold text-[#f5f5f5]">{reservation.customer_name}</div>
-                            <div className="text-sm text-[#cccccc]">{reservation.contact_number}</div>
+                            <div className="text-sm font-bold text-[#f5f5f5]">
+                              {reservation.customer_name}
+                            </div>
+                            <div className="text-sm text-[#cccccc]">
+                              {reservation.contact_number}
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -298,24 +334,82 @@ const AdminReservations = () => {
                         <div className="flex items-center">
                           <Calendar className="w-4 h-4 text-[#b5b5b5] mr-2" />
                           <div>
-                            <div className="text-sm text-[#f5f5f5]">{new Date(reservation.reservation_date).toLocaleDateString()}</div>
-                            <div className="text-sm text-[#cccccc] flex items-center"><Clock className="w-3 h-3 mr-1" />{new Date(reservation.reservation_date).toLocaleTimeString()}</div>
+                            <div className="text-sm text-[#f5f5f5]">
+                              {new Date(
+                                reservation.reservation_date
+                              ).toLocaleDateString()}
+                            </div>
+                            <div className="text-sm text-[#cccccc] flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {new Date(
+                                reservation.reservation_date
+                              ).toLocaleTimeString()}
+                            </div>
                           </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           {getStatusIcon(reservation.status)}
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${reservation.status === 'confirmed' ? 'bg-green-700 border-green-800 text-white' : reservation.status === 'pending' ? 'bg-yellow-700 border-yellow-800 text-white' : reservation.status === 'cancelled' ? 'bg-red-700 border-red-800 text-white' : reservation.status === 'completed' ? 'bg-blue-700 border-blue-800 text-white' : 'bg-[#383838] text-[#f5f5f5]'}`}>{reservation.status}</span>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                              reservation.status === "confirmed"
+                                ? "bg-green-700 border-green-800 text-white"
+                                : reservation.status === "pending"
+                                ? "bg-yellow-700 border-yellow-800 text-white"
+                                : reservation.status === "cancelled"
+                                ? "bg-red-700 border-red-800 text-white"
+                                : reservation.status === "completed"
+                                ? "bg-blue-700 border-blue-800 text-white"
+                                : "bg-[#383838] text-[#f5f5f5]"
+                            }`}
+                          >
+                            {reservation.status}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
                         <div className="flex items-center gap-2">
-                          <button onClick={() => { setViewingReservation(reservation); setShowViewModal(true); }} className="bg-blue-700 text-white p-1 rounded hover:bg-blue-800" title="View Details"><Eye className="w-4 h-4" /></button>
-                          <button onClick={() => { setEditingReservation(reservation); setShowAddModal(true); }} className="bg-yellow-600 text-white p-1 rounded hover:bg-yellow-700" title="Edit"><Edit className="w-4 h-4" /></button>
-                          <button onClick={() => { setDeletingReservation(reservation); setShowDeleteModal(true); }} className="bg-red-700 text-white p-1 rounded hover:bg-red-800" title="Delete"><Trash2 className="w-4 h-4" /></button>
+                          <button
+                            onClick={() => {
+                              setViewingReservation(reservation);
+                              setShowViewModal(true);
+                            }}
+                            className="bg-blue-700 text-white p-1 rounded hover:bg-blue-800"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingReservation(reservation);
+                              setShowAddModal(true);
+                            }}
+                            className="bg-yellow-600 text-white p-1 rounded hover:bg-yellow-700"
+                            title="Edit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setDeletingReservation(reservation);
+                              setShowDeleteModal(true);
+                            }}
+                            className="bg-red-700 text-white p-1 rounded hover:bg-red-800"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                           {reservation.status === "pending" && (
-                            <button onClick={() => handleUpdateStatus(reservation._id, "confirmed")} className="bg-green-700 text-white p-1 rounded hover:bg-green-800" title="Confirm"><CheckCircle className="w-4 h-4" /></button>
+                            <button
+                              onClick={() =>
+                                handleUpdateStatus(reservation._id, "confirmed")
+                              }
+                              className="bg-green-700 text-white p-1 rounded hover:bg-green-800"
+                              title="Confirm"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </button>
                           )}
                         </div>
                       </td>

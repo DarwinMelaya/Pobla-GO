@@ -266,11 +266,14 @@ const AdminMenu = () => {
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-8 relative z-10">
           <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
             Manage Menu
           </h1>
-          <button className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow">
+          <button
+            onClick={() => setShowForm(true)}
+            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow"
+          >
             Add New Menu Item
           </button>
         </div>
