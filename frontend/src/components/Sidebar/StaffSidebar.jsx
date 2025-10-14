@@ -12,12 +12,12 @@ const StaffSidebar = ({ onNavigate }) => {
   const location = useLocation();
 
   const navigationItems = [
-    {
-      icon: LayoutDashboard,
-      text: "Dashboard",
-      path: "/staff-dashboard",
-      isActive: location.pathname === "/staff-dashboard",
-    },
+    // {
+    //   icon: LayoutDashboard,
+    //   text: "Dashboard",
+    //   path: "/staff-dashboard",
+    //   isActive: location.pathname === "/staff-dashboard",
+    // },
     {
       icon: FileText,
       text: "Menu",

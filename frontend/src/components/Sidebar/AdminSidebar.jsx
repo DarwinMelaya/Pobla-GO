@@ -52,18 +52,18 @@ const AdminSidebar = ({ onNavigate }) => {
       path: "/admin-sales",
       isActive: location.pathname === "/admin-sales",
     },
-    {
-      icon: FileBarChart,
-      text: "Generate Reports",
-      path: "/admin-reports",
-      isActive: location.pathname === "/admin-reports",
-    },
-    {
-      icon: UserCheck,
-      text: "View Staff Logs",
-      path: "/admin-staff-logs",
-      isActive: location.pathname === "/admin-staff-logs",
-    },
+    // {
+    //   icon: FileBarChart,
+    //   text: "Generate Reports",
+    //   path: "/admin-reports",
+    //   isActive: location.pathname === "/admin-reports",
+    // },
+    // {
+    //   icon: UserCheck,
+    //   text: "View Staff Logs",
+    //   path: "/admin-staff-logs",
+    //   isActive: location.pathname === "/admin-staff-logs",
+    // },
   ];
 
   const handleNavigation = (path) => {

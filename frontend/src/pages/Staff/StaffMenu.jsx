@@ -264,44 +264,34 @@ const StaffMenu = () => {
 
   return (
     <Layout>
-      <div className="bg-[#EECCCC] min-h-screen p-6 rounded-r-2xl">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">Manage Menu</h1>
-          {/* <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            Add New Menu Item
-          </button> */}
+      <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
+        <div className="flex justify-between items-center mb-8 relative z-10">
+          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">Manage Menu</h1>
+          {/* Staff may not add, keep control hidden or future-proof */}
         </div>
 
         {/* Search and Filter */}
-        <div className="bg-white p-4 rounded-lg shadow mb-6 border border-[#DCDCDC]">
+        <div className="bg-[#232323] p-6 rounded-lg shadow mb-6 border border-[#383838]">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Search Menu Items
-              </label>
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">Search Menu Items</label>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#bababa] w-4 h-4" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by name..."
-                  className="w-full pl-10 pr-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
+                  className="w-full pl-10 pr-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Category
-              </label>
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">Filter by Category</label>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
               >
                 <option value="">All Categories</option>
                 {categories.map((category) => (
@@ -312,13 +302,11 @@ const StaffMenu = () => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Filter by Availability
-              </label>
+              <label className="block text-sm font-medium text-[#cccccc] mb-1">Filter by Availability</label>
               <select
                 value={availabilityFilter}
                 onChange={(e) => setAvailabilityFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#DCDCDC] rounded-md focus:outline-none focus:ring-2 focus:ring-[#C05050]"
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
               >
                 <option value="">All Items</option>
                 <option value="true">Available</option>
@@ -332,7 +320,7 @@ const StaffMenu = () => {
                   setCategoryFilter("");
                   setAvailabilityFilter("");
                 }}
-                className="w-full bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-md transition-colors flex items-center justify-center gap-2"
+                className="w-full bg-[#C05050] hover:bg-[#B04040] text-white px-4 py-2 rounded-md font-bold transition-colors flex items-center justify-center gap-2"
               >
                 <Filter className="w-4 h-4" />
                 Clear Filters
@@ -347,18 +335,18 @@ const StaffMenu = () => {
             <div className="col-span-full flex justify-center items-center py-12">
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#C05050]"></div>
-                <p className="mt-2 text-gray-600">Loading menu items...</p>
+                <p className="mt-2 text-[#ababab]">Loading menu items...</p>
               </div>
             </div>
           ) : menuItems.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <p className="text-gray-500 text-lg">No menu items found</p>
+              <p className="text-[#ababab] text-lg">No menu items found</p>
             </div>
           ) : (
             menuItems.map((item) => (
               <div
                 key={item._id}
-                className="bg-white rounded-lg shadow-md border border-[#DCDCDC] overflow-hidden hover:shadow-lg transition-shadow"
+                className="bg-[#232323] rounded-lg shadow-md border border-[#383838] overflow-hidden hover:shadow-lg transition-shadow"
               >
                 {/* Image */}
                 {item.image && (
@@ -374,65 +362,53 @@ const StaffMenu = () => {
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-semibold text-gray-800">
-                      {item.name}
-                    </h3>
+                    <h3 className="text-lg font-bold text-[#f5f5f5]">{item.name}</h3>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.is_available
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
+                      className={`px-2 py-1 rounded-full text-xs font-bold ${
+                        item.is_available ? "bg-green-700 text-white" : "bg-red-600 text-white"
                       }`}
                     >
                       {item.is_available ? "Available" : "Unavailable"}
                     </span>
                   </div>
 
-                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">
+                  <p className="text-[#b5b5b5] text-sm mb-2 line-clamp-2">
                     {item.description || "No description available"}
                   </p>
 
                   <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-gray-500">
-                      {item.category}
-                    </span>
-                    <span className="text-lg font-bold text-[#C05050]">
-                      ₱{item.price}
-                    </span>
+                    <span className="text-sm text-[#cccccc]">{item.category}</span>
+                    <span className="text-lg font-bold text-[#f6b100]">₱{item.price}</span>
                   </div>
 
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-gray-500">Servings:</span>
-                    <span className="text-sm font-medium text-gray-700">
-                      {item.servings || 1}
-                    </span>
+                    <span className="text-xs text-[#cccccc]">Servings:</span>
+                    <span className="text-sm font-bold text-[#f5f5f5]">{item.servings || 1}</span>
                   </div>
 
                   {item.preparation_time && (
-                    <p className="text-xs text-gray-500 mb-2">
-                      Prep time: {item.preparation_time} minutes
-                    </p>
+                    <p className="text-xs text-[#cccccc] mb-2">Prep time: {item.preparation_time} minutes</p>
                   )}
 
                   {/* Actions */}
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleViewClick(item)}
-                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200 transition-colors flex items-center justify-center"
+                      className="px-3 py-1 bg-blue-700 text-white rounded text-sm font-bold hover:bg-blue-800 transition-colors flex items-center justify-center"
                       title="View Details"
                     >
                       <Eye className="w-3 h-3" />
                     </button>
                     <button
                       onClick={() => handleEdit(item)}
-                      className="flex-1 px-3 py-1 bg-yellow-100 text-yellow-700 rounded text-sm hover:bg-yellow-200 transition-colors flex items-center justify-center gap-1"
+                      className="flex-1 px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center justify-center gap-1"
                     >
                       <Edit className="w-3 h-3" />
                       Edit
                     </button>
                     <button
                       onClick={() => handleToggleAvailability(item)}
-                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-colors flex items-center justify-center"
+                      className="px-3 py-1 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded text-sm font-bold hover:bg-[#262626] transition-colors flex items-center justify-center"
                     >
                       {item.is_available ? (
                         <ToggleRight className="w-3 h-3" />
@@ -442,7 +418,7 @@ const StaffMenu = () => {
                     </button>
                     <button
                       onClick={() => handleDeleteClick(item)}
-                      className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors flex items-center justify-center"
+                      className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>

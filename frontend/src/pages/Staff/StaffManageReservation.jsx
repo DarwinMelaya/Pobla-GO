@@ -230,43 +230,36 @@ const StaffManageReservation = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Reservations</h1>
-            <p className="text-gray-600">Manage customer reservations</p>
-          </div>
+        <div className="flex justify-between items-center mb-8 relative z-10">
+          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
+            Reservations
+          </h1>
           <button
-            onClick={() => {
-              setEditingReservation(null);
-              setShowAddModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-[#C05050] text-white rounded-lg hover:bg-[#B04040] transition-colors duration-200"
+            onClick={() => setShowAddModal(true)}
+            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow"
           >
-            <Plus className="w-4 h-4" />
             Add Reservation
           </button>
         </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        {/* Filters: card bg-[#232323], high contrast labels/inputs */}
+        <div className="bg-[#232323] rounded-lg shadow-sm border border-[#383838] p-4 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#b5b5b5] w-4 h-4" />
               <input
                 type="text"
                 placeholder="Search reservations..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
               />
             </div>
-
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+              className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
             >
               <option value="all">All Status</option>
               <option value="pending">Pending</option>
@@ -274,83 +267,79 @@ const StaffManageReservation = () => {
               <option value="cancelled">Cancelled</option>
               <option value="completed">Completed</option>
             </select>
-
             <input
               type="date"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+              className="px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
             />
           </div>
         </div>
-
-        {/* Reservations Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {/* Table/lists: dark bg, white/yellow text, high contrast status chips */}
+        <div className="bg-[#232323] rounded-lg shadow-sm border border-[#383838] overflow-hidden mb-8">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C05050]"></div>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#C05050]" />
             </div>
           ) : filteredReservations.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500">No reservations found</p>
+              <Calendar className="w-12 h-12 text-[#b5b5b5] mx-auto mb-4" />
+              <p className="text-[#b5b5b5]">No reservations found</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+                <thead className="bg-[#292929] border-b border-[#383838]">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Customer
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Table
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Date & Time
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Status
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Actions
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-[#232323]">
                   {filteredReservations.map((reservation) => (
-                    <tr key={reservation._id} className="hover:bg-gray-50">
+                    <tr key={reservation._id} className="hover:bg-[#282828]">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <User className="w-4 h-4 text-gray-400 mr-2" />
+                          <User className="w-4 h-4 text-[#b5b5b5] mr-2" />
                           <div>
-                            <div className="text-sm font-medium text-gray-900">
+                            <div className="text-sm font-bold text-[#f5f5f5]">
                               {reservation.customer_name}
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-[#cccccc]">
                               {reservation.contact_number}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
                         <div className="flex items-center">
-                          <MapPin className="w-4 h-4 text-gray-400 mr-2" />
-                          <span className="text-sm text-gray-900">
-                            {reservation.table_number}
-                          </span>
+                          <MapPin className="w-4 h-4 text-[#b5b5b5] mr-2" />
+                          <span>{reservation.table_number}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">
                         <div className="flex items-center">
-                          <Calendar className="w-4 h-4 text-gray-400 mr-2" />
+                          <Calendar className="w-4 h-4 text-[#b5b5b5] mr-2" />
                           <div>
-                            <div className="text-sm text-gray-900">
+                            <div className="text-sm text-[#f5f5f5]">
                               {new Date(
                                 reservation.reservation_date
                               ).toLocaleDateString()}
                             </div>
-                            <div className="text-sm text-gray-500 flex items-center">
+                            <div className="text-sm text-[#cccccc] flex items-center">
                               <Clock className="w-3 h-3 mr-1" />
                               {new Date(
                                 reservation.reservation_date
@@ -363,22 +352,30 @@ const StaffManageReservation = () => {
                         <div className="flex items-center gap-2">
                           {getStatusIcon(reservation.status)}
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(
-                              reservation.status
-                            )}`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                              reservation.status === "confirmed"
+                                ? "bg-green-700 border-green-800 text-white"
+                                : reservation.status === "pending"
+                                ? "bg-yellow-700 border-yellow-800 text-white"
+                                : reservation.status === "cancelled"
+                                ? "bg-red-700 border-red-800 text-white"
+                                : reservation.status === "completed"
+                                ? "bg-blue-700 border-blue-800 text-white"
+                                : "bg-[#383838] text-[#f5f5f5]"
+                            }`}
                           >
                             {reservation.status}
                           </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-bold">
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => {
                               setViewingReservation(reservation);
                               setShowViewModal(true);
                             }}
-                            className="text-blue-600 hover:text-blue-900 p-1"
+                            className="bg-blue-700 text-white p-1 rounded hover:bg-blue-800"
                             title="View Details"
                           >
                             <Eye className="w-4 h-4" />
@@ -388,7 +385,7 @@ const StaffManageReservation = () => {
                               setEditingReservation(reservation);
                               setShowAddModal(true);
                             }}
-                            className="text-yellow-600 hover:text-yellow-900 p-1"
+                            className="bg-yellow-600 text-white p-1 rounded hover:bg-yellow-700"
                             title="Edit"
                           >
                             <Edit className="w-4 h-4" />
@@ -398,7 +395,7 @@ const StaffManageReservation = () => {
                               setDeletingReservation(reservation);
                               setShowDeleteModal(true);
                             }}
-                            className="text-red-600 hover:text-red-900 p-1"
+                            className="bg-red-700 text-white p-1 rounded hover:bg-red-800"
                             title="Delete"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -408,7 +405,7 @@ const StaffManageReservation = () => {
                               onClick={() =>
                                 handleUpdateStatus(reservation._id, "confirmed")
                               }
-                              className="text-green-600 hover:text-green-900 p-1"
+                              className="bg-green-700 text-white p-1 rounded hover:bg-green-800"
                               title="Confirm"
                             >
                               <CheckCircle className="w-4 h-4" />
