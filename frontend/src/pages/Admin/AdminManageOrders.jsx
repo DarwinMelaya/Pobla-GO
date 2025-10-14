@@ -261,21 +261,21 @@ const AdminManageOrders = () => {
     setOrderToDelete(null);
   };
 
-  // Get status color
+  // Get status color (dark theme chips)
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-700 text-white";
       case "preparing":
-        return "bg-blue-100 text-blue-800";
+        return "bg-blue-700 text-white";
       case "ready":
-        return "bg-green-100 text-green-800";
+        return "bg-green-700 text-white";
       case "completed":
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-700 text-white";
       case "cancelled":
-        return "bg-red-100 text-red-800";
+        return "bg-red-700 text-white";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-[#383838] text-[#f5f5f5]";
     }
   };
 
@@ -832,37 +832,37 @@ const AdminManageOrders = () => {
 
         {/* Order Details Modal */}
         {showOrderDetails && selectedOrder && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h3 className="text-lg font-medium text-[#f5f5f5]">
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-[#181818] rounded-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto border border-[#2a2a2a] shadow-2xl">
+              <div className="px-6 py-4 border-b border-[#2a2a2a] flex justify-between items-center bg-[#1f1f1f]">
+                <h3 className="text-lg font-bold text-[#f5f5f5]">
                   Order Details
                 </h3>
                 <button
                   onClick={() => setShowOrderDetails(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-[#bdbdbd] hover:text-[#f6b100] p-2 hover:bg-[#2a2a2a] rounded-lg"
                 >
-                  <XCircle size={24} />
+                  <XCircle size={22} />
                 </button>
               </div>
 
-              <div className="px-6 py-4 space-y-4">
+              <div className="px-6 py-5 space-y-5 bg-[#171717]">
                 {/* Order Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Order ID
                     </label>
-                    <p className="text-sm text-[#f5f5f5]">
+                    <p className="text-sm font-mono text-[#f5f5f5]">
                       #{selectedOrder._id.slice(-8)}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Status
                     </label>
                     <span
-                      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                      className={`inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(
                         selectedOrder.status
                       )}`}
                     >
@@ -872,48 +872,48 @@ const AdminManageOrders = () => {
                       </span>
                     </span>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Customer
                     </label>
                     <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.customer_name}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Table
                     </label>
                     <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.table_number}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Total Amount
                     </label>
-                    <p className="text-sm text-[#f5f5f5] font-medium">
+                    <p className="text-sm text-[#f6b100] font-bold">
                       {formatCurrency(selectedOrder.total_amount)}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Payment Status
                     </label>
                     <p className="text-sm text-[#f5f5f5] capitalize">
                       {selectedOrder.payment_status}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Staff Member
                     </label>
                     <p className="text-sm text-[#f5f5f5]">
                       {selectedOrder.staff_member?.name || "Unknown"}
                     </p>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Order Date
                     </label>
                     <p className="text-sm text-[#f5f5f5]">
@@ -923,8 +923,8 @@ const AdminManageOrders = () => {
                 </div>
 
                 {selectedOrder.notes && (
-                  <div>
-                    <label className="block text-sm font-medium text-[#cccccc]">
+                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
+                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Notes
                     </label>
                     <p className="text-sm text-[#f5f5f5]">
@@ -935,29 +935,29 @@ const AdminManageOrders = () => {
 
                 {/* Order Items */}
                 <div>
-                  <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                  <label className="block text-sm font-medium text-[#cfcfcf] mb-2">
                     Order Items
                   </label>
                   <div className="space-y-2">
                     {selectedOrder.order_items?.map((item, index) => (
                       <div
                         key={index}
-                        className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                        className="flex justify-between items-center p-3 bg-[#141414] border border-[#1f1f1f] rounded-lg"
                       >
                         <div>
                           <p className="text-sm font-medium text-[#f5f5f5]">
                             {item.item_name}
                           </p>
-                          <p className="text-xs text-[#cccccc]">
+                          <p className="text-xs text-[#cfcfcf]">
                             Qty: {item.quantity} × {formatCurrency(item.price)}
                           </p>
                           {item.special_instructions && (
-                            <p className="text-xs text-[#cccccc]">
+                            <p className="text-xs text-[#cfcfcf]">
                               Note: {item.special_instructions}
                             </p>
                           )}
                         </div>
-                        <p className="text-sm font-medium text-[#f5f5f5]">
+                        <p className="text-sm font-semibold text-[#f5f5f5]">
                           {formatCurrency(item.total_price)}
                         </p>
                       </div>
@@ -966,10 +966,10 @@ const AdminManageOrders = () => {
                 </div>
               </div>
 
-              <div className="px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+              <div className="px-6 py-4 border-t border-[#2a2a2a] bg-[#1b1b1b] flex justify-end">
                 <button
                   onClick={() => setShowOrderDetails(false)}
-                  className="px-4 py-2 text-[#cccccc] border border-[#383838] rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 text-[#d0d0d0] border border-[#2a2a2a] rounded-lg hover:bg-[#1f1f1f] transition-colors"
                 >
                   Close
                 </button>

@@ -7,6 +7,8 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  DollarSign,
+  Utensils,
 } from "lucide-react";
 
 const TableStatusModal = ({ isOpen, onClose }) => {
@@ -51,13 +53,13 @@ const TableStatusModal = ({ isOpen, onClose }) => {
   const getStatusColor = (status) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-100 text-yellow-800 border-yellow-300";
+        return "bg-yellow-700 text-white border-yellow-800";
       case "preparing":
-        return "bg-blue-100 text-blue-800 border-blue-300";
+        return "bg-blue-700 text-white border-blue-800";
       case "ready":
-        return "bg-green-100 text-green-800 border-green-300";
+        return "bg-green-700 text-white border-green-800";
       default:
-        return "bg-gray-100 text-gray-800 border-gray-300";
+        return "bg-[#383838] text-[#f5f5f5] border-[#4a4a4a]";
     }
   };
 
@@ -102,23 +104,28 @@ const TableStatusModal = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1f1f1f] rounded-2xl w-full max-w-xl max-h-[90vh] border border-[#383838] shadow-2xl flex flex-col overflow-hidden">
-        <div className="px-8 py-5 border-b border-[#383838] flex justify-between items-center bg-[#262626] rounded-t-2xl">
-          <h2 className="text-2xl font-bold text-[#f5f5f5]">Table Status</h2>
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-3 md:p-4">
+      <div className="bg-[#181818] rounded-xl md:rounded-2xl w-full max-w-[95vw] md:max-w-4xl max-h-[92vh] border border-[#2a2a2a] shadow-2xl flex flex-col overflow-hidden">
+        <div className="px-4 md:px-6 py-3 md:py-4 border-b border-[#2a2a2a] flex justify-between items-center bg-[#1f1f1f]">
+          <h2 className="text-lg md:text-xl font-bold text-[#f5f5f5]">
+            Table Status
+          </h2>
           <button
             onClick={onClose}
-            className="text-[#ababab] hover:text-[#f6b100] p-3 hover:bg-[#353535] rounded-lg"
+            className="text-[#bdbdbd] hover:text-[#f6b100] p-2 hover:bg-[#2a2a2a] rounded-lg"
             type="button"
           >
             X
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto px-8 py-4 bg-[#232323]">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 bg-[#171717] text-[#e6e6e6]">
           {loading ? (
             <div className="flex justify-center items-center py-12">
-              <RefreshCw size={24} className="animate-spin text-[#C05050]" />
-              <span className="ml-2 text-gray-600">
+              <RefreshCw
+                size={22}
+                className="animate-spin text-[#C05050] md:size-6"
+              />
+              <span className="ml-2 text-[#b5b5b5] text-sm md:text-base">
                 Loading table statuses...
               </span>
             </div>
@@ -126,28 +133,46 @@ const TableStatusModal = ({ isOpen, onClose }) => {
             <div className="space-y-6">
               {/* Occupied Tables */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <Users size={20} className="mr-2" />
-                  Occupied Tables ({Object.keys(tableStatuses).length})
+                <h4 className="text-base md:text-lg font-semibold text-[#f5f5f5] mb-3 flex items-center">
+                  <Users size={16} className="mr-2 text-[#b5b5b5] md:hidden" />
+                  <Users
+                    size={18}
+                    className="mr-2 text-[#b5b5b5] hidden md:block"
+                  />
+                  Occupied Tables{" "}
+                  <span className="ml-2 text-[#cfcfcf]">
+                    ({Object.keys(tableStatuses).length})
+                  </span>
                 </h4>
                 {Object.keys(tableStatuses).length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
+                  <div className="text-center py-8 text-[#b5b5b5] text-sm md:text-base">
                     No tables are currently occupied
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
                     {Object.entries(tableStatuses).map(
                       ([tableNumber, status]) => (
                         <div
                           key={tableNumber}
-                          className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                          className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-3 md:p-4 shadow-sm hover:border-[#3a3a3a] hover:shadow-md transition-colors"
                         >
                           <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-semibold text-gray-900">
-                              Table {tableNumber}
-                            </h5>
+                            <div className="flex items-center gap-2">
+                              <div className="inline-flex items-center justify-center h-7 w-7 rounded-md bg-[#1c1c1c] border border-[#2a2a2a]">
+                                <Utensils
+                                  size={14}
+                                  className="text-[#f6b100]"
+                                />
+                              </div>
+                              <h5 className="font-semibold text-[#f5f5f5] text-sm md:text-base">
+                                Table{" "}
+                                <span className="text-[#f6b100]">
+                                  {tableNumber}
+                                </span>
+                              </h5>
+                            </div>
                             <span
-                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] md:text-xs font-bold border ${getStatusColor(
                                 status.status
                               )}`}
                             >
@@ -158,44 +183,55 @@ const TableStatusModal = ({ isOpen, onClose }) => {
                             </span>
                           </div>
 
-                          <div className="space-y-2 text-sm">
-                            <div>
-                              <span className="font-medium text-gray-700">
-                                Customer:
+                          <div className="divide-y divide-[#1e1e1e] rounded-md overflow-hidden bg-[#141414] border border-[#1f1f1f]">
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <Users size={14} className="text-blue-300" />
+                              <span className="text-[#cfcfcf] text-xs md:text-sm">
+                                Customer
                               </span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="ml-auto text-[#f5f5f5] text-xs md:text-sm font-medium">
                                 {status.customer}
                               </span>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">
-                                Staff:
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <Users size={14} className="text-purple-300" />
+                              <span className="text-[#cfcfcf] text-xs md:text-sm">
+                                Staff
                               </span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="ml-auto text-[#f5f5f5] text-xs md:text-sm font-medium">
                                 {status.staff}
                               </span>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">
-                                Order ID:
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <AlertCircle
+                                size={14}
+                                className="text-amber-300"
+                              />
+                              <span className="text-[#cfcfcf] text-xs md:text-sm">
+                                Order ID
                               </span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="ml-auto text-[#f5f5f5] text-xs md:text-sm font-mono">
                                 #{status.order._id.slice(-8)}
                               </span>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">
-                                Started:
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <Clock size={14} className="text-yellow-300" />
+                              <span className="text-[#cfcfcf] text-xs md:text-sm">
+                                Started
                               </span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="ml-auto text-[#f5f5f5] text-xs md:text-sm">
                                 {formatDate(status.order.created_at)}
                               </span>
                             </div>
-                            <div>
-                              <span className="font-medium text-gray-700">
-                                Total:
+                            <div className="flex items-center gap-3 px-3 py-2.5">
+                              <DollarSign
+                                size={14}
+                                className="text-emerald-300"
+                              />
+                              <span className="text-[#cfcfcf] text-xs md:text-sm">
+                                Total
                               </span>
-                              <span className="ml-2 text-gray-900">
+                              <span className="ml-auto text-[#f5f5f5] text-xs md:text-sm font-semibold">
                                 ₱{status.order.total_amount.toFixed(2)}
                               </span>
                             </div>
@@ -209,21 +245,37 @@ const TableStatusModal = ({ isOpen, onClose }) => {
 
               {/* Available Tables */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <CheckCircle size={20} className="mr-2" />
-                  Available Tables ({getAvailableTables().length})
+                <h4 className="text-base md:text-lg font-semibold text-[#f5f5f5] mb-3 flex items-center">
+                  <CheckCircle
+                    size={16}
+                    className="mr-2 text-emerald-400 md:hidden"
+                  />
+                  <CheckCircle
+                    size={18}
+                    className="mr-2 text-emerald-400 hidden md:block"
+                  />
+                  Available Tables{" "}
+                  <span className="ml-2 text-[#cfcfcf]">
+                    ({getAvailableTables().length})
+                  </span>
                 </h4>
-                <div className="grid grid-cols-5 md:grid-cols-10 lg:grid-cols-15 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-2.5 md:gap-3">
                   {getAvailableTables().map((tableNumber) => (
                     <div
                       key={tableNumber}
-                      className="bg-green-100 border border-green-300 rounded-lg p-3 text-center"
+                      className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-2.5 md:p-3 text-center hover:border-[#3a3a3a] hover:bg-[#141414] transition-colors"
                     >
-                      <div className="text-sm font-medium text-green-800">
-                        Table {tableNumber}
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Utensils size={14} className="text-emerald-400" />
+                        <div className="text-xs md:text-sm font-bold text-[#f5f5f5]">
+                          Table{" "}
+                          <span className="text-emerald-400">
+                            {tableNumber}
+                          </span>
+                        </div>
                       </div>
-                      <div className="text-xs text-green-600 mt-1">
-                        Available
+                      <div className="text-[10px] md:text-xs text-[#c0c0c0] mt-1">
+                        Available now
                       </div>
                     </div>
                   ))}
