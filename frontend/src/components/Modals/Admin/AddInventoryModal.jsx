@@ -68,8 +68,7 @@ const AddInventoryModal = ({
             type="button"
             disabled={loading}
           >
-            {/* Use Lucide X icon as close, matching AddMenuModal */}
-            X
+            {/* Use Lucide X icon as close, matching AddMenuModal */}X
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-8 py-4 bg-[#232323]">
@@ -94,15 +93,86 @@ const AddInventoryModal = ({
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Category *
               </label>
-              <input
-                type="text"
+              <select
                 name="category"
                 value={formData.category}
                 onChange={handleInputChange}
                 required
-                className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
-                placeholder="Enter category"
-              />
+                className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white transition-all duration-200"
+              >
+                <option value="" className="bg-gray-700 text-white">
+                  Select category...
+                </option>
+                <option
+                  value="Meat & Poultry"
+                  className="bg-gray-700 text-white"
+                >
+                  Meat & Poultry
+                </option>
+                <option value="Seafood" className="bg-gray-700 text-white">
+                  Seafood
+                </option>
+                <option value="Vegetables" className="bg-gray-700 text-white">
+                  Vegetables
+                </option>
+                <option value="Fruits" className="bg-gray-700 text-white">
+                  Fruits
+                </option>
+                <option value="Gains & Rice" className="bg-gray-700 text-white">
+                  Gains & Rice
+                </option>
+                <option
+                  value="Dairy Products"
+                  className="bg-gray-700 text-white"
+                >
+                  Dairy Products
+                </option>
+                <option
+                  value="Eggs & Eggs Products"
+                  className="bg-gray-700 text-white"
+                >
+                  Eggs & Eggs Products
+                </option>
+                <option
+                  value="Condiments & Sauces"
+                  className="bg-gray-700 text-white"
+                >
+                  Condiments & Sauces
+                </option>
+                <option
+                  value="Desserts &  Sweets"
+                  className="bg-gray-700 text-white"
+                >
+                  Desserts & Sweets
+                </option>
+                <option
+                  value="Beverages & Drinks"
+                  className="bg-gray-700 text-white"
+                >
+                  Beverages & Drinks
+                </option>
+                <option
+                  value="Herbs & Spices"
+                  className="bg-gray-700 text-white"
+                >
+                  Herbs & Spices
+                </option>
+                <option value="Frozen Items" className="bg-gray-700 text-white">
+                  Frozen Items
+                </option>
+                <option
+                  value="Pantry Staples"
+                  className="bg-gray-700 text-white"
+                >
+                  Pantry Staples
+                </option>
+                <option
+                  value="Alcoholic Beverages"
+                  className="bg-gray-700 text-white"
+                >
+                  Alcoholic Beverages
+                </option>
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
