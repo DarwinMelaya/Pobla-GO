@@ -14,14 +14,48 @@ const AddInventoryModal = ({
     category: initialData.category || "",
     quantity: initialData.quantity || "",
     unit: initialData.unit || "",
+    expiry_type: initialData.expiry_type || "fixed", // fixed | perishable | non-perishable
     expiry_date: initialData.expiry_date || "",
     description: initialData.description || "",
     supplier: initialData.supplier || "",
     purchase_price: initialData.purchase_price || "",
   });
 
+  // Category → expiry type mapping based on examples
+  const inferExpiryTypeFromCategory = (category) => {
+    const perishable = [
+      "Meat & Poultry",
+      "Seafood",
+      "Vegetables",
+      "Fruits",
+      "Eggs & Eggs Products",
+    ];
+    const fixed = [
+      "Dairy Products",
+      "Condiments & Sauces",
+      "Frozen Items",
+      "Beverages & Drinks",
+      "Desserts &  Sweets",
+      "Alcoholic Beverages",
+    ];
+    const nonPerishable = ["Pantry Staples", "Gains & Rice", "Herbs & Spices"];
+
+    if (perishable.includes(category)) return "perishable";
+    if (fixed.includes(category)) return "fixed";
+    if (nonPerishable.includes(category)) return "non-perishable";
+    return "fixed";
+  };
+
+  // Auto-adjust expiry_type when category changes
+  React.useEffect(() => {
+    if (!formData.category) return;
+    const inferred = inferExpiryTypeFromCategory(formData.category);
+    setFormData((prev) => ({ ...prev, expiry_type: inferred }));
+  }, [formData.category]);
+
   // Handle form input changes
   const handleInputChange = (e) => {
+    v;
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
@@ -30,9 +64,24 @@ const AddInventoryModal = ({
   };
 
   // Handle form submission
+  // For adding expiry date when not fixed
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    // Ensure backend-required expiry_date is provided even when not fixed
+    let payload = { ...formData };
+    if (formData.expiry_type !== "fixed") {
+      const today = new Date();
+      if (formData.expiry_type === "perishable") {
+        // Default: +7 days for perishable
+        const plus7 = new Date(today);
+        plus7.setDate(plus7.getDate() + 7);
+        payload.expiry_date = plus7.toISOString().split("T")[0];
+      } else {
+        // non-perishable: far future default
+        payload.expiry_date = "2099-12-31";
+      }
+    }
+    onSubmit(payload);
   };
 
   // Reset form when modal opens/closes
@@ -43,6 +92,7 @@ const AddInventoryModal = ({
         category: initialData.category || "",
         quantity: initialData.quantity || "",
         unit: initialData.unit || "",
+        expiry_type: initialData.expiry_type || "fixed",
         expiry_date: initialData.expiry_date || "",
         description: initialData.description || "",
         supplier: initialData.supplier || "",
@@ -173,6 +223,16 @@ const AddInventoryModal = ({
                   Alcoholic Beverages
                 </option>
               </select>
+              {formData.category && (
+                <p className="mt-2 text-xs text-[#b5b5b5]">
+                  {formData.expiry_type === "fixed" &&
+                    "This category usually has a fixed expiration date."}
+                  {formData.expiry_type === "perishable" &&
+                    "This category is perishable. Check condition before use."}
+                  {formData.expiry_type === "non-perishable" &&
+                    "This category is generally non-perishable; no strict expiry needed."}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -260,16 +320,38 @@ const AddInventoryModal = ({
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Expiry Date *
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-300">
+                  Expiry
+                </label>
+                <select
+                  name="expiry_type"
+                  value={formData.expiry_type}
+                  onChange={handleInputChange}
+                  className="px-2 py-1 text-sm bg-gray-700/80 border border-gray-600/50 rounded-md text-white focus:ring-2 focus:ring-[#C05050] focus:border-transparent"
+                >
+                  <option value="fixed" className="bg-gray-700 text-white">
+                    Fixed date
+                  </option>
+                  <option value="perishable" className="bg-gray-700 text-white">
+                    Perishable
+                  </option>
+                  <option
+                    value="non-perishable"
+                    className="bg-gray-700 text-white"
+                  >
+                    Non-perishable
+                  </option>
+                </select>
+              </div>
               <input
                 type="date"
                 name="expiry_date"
                 value={formData.expiry_date}
                 onChange={handleInputChange}
-                required
-                className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200"
+                required={formData.expiry_type === "fixed"}
+                disabled={formData.expiry_type !== "fixed"}
+                className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
               />
             </div>
 
