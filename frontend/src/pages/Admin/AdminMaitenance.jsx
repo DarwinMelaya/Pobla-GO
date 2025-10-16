@@ -28,29 +28,34 @@ const AdminMaitenance = () => {
           </h1>
         </div>
 
-        {/* Tabs styled like AdminViewSales */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
+        {/* Tabs */}
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-1 bg-[#181818] border border-[#383838] rounded-lg p-1 shadow-sm">
             {[
               { id: "unit", label: "Unit Measurements" },
               { id: "categories", label: "Menu Categories" },
               { id: "raw", label: "Raw Materials" },
               { id: "suppliers", label: "Suppliers" },
               { id: "menus", label: "Menus" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? "border-blue-500 text-blue-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  aria-current={isActive ? "page" : undefined}
+                  aria-pressed={isActive}
+                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6b100] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1f1f1f] ${
+                    isActive
+                      ? "bg-[#2a2a2a] text-[#f5f5f5] border border-[#4a4a4a] shadow-inner"
+                      : "text-[#b5b5b5] hover:text-white hover:bg-[#262626] border border-transparent"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Active content */}
