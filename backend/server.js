@@ -45,6 +45,7 @@ app.use("/units", require("./routes/units"));
 app.use("/categories", require("./routes/categories"));
 app.use("/orders", require("./routes/orders"));
 app.use("/reservations", require("./routes/reservations"));
+app.use("/suppliers", require("./routes/suppliers"));
 
 // Start server
 const PORT = process.env.PORT || 5000;
