@@ -9,6 +9,7 @@ import {
   AdminManageOrders,
   AdminReservations,
   AdminViewSales,
+  AdminMaitenance,
   StaffDashboard,
   StaffMenu,
   StaffManageOrders,
@@ -71,6 +72,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Admin">
               <AdminViewSales />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-maintenance"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <AdminMaitenance />
             </ProtectedRoute>
           }
         />
