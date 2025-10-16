@@ -41,6 +41,7 @@ app.use(passport.session());
 app.use("/auth", require("./routes/auth"));
 app.use("/inventory", require("./routes/inventory"));
 app.use("/menu", require("./routes/menu"));
+app.use("/units", require("./routes/units"));
 app.use("/orders", require("./routes/orders"));
 app.use("/reservations", require("./routes/reservations"));
 
