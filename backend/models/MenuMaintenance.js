@@ -10,14 +10,6 @@ const MenuMaintenanceSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    enum: [
-      "Appetizer",
-      "Main Course",
-      "Dessert",
-      "Beverage",
-      "Side Dish",
-      "Other",
-    ],
   },
   critical_level: {
     type: String,

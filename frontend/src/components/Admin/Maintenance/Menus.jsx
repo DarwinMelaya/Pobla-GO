@@ -14,6 +14,8 @@ const Menus = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -29,16 +31,31 @@ const Menus = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  const categories = [
-    "Appetizer",
-    "Main Course",
-    "Dessert",
-    "Beverage",
-    "Side Dish",
-    "Other",
-  ];
-
   const criticalLevels = ["Low", "Medium", "High", "Critical"];
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await fetch(`${API_BASE}/categories`, {
+        headers: {
+          ...authHeaders,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCategories(Array.isArray(data?.data) ? data.data : []);
+      } else {
+        toast.error("Failed to fetch categories");
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      toast.error("Error fetching categories");
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
 
   const fetchMenuItems = async () => {
     try {
@@ -66,6 +83,7 @@ const Menus = () => {
   };
 
   useEffect(() => {
+    fetchCategories();
     fetchMenuItems();
   }, []);
 
@@ -387,13 +405,20 @@ const Menus = () => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
                   required
+                  disabled={categoriesLoading}
                 >
-                  <option value="">Select Category</option>
-                  {categories.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
+                  <option value="">
+                    {categoriesLoading
+                      ? "Loading categories..."
+                      : "Select Category"}
+                  </option>
+                  {categories
+                    .filter((category) => category.is_active !== false)
+                    .map((category) => (
+                      <option key={category._id} value={category.name}>
+                        {category.name}
+                      </option>
+                    ))}
                 </select>
               </div>
 

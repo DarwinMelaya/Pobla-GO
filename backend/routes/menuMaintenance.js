@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const MenuMaintenance = require("../models/MenuMaintenance");
 const User = require("../models/User");
+const Category = require("../models/Category");
 
 // Middleware to verify admin role using JWT
 const verifyAdmin = async (req, res, next) => {
@@ -95,6 +96,18 @@ router.post("/", verifyAdmin, async (req, res) => {
       });
     }
 
+    // Validate that the category exists and is active
+    const categoryExists = await Category.findOne({
+      name: category,
+      is_active: { $ne: false },
+    });
+
+    if (!categoryExists) {
+      return res.status(400).json({
+        message: "Invalid category. Please select a valid active category.",
+      });
+    }
+
     const menuItem = new MenuMaintenance({
       name,
       category,
@@ -127,6 +140,20 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       return res
         .status(404)
         .json({ message: "Menu maintenance item not found" });
+    }
+
+    // Validate category if it's being updated
+    if (category !== undefined) {
+      const categoryExists = await Category.findOne({
+        name: category,
+        is_active: { $ne: false },
+      });
+
+      if (!categoryExists) {
+        return res.status(400).json({
+          message: "Invalid category. Please select a valid active category.",
+        });
+      }
     }
 
     // Update fields
