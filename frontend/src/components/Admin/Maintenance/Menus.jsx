@@ -19,7 +19,7 @@ const Menus = () => {
   const [formData, setFormData] = useState({
     name: "",
     category: "",
-    critical_level: "",
+    critical_level: null,
     description: "",
     image: null,
     currentImage: null,
@@ -31,7 +31,12 @@ const Menus = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  const criticalLevels = ["Low", "Medium", "High", "Critical"];
+  const criticalLevels = [
+    { value: 1, label: "Low" },
+    { value: 2, label: "Medium" },
+    { value: 3, label: "High" },
+    { value: 4, label: "Critical" },
+  ];
 
   const fetchCategories = async () => {
     try {
@@ -98,7 +103,7 @@ const Menus = () => {
     setFormData({
       name: "",
       category: "",
-      critical_level: "",
+      critical_level: null,
       description: "",
       image: null,
       currentImage: null,
@@ -113,7 +118,7 @@ const Menus = () => {
     setFormData({
       name: item.name || "",
       category: item.category || "",
-      critical_level: item.critical_level || "",
+      critical_level: item.critical_level || null,
       description: item.description || "",
       image: null,
       currentImage: item.image || null,
@@ -148,7 +153,16 @@ const Menus = () => {
       }
       return;
     }
-    setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Convert critical_level to number
+    if (name === "critical_level") {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value ? Number(value) : null,
+      }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const toBase64 = (file) =>
@@ -165,7 +179,7 @@ const Menus = () => {
     if (
       !formData.name.trim() ||
       !formData.category.trim() ||
-      !formData.critical_level.trim()
+      !formData.critical_level
     ) {
       toast.error("Please fill all required fields");
       return;
@@ -176,7 +190,7 @@ const Menus = () => {
       const payload = {
         name: formData.name,
         category: formData.category,
-        critical_level: formData.critical_level,
+        critical_level: Number(formData.critical_level),
         description: formData.description,
         image: formData.image ? await toBase64(formData.image) : undefined,
       };
@@ -240,17 +254,22 @@ const Menus = () => {
 
   const getCriticalLevelColor = (level) => {
     switch (level) {
-      case "Low":
+      case 1:
         return "bg-green-600 text-white";
-      case "Medium":
+      case 2:
         return "bg-yellow-600 text-white";
-      case "High":
+      case 3:
         return "bg-orange-600 text-white";
-      case "Critical":
+      case 4:
         return "bg-red-600 text-white";
       default:
         return "bg-gray-600 text-white";
     }
+  };
+
+  const getCriticalLevelLabel = (level) => {
+    const levelObj = criticalLevels.find((l) => l.value === level);
+    return levelObj ? levelObj.label : "Unknown";
   };
 
   return (
@@ -428,15 +447,19 @@ const Menus = () => {
                 </label>
                 <select
                   name="critical_level"
-                  value={formData.critical_level}
+                  value={
+                    formData.critical_level
+                      ? String(formData.critical_level)
+                      : ""
+                  }
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
                   required
                 >
                   <option value="">Select Critical Level</option>
                   {criticalLevels.map((level) => (
-                    <option key={level} value={level}>
-                      {level}
+                    <option key={level.value} value={String(level.value)}>
+                      {level.value}
                     </option>
                   ))}
                 </select>

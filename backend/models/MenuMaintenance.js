@@ -12,10 +12,10 @@ const MenuMaintenanceSchema = new mongoose.Schema({
     trim: true,
   },
   critical_level: {
-    type: String,
+    type: Number,
     required: true,
-    trim: true,
-    enum: ["Low", "Medium", "High", "Critical"],
+    min: 1,
+    max: 4,
   },
   description: {
     type: String,
