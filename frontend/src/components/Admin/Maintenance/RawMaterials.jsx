@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, Save, X, Edit, Trash2 } from "lucide-react";
+import { Plus, Save, X, Edit, Trash2, ArrowRight } from "lucide-react";
+import UnitConversion from "./Unitconversion/UnitConversion";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -16,6 +17,8 @@ const RawMaterials = () => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showUnitConversion, setShowUnitConversion] = useState(false);
+  const [selectedMaterial, setSelectedMaterial] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -46,8 +49,7 @@ const RawMaterials = () => {
         if (!isMounted) return;
         setUnits(Array.isArray(uJson?.data) ? uJson.data : []);
         setSuppliers(Array.isArray(sJson?.data) ? sJson.data : []);
-      } catch (e) {
-      }
+      } catch (e) {}
     };
     fetchLookups();
     return () => {
@@ -103,10 +105,17 @@ const RawMaterials = () => {
       name: item.name || "",
       supplier: item.supplier || "",
       unit: item.unit || "",
-      unit_price: typeof item.unit_price === "number" ? String(item.unit_price) : "",
-      markup_percent: typeof item.markup_percent === "number" ? String(item.markup_percent) : "",
+      unit_price:
+        typeof item.unit_price === "number" ? String(item.unit_price) : "",
+      markup_percent:
+        typeof item.markup_percent === "number"
+          ? String(item.markup_percent)
+          : "",
       category: item.category || "",
-      critical_level: typeof item.critical_level === "number" ? String(item.critical_level) : "",
+      critical_level:
+        typeof item.critical_level === "number"
+          ? String(item.critical_level)
+          : "",
       description: item.description || "",
       image: null,
     });
@@ -116,6 +125,11 @@ const RawMaterials = () => {
   const confirmDelete = (item) => {
     setDeleteTarget(item);
     setIsDeleteOpen(true);
+  };
+
+  const handleEquivalent = (item) => {
+    setSelectedMaterial(item);
+    setShowUnitConversion(true);
   };
 
   const handleDelete = async () => {
@@ -212,6 +226,18 @@ const RawMaterials = () => {
     }
   };
 
+  if (showUnitConversion && selectedMaterial) {
+    return (
+      <UnitConversion
+        material={selectedMaterial}
+        onBack={() => {
+          setShowUnitConversion(false);
+          setSelectedMaterial(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="bg-[#232323] p-6 rounded-lg shadow border border-[#383838]">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
@@ -242,28 +268,62 @@ const RawMaterials = () => {
           <table className="min-w-full divide-y divide-[#383838]">
             <thead>
               <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">Name</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">Supplier</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">Unit</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">Unit Price</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">Markup %</th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">Category</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">Critical</th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Supplier
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Unit
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Unit Price
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Markup %
+                </th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Critical
+                </th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#383838]">
               {materials.map((m) => (
                 <tr key={m._id}>
                   <td className="px-4 py-2 text-[#f5f5f5]">{m.name}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{m.supplier || ""}</td>
+                  <td className="px-4 py-2 text-[#f5f5f5]">
+                    {m.supplier || ""}
+                  </td>
                   <td className="px-4 py-2 text-[#f5f5f5]">{m.unit}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">{typeof m.unit_price === "number" ? m.unit_price.toFixed(2) : "0.00"}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">{typeof m.markup_percent === "number" ? m.markup_percent.toFixed(2) : "0.00"}</td>
+                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                    {typeof m.unit_price === "number"
+                      ? m.unit_price.toFixed(2)
+                      : "0.00"}
+                  </td>
+                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                    {typeof m.markup_percent === "number"
+                      ? m.markup_percent.toFixed(2)
+                      : "0.00"}
+                  </td>
                   <td className="px-4 py-2 text-[#f5f5f5]">{m.category}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">{m.critical_level ?? 0}</td>
+                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                    {m.critical_level ?? 0}
+                  </td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleEquivalent(m)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
+                      >
+                        <ArrowRight className="w-3 h-3" /> Equivalent
+                      </button>
                       <button
                         onClick={() => startEdit(m)}
                         className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
@@ -291,7 +351,9 @@ const RawMaterials = () => {
           <div className="absolute inset-0 bg-black/50" onClick={resetForm} />
           <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-[#f5f5f5]">{editingId ? "Edit Raw Material" : "Add Raw Material"}</h2>
+              <h2 className="text-xl font-bold text-[#f5f5f5]">
+                {editingId ? "Edit Raw Material" : "Add Raw Material"}
+              </h2>
               <button
                 onClick={resetForm}
                 className="text-[#b5b5b5] hover:text-white"
@@ -301,9 +363,14 @@ const RawMaterials = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form
+              onSubmit={handleSubmit}
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            >
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Material</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Material
+                </label>
                 <input
                   type="text"
                   name="name"
@@ -315,7 +382,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Supplier</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Supplier
+                </label>
                 <select
                   name="supplier"
                   value={form.supplier}
@@ -324,7 +393,10 @@ const RawMaterials = () => {
                 >
                   <option value="">Select supplier (optional)</option>
                   {suppliers.map((s) => (
-                    <option key={s._id || s.company_name} value={s.company_name}>
+                    <option
+                      key={s._id || s.company_name}
+                      value={s.company_name}
+                    >
                       {s.company_name}
                     </option>
                   ))}
@@ -332,7 +404,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Purchase Units</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Purchase Units
+                </label>
                 <select
                   name="unit"
                   value={form.unit}
@@ -350,7 +424,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Unit Price</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Unit Price
+                </label>
                 <input
                   type="number"
                   name="unit_price"
@@ -364,7 +440,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Markup (%)</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Markup (%)
+                </label>
                 <input
                   type="number"
                   name="markup_percent"
@@ -378,7 +456,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Category</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Category
+                </label>
                 <input
                   type="text"
                   name="category"
@@ -390,7 +470,9 @@ const RawMaterials = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Critical Level</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Critical Level
+                </label>
                 <input
                   type="number"
                   name="critical_level"
@@ -404,7 +486,9 @@ const RawMaterials = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Description</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Description
+                </label>
                 <textarea
                   name="description"
                   value={form.description}
@@ -416,7 +500,9 @@ const RawMaterials = () => {
               </div>
 
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-[#cccccc] mb-1">Image</label>
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Image
+                </label>
                 <input
                   type="file"
                   name="image"
@@ -425,7 +511,9 @@ const RawMaterials = () => {
                   className="w-full text-[#f5f5f5]"
                 />
                 {form.image ? (
-                  <p className="text-xs text-[#b5b5b5] mt-1">{form.image.name}</p>
+                  <p className="text-xs text-[#b5b5b5] mt-1">
+                    {form.image.name}
+                  </p>
                 ) : null}
               </div>
 
@@ -443,7 +531,13 @@ const RawMaterials = () => {
                   className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold disabled:opacity-70"
                 >
                   <Save className="w-4 h-4" />
-                  {isSubmitting ? (editingId ? "Saving..." : "Adding...") : (editingId ? "Save Changes" : "Add Material")}
+                  {isSubmitting
+                    ? editingId
+                      ? "Saving..."
+                      : "Adding..."
+                    : editingId
+                    ? "Save Changes"
+                    : "Add Material"}
                 </button>
               </div>
             </form>
@@ -462,7 +556,9 @@ const RawMaterials = () => {
           />
           <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-[#f5f5f5]">Delete Raw Material</h3>
+              <h3 className="text-lg font-bold text-[#f5f5f5]">
+                Delete Raw Material
+              </h3>
               <button
                 onClick={() => {
                   setIsDeleteOpen(false);

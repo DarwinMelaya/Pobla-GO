@@ -47,6 +47,7 @@ app.use("/orders", require("./routes/orders"));
 app.use("/reservations", require("./routes/reservations"));
 app.use("/suppliers", require("./routes/suppliers"));
 app.use("/raw-materials", require("./routes/rawMaterials"));
+app.use("/unit-conversions", require("./routes/unitConversions"));
 
 // Start server
 const PORT = process.env.PORT || 5000;
