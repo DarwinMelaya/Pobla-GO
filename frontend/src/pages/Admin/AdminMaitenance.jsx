@@ -5,6 +5,15 @@ import MenuCategories from "../../components/Admin/Maintenance/MenuCategories";
 import RawMaterials from "../../components/Admin/Maintenance/RawMaterials";
 import Suppliers from "../../components/Admin/Maintenance/Suppliers";
 import Menus from "../../components/Admin/Maintenance/Menus";
+import Expenditure from "../../components/Admin/Maintenance/Expenditure";
+import {
+  Ruler,
+  FolderOpen,
+  Package,
+  Truck,
+  Menu,
+  Banknote,
+} from "lucide-react";
 
 const AdminMaitenance = () => {
   const [activeTab, setActiveTab] = useState("unit");
@@ -15,6 +24,7 @@ const AdminMaitenance = () => {
     if (activeTab === "raw") return <RawMaterials />;
     if (activeTab === "suppliers") return <Suppliers />;
     if (activeTab === "menus") return <Menus />;
+    if (activeTab === "expenditure") return <Expenditure />;
     return null;
   };
 
@@ -32,11 +42,12 @@ const AdminMaitenance = () => {
         <div className="mb-6">
           <div className="inline-flex items-center gap-1 bg-[#181818] border border-[#383838] rounded-lg p-1 shadow-sm">
             {[
-              { id: "unit", label: "Unit Measurements" },
-              { id: "categories", label: "Menu Categories" },
-              { id: "raw", label: "Raw Materials" },
-              { id: "suppliers", label: "Suppliers" },
-              { id: "menus", label: "Menus" },
+              { id: "unit", label: "Unit Measurements", icon: Ruler },
+              { id: "categories", label: "Menu Categories", icon: FolderOpen },
+              { id: "raw", label: "Raw Materials", icon: Package },
+              { id: "suppliers", label: "Suppliers", icon: Truck },
+              { id: "menus", label: "Menus", icon: Menu },
+              { id: "expenditure", label: "Expenditure", icon: Banknote },
             ].map((tab) => {
               const isActive = activeTab === tab.id;
               return (
@@ -45,12 +56,13 @@ const AdminMaitenance = () => {
                   onClick={() => setActiveTab(tab.id)}
                   aria-current={isActive ? "page" : undefined}
                   aria-pressed={isActive}
-                  className={`px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6b100] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1f1f1f] ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#f6b100] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1f1f1f] ${
                     isActive
                       ? "bg-[#2a2a2a] text-[#f5f5f5] border border-[#4a4a4a] shadow-inner"
                       : "text-[#b5b5b5] hover:text-white hover:bg-[#262626] border border-transparent"
                   }`}
                 >
+                  <tab.icon size={16} />
                   {tab.label}
                 </button>
               );
