@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import toast from "react-hot-toast";
-import { Plus, Save, X, Edit, Trash2 } from "lucide-react";
+import { Plus, Save, X, Edit, Trash2, ChefHat } from "lucide-react";
+import Recipe from "./Menus/Recipe";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
@@ -16,6 +17,8 @@ const Menus = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [categories, setCategories] = useState([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [showRecipe, setShowRecipe] = useState(false);
+  const [selectedMenuItem, setSelectedMenuItem] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -130,6 +133,11 @@ const Menus = () => {
   const confirmDelete = (item) => {
     setDeleteTarget(item);
     setIsDeleteOpen(true);
+  };
+
+  const handleRecipe = (item) => {
+    setSelectedMenuItem(item);
+    setShowRecipe(true);
   };
 
   const handleChange = (e) => {
@@ -272,6 +280,18 @@ const Menus = () => {
     return levelObj ? levelObj.label : "Unknown";
   };
 
+  if (showRecipe && selectedMenuItem) {
+    return (
+      <Recipe
+        menuItem={selectedMenuItem}
+        onBack={() => {
+          setShowRecipe(false);
+          setSelectedMenuItem(null);
+        }}
+      />
+    );
+  }
+
   return (
     <div className="bg-[#232323] p-6 rounded-lg shadow border border-[#383838]">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
@@ -356,6 +376,12 @@ const Menus = () => {
                   </td>
                   <td className="px-4 py-2">
                     <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => handleRecipe(item)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
+                      >
+                        <ChefHat className="w-3 h-3" /> Recipe
+                      </button>
                       <button
                         onClick={() => startEdit(item)}
                         className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
