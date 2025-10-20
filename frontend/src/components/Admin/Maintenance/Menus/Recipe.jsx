@@ -16,6 +16,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 const Recipe = ({ menuItem, onBack }) => {
   const [rawMaterials, setRawMaterials] = useState([]);
   const [recipeItems, setRecipeItems] = useState([]);
+  const [units, setUnits] = useState([]);
+  const [unitConversions, setUnitConversions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,28 +42,56 @@ const Recipe = ({ menuItem, onBack }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [materialsRes, recipeRes] = await Promise.all([
+        const [materialsRes, recipeRes, unitsRes] = await Promise.all([
           fetch(`${API_BASE}/raw-materials`, {
             headers: { ...authHeaders },
           }),
           fetch(`${API_BASE}/menu-recipes/menu/${menuItem._id}`, {
             headers: { ...authHeaders },
           }),
+          fetch(`${API_BASE}/units`, {
+            headers: { ...authHeaders },
+          }),
         ]);
 
-        const [materialsData, recipeData] = await Promise.all([
+        const [materialsData, recipeData, unitsData] = await Promise.all([
           materialsRes.json(),
           recipeRes.json(),
+          unitsRes.json(),
         ]);
 
         if (materialsData?.success) {
-          setRawMaterials(
-            Array.isArray(materialsData.data) ? materialsData.data : []
+          const materials = Array.isArray(materialsData.data)
+            ? materialsData.data
+            : [];
+          setRawMaterials(materials);
+
+          // Fetch unit conversions for all materials
+          const conversionPromises = materials.map((material) =>
+            fetch(`${API_BASE}/unit-conversions/material/${material._id}`, {
+              headers: { ...authHeaders },
+            }).then((res) => res.json())
           );
+
+          try {
+            const conversionResults = await Promise.all(conversionPromises);
+            const allConversions = conversionResults
+              .filter((result) => result.success)
+              .flatMap((result) =>
+                Array.isArray(result.data) ? result.data : []
+              );
+            setUnitConversions(allConversions);
+          } catch (conversionError) {
+            console.error("Error fetching unit conversions:", conversionError);
+          }
         }
 
         if (recipeData?.success) {
           setRecipeItems(Array.isArray(recipeData.data) ? recipeData.data : []);
+        }
+
+        if (unitsData?.success) {
+          setUnits(Array.isArray(unitsData.data) ? unitsData.data : []);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -140,9 +170,55 @@ const Recipe = ({ menuItem, onBack }) => {
     }
   };
 
+  const fetchAllUnitConversions = async () => {
+    try {
+      const conversionPromises = rawMaterials.map((material) =>
+        fetch(`${API_BASE}/unit-conversions/material/${material._id}`, {
+          headers: { ...authHeaders },
+        }).then((res) => res.json())
+      );
+
+      const conversionResults = await Promise.all(conversionPromises);
+      const allConversions = conversionResults
+        .filter((result) => result.success)
+        .flatMap((result) => (Array.isArray(result.data) ? result.data : []));
+      setUnitConversions(allConversions);
+    } catch (error) {
+      console.error("Error fetching unit conversions:", error);
+    }
+  };
+
+  const fetchUnitConversions = async (materialId) => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/unit-conversions/material/${materialId}`,
+        {
+          headers: { ...authHeaders },
+        }
+      );
+      const data = await res.json();
+      if (data?.success) {
+        setUnitConversions(Array.isArray(data.data) ? data.data : []);
+      }
+    } catch (error) {
+      console.error("Error fetching unit conversions:", error);
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => {
+      const newForm = { ...prev, [name]: value };
+
+      // If raw material is selected, fetch its unit conversions
+      if (name === "raw_material_id" && value) {
+        fetchUnitConversions(value);
+        // Reset unit when material changes
+        newForm.unit = "";
+      }
+
+      return newForm;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -186,6 +262,7 @@ const Recipe = ({ menuItem, onBack }) => {
         editingId ? "Recipe item updated" : "Recipe item added successfully"
       );
       await fetchRecipeItems();
+      await fetchAllUnitConversions();
       resetForm();
     } catch (error) {
       toast.error(error.message);
@@ -198,6 +275,44 @@ const Recipe = ({ menuItem, onBack }) => {
     return rawMaterials.find(
       (material) => material._id === form.raw_material_id
     );
+  };
+
+  const getSelectedUnitConversion = () => {
+    if (!form.raw_material_id || !form.unit) return null;
+    return unitConversions.find(
+      (conversion) => conversion.equivalent_unit === form.unit
+    );
+  };
+
+  const calculateIngredientCost = () => {
+    const material = getSelectedMaterial();
+    const conversion = getSelectedUnitConversion();
+    const quantity = parseFloat(form.quantity) || 0;
+
+    if (!material || !quantity) return "0.00";
+
+    let unitPrice = material.unit_price || 0;
+
+    // If using a unit conversion, use the conversion's unit price
+    if (conversion && conversion.unit_price) {
+      unitPrice = conversion.unit_price;
+    }
+
+    return (unitPrice * quantity).toFixed(2);
+  };
+
+  const getCurrentUnitPrice = () => {
+    const material = getSelectedMaterial();
+    const conversion = getSelectedUnitConversion();
+
+    if (!material) return 0;
+
+    // If using a unit conversion, use the conversion's unit price
+    if (conversion && conversion.unit_price) {
+      return conversion.unit_price;
+    }
+
+    return material.unit_price || 0;
   };
 
   return (
@@ -269,16 +384,22 @@ const Recipe = ({ menuItem, onBack }) => {
                 <thead>
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                      Ingredient
+                      Category
                     </th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                      Quantity
+                    <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Ingredients / Raw Materials
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       Unit
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                      Notes
+                    <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Quantity
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Unit Price
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Total
                     </th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       Actions
@@ -287,22 +408,38 @@ const Recipe = ({ menuItem, onBack }) => {
                 </thead>
                 <tbody className="divide-y divide-[#383838]">
                   {recipeItems.map((item) => {
-                    const material = rawMaterials.find(
-                      (m) => m._id === item.raw_material_id
+                    // Use the populated raw material data from the backend
+                    const material = item.raw_material_id;
+
+                    // Find unit conversion for this item's unit
+                    const unitConversion = unitConversions.find(
+                      (conversion) => conversion.equivalent_unit === item.unit
                     );
+
+                    // Use unit conversion price if available, otherwise use material's base price
+                    const unitPrice =
+                      unitConversion?.unit_price || material?.unit_price || 0;
+                    const total = unitPrice * item.quantity;
+
                     return (
                       <tr key={item._id}>
                         <td className="px-4 py-2 text-[#f5f5f5]">
-                          {material?.name || "Unknown Material"}
+                          {material?.category || "-"}
                         </td>
-                        <td className="px-4 py-2 text-[#f5f5f5] text-right">
-                          {item.quantity}
+                        <td className="px-4 py-2 text-[#f5f5f5]">
+                          {material?.name || "Unknown Material"}
                         </td>
                         <td className="px-4 py-2 text-[#f5f5f5]">
                           {item.unit}
                         </td>
-                        <td className="px-4 py-2 text-[#f5f5f5]">
-                          {item.notes || "-"}
+                        <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                          {item.quantity}
+                        </td>
+                        <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                          ₱{unitPrice.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                          ₱{total.toFixed(2)}
                         </td>
                         <td className="px-4 py-2">
                           <div className="flex justify-end gap-2">
@@ -326,6 +463,38 @@ const Recipe = ({ menuItem, onBack }) => {
                   })}
                 </tbody>
               </table>
+
+              {/* Total Cost Summary */}
+              {recipeItems.length > 0 && (
+                <div className="mt-4 p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[#cccccc] font-medium">Total:</span>
+                    <span className="text-[#f6b100] font-bold text-lg">
+                      ₱
+                      {recipeItems
+                        .reduce((total, item) => {
+                          // Use the populated raw material data from the backend
+                          const material = item.raw_material_id;
+
+                          // Find unit conversion for this item's unit
+                          const unitConversion = unitConversions.find(
+                            (conversion) =>
+                              conversion.equivalent_unit === item.unit
+                          );
+
+                          // Use unit conversion price if available, otherwise use material's base price
+                          const unitPrice =
+                            unitConversion?.unit_price ||
+                            material?.unit_price ||
+                            0;
+
+                          return total + unitPrice * item.quantity;
+                        }, 0)
+                        .toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -395,15 +564,45 @@ const Recipe = ({ menuItem, onBack }) => {
                       <label className="block text-sm font-medium text-[#cccccc] mb-2">
                         Unit <span className="text-red-400">*</span>
                       </label>
-                      <input
-                        type="text"
+                      <select
                         name="unit"
                         value={form.unit}
                         onChange={handleChange}
-                        placeholder="e.g., kg, cups, pieces"
-                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
                         required
-                      />
+                        disabled={!form.raw_material_id}
+                      >
+                        <option value="">
+                          {form.raw_material_id
+                            ? "Select unit"
+                            : "Select material first"}
+                        </option>
+                        {form.raw_material_id &&
+                          (() => {
+                            const selectedMaterial = rawMaterials.find(
+                              (m) => m._id === form.raw_material_id
+                            );
+                            const availableUnits = new Set();
+
+                            // Add base unit from raw material
+                            if (selectedMaterial?.unit) {
+                              availableUnits.add(selectedMaterial.unit);
+                            }
+
+                            // Add units from unit conversions
+                            unitConversions.forEach((conversion) => {
+                              if (conversion.equivalent_unit) {
+                                availableUnits.add(conversion.equivalent_unit);
+                              }
+                            });
+
+                            return Array.from(availableUnits).map((unit) => (
+                              <option key={unit} value={unit}>
+                                {unit}
+                              </option>
+                            ));
+                          })()}
+                      </select>
                     </div>
 
                     <div className="md:col-span-2">
@@ -419,6 +618,41 @@ const Recipe = ({ menuItem, onBack }) => {
                         className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
                       />
                     </div>
+
+                    {/* Cost Calculation Display */}
+                    {form.raw_material_id && form.quantity && form.unit && (
+                      <div className="md:col-span-2 p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                        <h4 className="text-sm font-medium text-[#cccccc] mb-2">
+                          Cost Calculation
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-[#cccccc]">Material:</span>
+                            <span className="text-[#f5f5f5] ml-2">
+                              {getSelectedMaterial()?.name}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#cccccc]">Unit Price:</span>
+                            <span className="text-[#f5f5f5] ml-2">
+                              ₱{getCurrentUnitPrice().toFixed(2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#cccccc]">Quantity:</span>
+                            <span className="text-[#f5f5f5] ml-2">
+                              {form.quantity} {form.unit}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[#cccccc]">Total Cost:</span>
+                            <span className="text-[#f6b100] font-bold ml-2">
+                              ₱{calculateIngredientCost()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex justify-end gap-3 pt-4">
