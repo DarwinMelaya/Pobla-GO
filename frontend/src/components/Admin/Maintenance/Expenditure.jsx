@@ -254,7 +254,7 @@ const Expenditure = () => {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-[#cccccc] mb-1">
                   Description
                 </label>

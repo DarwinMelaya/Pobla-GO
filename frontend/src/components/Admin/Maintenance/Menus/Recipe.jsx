@@ -18,6 +18,8 @@ const Recipe = ({ menuItem, onBack }) => {
   const [recipeItems, setRecipeItems] = useState([]);
   const [units, setUnits] = useState([]);
   const [unitConversions, setUnitConversions] = useState([]);
+  const [menuExpenses, setMenuExpenses] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -25,12 +27,22 @@ const Recipe = ({ menuItem, onBack }) => {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [editingExpenseId, setEditingExpenseId] = useState(null);
+  const [isExpenseDeleteOpen, setIsExpenseDeleteOpen] = useState(false);
+  const [deleteExpenseTarget, setDeleteExpenseTarget] = useState(null);
 
   const [form, setForm] = useState({
     raw_material_id: "",
     quantity: "",
     unit: "",
     notes: "",
+  });
+
+  const [expenseForm, setExpenseForm] = useState({
+    expense: "",
+    amount: "",
+    description: "",
   });
 
   const authHeaders = useMemo(() => {
@@ -42,7 +54,13 @@ const Recipe = ({ menuItem, onBack }) => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [materialsRes, recipeRes, unitsRes] = await Promise.all([
+        const [
+          materialsRes,
+          recipeRes,
+          unitsRes,
+          expensesRes,
+          generalExpensesRes,
+        ] = await Promise.all([
           fetch(`${API_BASE}/raw-materials`, {
             headers: { ...authHeaders },
           }),
@@ -52,12 +70,26 @@ const Recipe = ({ menuItem, onBack }) => {
           fetch(`${API_BASE}/units`, {
             headers: { ...authHeaders },
           }),
+          fetch(`${API_BASE}/menu-expenses/menu/${menuItem._id}`, {
+            headers: { ...authHeaders },
+          }),
+          fetch(`${API_BASE}/expenses`, {
+            headers: { ...authHeaders },
+          }),
         ]);
 
-        const [materialsData, recipeData, unitsData] = await Promise.all([
+        const [
+          materialsData,
+          recipeData,
+          unitsData,
+          expensesData,
+          generalExpensesData,
+        ] = await Promise.all([
           materialsRes.json(),
           recipeRes.json(),
           unitsRes.json(),
+          expensesRes.json(),
+          generalExpensesRes.json(),
         ]);
 
         if (materialsData?.success) {
@@ -92,6 +124,20 @@ const Recipe = ({ menuItem, onBack }) => {
 
         if (unitsData?.success) {
           setUnits(Array.isArray(unitsData.data) ? unitsData.data : []);
+        }
+
+        if (expensesData?.success) {
+          setMenuExpenses(
+            Array.isArray(expensesData.data) ? expensesData.data : []
+          );
+        }
+
+        if (generalExpensesData?.success) {
+          setExpenses(
+            Array.isArray(generalExpensesData.data)
+              ? generalExpensesData.data
+              : []
+          );
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -315,6 +361,128 @@ const Recipe = ({ menuItem, onBack }) => {
     return material.unit_price || 0;
   };
 
+  // Expense handlers
+  const resetExpenseForm = () => {
+    setExpenseForm({
+      expense: "",
+      amount: "",
+      description: "",
+    });
+    setEditingExpenseId(null);
+    setIsExpenseModalOpen(false);
+  };
+
+  const startEditExpense = (expense) => {
+    setEditingExpenseId(expense._id);
+    setExpenseForm({
+      expense: expense.expense || "",
+      amount: String(expense.amount || ""),
+      description: expense.description || "",
+    });
+    setIsExpenseModalOpen(true);
+  };
+
+  const confirmDeleteExpense = (expense) => {
+    setDeleteExpenseTarget(expense);
+    setIsExpenseDeleteOpen(true);
+  };
+
+  const handleExpenseChange = (e) => {
+    const { name, value } = e.target;
+    setExpenseForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleExpenseSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!expenseForm.expense || !expenseForm.amount) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const payload = {
+        menu_id: menuItem._id,
+        expense: expenseForm.expense.trim(),
+        amount: parseFloat(expenseForm.amount),
+        description: expenseForm.description.trim(),
+      };
+
+      const method = editingExpenseId ? "PUT" : "POST";
+      const url = editingExpenseId
+        ? `${API_BASE}/menu-expenses/${editingExpenseId}`
+        : `${API_BASE}/menu-expenses`;
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Failed to save expense");
+      }
+
+      toast.success(
+        editingExpenseId ? "Expense updated" : "Expense added successfully"
+      );
+      await fetchMenuExpenses();
+      resetExpenseForm();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteExpense = async () => {
+    if (!deleteExpenseTarget?._id) return;
+    try {
+      setIsDeleting(true);
+      const res = await fetch(
+        `${API_BASE}/menu-expenses/${deleteExpenseTarget._id}`,
+        {
+          method: "DELETE",
+          headers: { ...authHeaders },
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Delete failed");
+      }
+      toast.success("Expense deleted");
+      await fetchMenuExpenses();
+      setIsExpenseDeleteOpen(false);
+      setDeleteExpenseTarget(null);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const fetchMenuExpenses = async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/menu-expenses/menu/${menuItem._id}`,
+        {
+          headers: { ...authHeaders },
+        }
+      );
+      const data = await res.json();
+      if (data?.success) {
+        setMenuExpenses(Array.isArray(data.data) ? data.data : []);
+      }
+    } catch (error) {
+      toast.error("Failed to fetch expenses");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#1a1a1a] p-6">
       <div className="max-w-7xl mx-auto">
@@ -497,6 +665,102 @@ const Recipe = ({ menuItem, onBack }) => {
               )}
             </div>
           )}
+
+          {/* Other Expenses Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#f5f5f5] flex items-center gap-2">
+                <Utensils className="w-5 h-5 text-[#f6b100]" />
+                Other Expenses
+              </h3>
+              <button
+                onClick={() => setIsExpenseModalOpen(true)}
+                className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold"
+              >
+                <Plus className="w-4 h-4" />
+                Add Expense
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="text-[#ababab]">Loading expenses...</div>
+            ) : menuExpenses.length === 0 ? (
+              <div className="text-[#ababab]">No other expenses found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-[#383838]">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                        Expense
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                        Amount
+                      </th>
+                      <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#383838]">
+                    {menuExpenses.map((expense) => (
+                      <tr key={expense._id}>
+                        <td className="px-4 py-2 text-[#f5f5f5]">
+                          {expense.expense}
+                        </td>
+                        <td className="px-4 py-2 text-[#f5f5f5]">
+                          {expense.description || "-"}
+                        </td>
+                        <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                          ₱{expense.amount.toFixed(2)}
+                        </td>
+                        <td className="px-4 py-2">
+                          <div className="flex justify-end gap-2">
+                            <button
+                              onClick={() => startEditExpense(expense)}
+                              className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
+                            >
+                              <Edit className="w-3 h-3" /> Edit
+                            </button>
+                            <button
+                              onClick={() => confirmDeleteExpense(expense)}
+                              className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
+                              aria-label="Delete"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Total Expenses Summary */}
+                {menuExpenses.length > 0 && (
+                  <div className="mt-4 p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#cccccc] font-medium">
+                        Total Other Expenses:
+                      </span>
+                      <span className="text-[#f6b100] font-bold text-lg">
+                        ₱
+                        {menuExpenses
+                          .reduce(
+                            (total, expense) => total + (expense.amount || 0),
+                            0
+                          )
+                          .toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Add/Edit Modal */}
           {isModalOpen && (
@@ -722,6 +986,159 @@ const Recipe = ({ menuItem, onBack }) => {
                     type="button"
                     disabled={isDeleting}
                     onClick={handleDelete}
+                    className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-md font-bold"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add/Edit Expense Modal */}
+          {isExpenseModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={resetExpenseForm}
+              />
+              <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-[#f5f5f5]">
+                    {editingExpenseId
+                      ? "Edit Other Expense"
+                      : "Add Other Expense"}
+                  </h2>
+                  <button
+                    onClick={resetExpenseForm}
+                    className="text-[#b5b5b5] hover:text-white"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleExpenseSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        Expense Name <span className="text-red-400">*</span>
+                      </label>
+                      <select
+                        name="expense"
+                        value={expenseForm.expense}
+                        onChange={handleExpenseChange}
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
+                        required
+                      >
+                        <option value="">Select expense type</option>
+                        {expenses.map((expense) => (
+                          <option key={expense._id} value={expense.expense}>
+                            {expense.expense}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        Amount <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="amount"
+                        value={expenseForm.amount}
+                        onChange={handleExpenseChange}
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        Description
+                      </label>
+                      <textarea
+                        name="description"
+                        value={expenseForm.description}
+                        onChange={handleExpenseChange}
+                        rows={3}
+                        placeholder="Additional details about this expense"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={resetExpenseForm}
+                      className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-4 py-2 rounded-md font-bold hover:bg-[#262626]"
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting}
+                      className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold disabled:opacity-70"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isSubmitting ? "Saving..." : "Save Expense"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* Delete Expense Confirmation Modal */}
+          {isExpenseDeleteOpen && deleteExpenseTarget && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={() => {
+                  setIsExpenseDeleteOpen(false);
+                  setDeleteExpenseTarget(null);
+                }}
+              />
+              <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-bold text-[#f5f5f5]">
+                    Delete Other Expense
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setIsExpenseDeleteOpen(false);
+                      setDeleteExpenseTarget(null);
+                    }}
+                    className="text-[#b5b5b5] hover:text-white"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <p className="text-[#cccccc] mb-4">
+                  Are you sure you want to delete this expense? This action
+                  cannot be undone.
+                </p>
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsExpenseDeleteOpen(false);
+                      setDeleteExpenseTarget(null);
+                    }}
+                    className="px-4 py-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded-md font-bold hover:bg-[#262626]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={handleDeleteExpense}
                     className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white rounded-md font-bold"
                   >
                     Delete
