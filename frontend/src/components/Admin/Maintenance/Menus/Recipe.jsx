@@ -9,6 +9,7 @@ import {
   ArrowLeft,
   ChefHat,
   Utensils,
+  Calculator,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -31,6 +32,9 @@ const Recipe = ({ menuItem, onBack }) => {
   const [editingExpenseId, setEditingExpenseId] = useState(null);
   const [isExpenseDeleteOpen, setIsExpenseDeleteOpen] = useState(false);
   const [deleteExpenseTarget, setDeleteExpenseTarget] = useState(null);
+  const [menuCosting, setMenuCosting] = useState(null);
+  const [isCostingModalOpen, setIsCostingModalOpen] = useState(false);
+  const [isCostingSubmitting, setIsCostingSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     raw_material_id: "",
@@ -43,6 +47,12 @@ const Recipe = ({ menuItem, onBack }) => {
     expense: "",
     amount: "",
     description: "",
+  });
+
+  const [costingForm, setCostingForm] = useState({
+    yield_count: "",
+    markup_percent: "",
+    srp: "",
   });
 
   const authHeaders = useMemo(() => {
@@ -60,6 +70,7 @@ const Recipe = ({ menuItem, onBack }) => {
           unitsRes,
           expensesRes,
           generalExpensesRes,
+          costingRes,
         ] = await Promise.all([
           fetch(`${API_BASE}/raw-materials`, {
             headers: { ...authHeaders },
@@ -76,6 +87,9 @@ const Recipe = ({ menuItem, onBack }) => {
           fetch(`${API_BASE}/expenses`, {
             headers: { ...authHeaders },
           }),
+          fetch(`${API_BASE}/menu-costing/menu/${menuItem._id}`, {
+            headers: { ...authHeaders },
+          }),
         ]);
 
         const [
@@ -84,12 +98,14 @@ const Recipe = ({ menuItem, onBack }) => {
           unitsData,
           expensesData,
           generalExpensesData,
+          costingData,
         ] = await Promise.all([
           materialsRes.json(),
           recipeRes.json(),
           unitsRes.json(),
           expensesRes.json(),
           generalExpensesRes.json(),
+          costingRes.json(),
         ]);
 
         if (materialsData?.success) {
@@ -138,6 +154,10 @@ const Recipe = ({ menuItem, onBack }) => {
               ? generalExpensesData.data
               : []
           );
+        }
+
+        if (costingData?.success) {
+          setMenuCosting(costingData.data);
         }
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -193,6 +213,7 @@ const Recipe = ({ menuItem, onBack }) => {
       }
       toast.success("Recipe item deleted");
       await fetchRecipeItems();
+      await fetchMenuCosting();
       setIsDeleteOpen(false);
       setDeleteTarget(null);
     } catch (err) {
@@ -309,6 +330,7 @@ const Recipe = ({ menuItem, onBack }) => {
       );
       await fetchRecipeItems();
       await fetchAllUnitConversions();
+      await fetchMenuCosting();
       resetForm();
     } catch (error) {
       toast.error(error.message);
@@ -432,6 +454,7 @@ const Recipe = ({ menuItem, onBack }) => {
         editingExpenseId ? "Expense updated" : "Expense added successfully"
       );
       await fetchMenuExpenses();
+      await fetchMenuCosting();
       resetExpenseForm();
     } catch (error) {
       toast.error(error.message);
@@ -457,6 +480,7 @@ const Recipe = ({ menuItem, onBack }) => {
       }
       toast.success("Expense deleted");
       await fetchMenuExpenses();
+      await fetchMenuCosting();
       setIsExpenseDeleteOpen(false);
       setDeleteExpenseTarget(null);
     } catch (err) {
@@ -480,6 +504,134 @@ const Recipe = ({ menuItem, onBack }) => {
       }
     } catch (error) {
       toast.error("Failed to fetch expenses");
+    }
+  };
+
+  // Costing handlers
+  const resetCostingForm = () => {
+    setCostingForm({
+      yield_count: "",
+      markup_percent: "",
+      srp: "",
+    });
+    setIsCostingModalOpen(false);
+  };
+
+  const startEditCosting = () => {
+    if (menuCosting) {
+      setCostingForm({
+        yield_count: String(menuCosting.yield || ""),
+        markup_percent: String(menuCosting.markup_percent || ""),
+        srp: String(menuCosting.srp || ""),
+      });
+    }
+    setIsCostingModalOpen(true);
+  };
+
+  const handleCostingChange = (e) => {
+    const { name, value } = e.target;
+    setCostingForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const calculateTotalProductionCost = () => {
+    // Calculate total cost from recipes
+    let totalRecipeCost = 0;
+    recipeItems.forEach((item) => {
+      const material = item.raw_material_id;
+      if (material && material.unit_price) {
+        totalRecipeCost += material.unit_price * item.quantity;
+      }
+    });
+
+    // Calculate total cost from expenses
+    const totalExpenseCost = menuExpenses.reduce(
+      (sum, expense) => sum + (expense.amount || 0),
+      0
+    );
+
+    return totalRecipeCost + totalExpenseCost;
+  };
+
+  const calculateProductionCostPerPiece = () => {
+    const totalCost = calculateTotalProductionCost();
+    const yieldCount = parseFloat(costingForm.yield_count) || 1;
+    return totalCost / yieldCount;
+  };
+
+  const calculateNetProfit = () => {
+    const costPerPiece = calculateProductionCostPerPiece();
+    const srp = parseFloat(costingForm.srp) || 0;
+    return srp - costPerPiece;
+  };
+
+  const calculateGrossSales = () => {
+    const srp = parseFloat(costingForm.srp) || 0;
+    const yieldCount = parseFloat(costingForm.yield_count) || 1;
+    return srp * yieldCount;
+  };
+
+  const calculateTotalNetIncome = () => {
+    const netProfit = calculateNetProfit();
+    const yieldCount = parseFloat(costingForm.yield_count) || 1;
+    return netProfit * yieldCount;
+  };
+
+  const handleCostingSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !costingForm.yield_count ||
+      !costingForm.markup_percent ||
+      !costingForm.srp
+    ) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+
+    setIsCostingSubmitting(true);
+    try {
+      const payload = {
+        menu_id: menuItem._id,
+        yield: parseFloat(costingForm.yield_count),
+        markup_percent: parseFloat(costingForm.markup_percent),
+        srp: parseFloat(costingForm.srp),
+      };
+
+      const res = await fetch(`${API_BASE}/menu-costing`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data?.success === false) {
+        throw new Error(data?.message || "Failed to save costing");
+      }
+
+      toast.success("Costing saved successfully");
+      setMenuCosting(data.data);
+      resetCostingForm();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setIsCostingSubmitting(false);
+    }
+  };
+
+  const fetchMenuCosting = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/menu-costing/menu/${menuItem._id}`, {
+        headers: { ...authHeaders },
+      });
+      const data = await res.json();
+      if (data?.success) {
+        setMenuCosting(data.data);
+      }
+    } catch (error) {
+      console.error("Error fetching costing:", error);
     }
   };
 
@@ -758,6 +910,93 @@ const Recipe = ({ menuItem, onBack }) => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Costing and Pricing Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#f5f5f5] flex items-center gap-2">
+                <Calculator className="w-5 h-5 text-[#f6b100]" />
+                Costing and Pricing
+              </h3>
+              <button
+                onClick={
+                  menuCosting
+                    ? startEditCosting
+                    : () => setIsCostingModalOpen(true)
+                }
+                className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold"
+              >
+                <Plus className="w-4 h-4" />
+                {menuCosting ? "Update Costing" : "Add Costing"}
+              </button>
+            </div>
+
+            {menuCosting ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">
+                    Total Production Cost
+                  </div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱{menuCosting.total_production_cost?.toFixed(2) || "0.00"}
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Yield</div>
+                  <div className="text-lg font-bold text-[#f5f5f5]">
+                    {menuCosting.yield} pieces
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">
+                    Production Cost per Piece
+                  </div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱
+                    {menuCosting.production_cost_per_piece?.toFixed(2) ||
+                      "0.00"}
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Markup (%)</div>
+                  <div className="text-lg font-bold text-[#f5f5f5]">
+                    {menuCosting.markup_percent}%
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">SRP</div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱{menuCosting.srp?.toFixed(2) || "0.00"}
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Net Profit</div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱{menuCosting.net_profit?.toFixed(2) || "0.00"}
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Gross Sales</div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱{menuCosting.gross_sales?.toFixed(2) || "0.00"}
+                  </div>
+                </div>
+                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">
+                    Total Net Income
+                  </div>
+                  <div className="text-lg font-bold text-[#f6b100]">
+                    ₱{menuCosting.total_net_income?.toFixed(2) || "0.00"}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-[#ababab] p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                No costing information available. Click "Add Costing" to set up
+                pricing.
               </div>
             )}
           </div>
@@ -1144,6 +1383,154 @@ const Recipe = ({ menuItem, onBack }) => {
                     Delete
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Add/Edit Costing Modal */}
+          {isCostingModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+              <div
+                className="absolute inset-0 bg-black/50"
+                onClick={resetCostingForm}
+              />
+              <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold text-[#f5f5f5]">
+                    {menuCosting
+                      ? "Update Costing and Pricing"
+                      : "Add Costing and Pricing"}
+                  </h2>
+                  <button
+                    onClick={resetCostingForm}
+                    className="text-[#b5b5b5] hover:text-white"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleCostingSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        Yield (Number of Pieces){" "}
+                        <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="yield_count"
+                        value={costingForm.yield_count}
+                        onChange={handleCostingChange}
+                        min="1"
+                        step="1"
+                        placeholder="e.g., 10"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        Markup (%) <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="markup_percent"
+                        value={costingForm.markup_percent}
+                        onChange={handleCostingChange}
+                        min="0"
+                        step="0.01"
+                        placeholder="e.g., 30"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                        required
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-[#cccccc] mb-2">
+                        SRP (Suggested Retail Price){" "}
+                        <span className="text-red-400">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        name="srp"
+                        value={costingForm.srp}
+                        onChange={handleCostingChange}
+                        min="0.01"
+                        step="0.01"
+                        placeholder="0.00"
+                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  {/* Auto-calculated fields display */}
+                  {(costingForm.yield_count || costingForm.srp) && (
+                    <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                      <h4 className="text-sm font-medium text-[#cccccc] mb-3">
+                        Auto-calculated Values
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <span className="text-[#cccccc]">
+                            Total Production Cost:
+                          </span>
+                          <span className="text-[#f6b100] font-bold ml-2">
+                            ₱{calculateTotalProductionCost().toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[#cccccc]">
+                            Production Cost per Piece:
+                          </span>
+                          <span className="text-[#f6b100] font-bold ml-2">
+                            ₱{calculateProductionCostPerPiece().toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[#cccccc]">Net Profit:</span>
+                          <span className="text-[#f6b100] font-bold ml-2">
+                            ₱{calculateNetProfit().toFixed(2)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[#cccccc]">Gross Sales:</span>
+                          <span className="text-[#f6b100] font-bold ml-2">
+                            ₱{calculateGrossSales().toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="md:col-span-2">
+                          <span className="text-[#cccccc]">
+                            Total Net Income:
+                          </span>
+                          <span className="text-[#f6b100] font-bold ml-2">
+                            ₱{calculateTotalNetIncome().toFixed(2)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={resetCostingForm}
+                      className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-4 py-2 rounded-md font-bold hover:bg-[#262626]"
+                    >
+                      <X className="w-4 h-4" /> Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isCostingSubmitting}
+                      className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold disabled:opacity-70"
+                    >
+                      <Save className="w-4 h-4" />
+                      {isCostingSubmitting ? "Saving..." : "Save Costing"}
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
           )}

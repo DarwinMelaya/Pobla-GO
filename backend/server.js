@@ -51,6 +51,7 @@ app.use("/unit-conversions", require("./routes/unitConversions"));
 app.use("/menu-maintenance", require("./routes/menuMaintenance"));
 app.use("/menu-recipes", require("./routes/menuRecipes"));
 app.use("/menu-expenses", require("./routes/menuExpenses"));
+app.use("/menu-costing", require("./routes/menuCosting"));
 app.use("/expenses", require("./routes/expenses"));
 
 // Start server
