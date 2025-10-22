@@ -11,6 +11,8 @@ export { default as AdminManageOrders } from "./Admin/AdminManageOrders";
 export { default as AdminReservations } from "./Admin/AdminReservations";
 export { default as AdminViewSales } from "./Admin/AdminViewSales";
 export { default as AdminMaitenance } from "./Admin/AdminMaitenance";
+export { default as AdminProductions } from "./Admin/AdminProductions";
+export { default as AdminPurchaseOrders } from "./Admin/AdminPurchaseOrders";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";

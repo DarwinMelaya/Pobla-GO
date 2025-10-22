@@ -9,6 +9,8 @@ import {
   FileBarChart,
   UserCheck,
   Wrench,
+  Factory,
+  ShoppingCart,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -52,6 +54,18 @@ const AdminSidebar = ({ onNavigate }) => {
       text: "View Sales",
       path: "/admin-sales",
       isActive: location.pathname === "/admin-sales",
+    },
+    {
+      icon: Factory,
+      text: "Productions",
+      path: "/admin-productions",
+      isActive: location.pathname === "/admin-productions",
+    },
+    {
+      icon: ShoppingCart,
+      text: "Purchase Orders",
+      path: "/admin-purchase-orders",
+      isActive: location.pathname === "/admin-purchase-orders",
     },
     {
       icon: Wrench,
