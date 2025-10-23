@@ -10,8 +10,10 @@ const AdminPurchaseOrders = () => {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [nextPONumber, setNextPONumber] = useState("");
+  const [openDropdown, setOpenDropdown] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -259,6 +261,16 @@ const AdminPurchaseOrders = () => {
     }
   };
 
+  const toggleDropdown = (poId) => {
+    setOpenDropdown(openDropdown === poId ? null : poId);
+  };
+
+  const openDetailsModal = (po) => {
+    setSelectedPO(po);
+    setShowDetailsModal(true);
+    setOpenDropdown(null);
+  };
+
   const openReceiveModal = (po) => {
     setSelectedPO(po);
     setReceiveFormData({
@@ -268,6 +280,7 @@ const AdminPurchaseOrders = () => {
       date_received: new Date().toISOString().split("T")[0], // Today's date
     });
     setShowReceiveModal(true);
+    setOpenDropdown(null);
   };
 
   const handleReceiveItemChange = (index, value) => {
@@ -480,15 +493,92 @@ const AdminPurchaseOrders = () => {
                           )}
                         </td>
                         <td className="px-4 py-2">
-                          <div className="flex justify-end gap-2">
-                            {(po.status === "Approved" ||
-                              po.status === "Pending") && (
-                              <button
-                                onClick={() => openReceiveModal(po)}
-                                className="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm font-bold transition-colors"
+                          <div className="flex justify-end">
+                            <button
+                              id={`action-btn-${po._id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleDropdown(po._id);
+                              }}
+                              className="inline-flex items-center gap-2 px-4 py-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] rounded-md text-sm font-bold transition-all duration-200 shadow-md hover:shadow-lg"
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
                               >
-                                Receive
-                              </button>
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                                />
+                              </svg>
+                              Actions
+                            </button>
+
+                            {openDropdown === po._id && (
+                              <>
+                                <div
+                                  className="fixed inset-0 z-40"
+                                  onClick={() => setOpenDropdown(null)}
+                                />
+                                <div
+                                  className="fixed z-50 min-w-[200px] w-max bg-[#232323] border border-[#383838] rounded-lg shadow-2xl overflow-visible animate-fadeIn"
+                                  style={{
+                                    top: `${
+                                      document
+                                        .getElementById(`action-btn-${po._id}`)
+                                        ?.getBoundingClientRect().top - 10
+                                    }px`,
+                                    right: `${
+                                      window.innerWidth -
+                                      document
+                                        .getElementById(`action-btn-${po._id}`)
+                                        ?.getBoundingClientRect().right
+                                    }px`,
+                                    transform: "translateY(-100%)",
+                                  }}
+                                >
+                                  <div className="py-2">
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openDetailsModal(po);
+                                      }}
+                                      className="w-full text-left px-5 py-3 text-sm text-[#f5f5f5] hover:bg-[#383838] transition-colors duration-150 flex items-center gap-3 group whitespace-nowrap"
+                                    >
+                                      <span className="text-lg group-hover:scale-110 transition-transform">
+                                        📋
+                                      </span>
+                                      <span className="font-medium">
+                                        View Details
+                                      </span>
+                                    </button>
+                                    {(po.status === "Approved" ||
+                                      po.status === "Pending") && (
+                                      <>
+                                        <div className="mx-4 my-1 border-t border-[#383838]" />
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            openReceiveModal(po);
+                                          }}
+                                          className="w-full text-left px-5 py-3 text-sm text-[#f5f5f5] hover:bg-[#383838] transition-colors duration-150 flex items-center gap-3 group whitespace-nowrap"
+                                        >
+                                          <span className="text-lg group-hover:scale-110 transition-transform">
+                                            📦
+                                          </span>
+                                          <span className="font-medium">
+                                            Receive Order
+                                          </span>
+                                        </button>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </>
                             )}
                           </div>
                         </td>
@@ -927,6 +1017,172 @@ const AdminPurchaseOrders = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Order Details Modal */}
+        {showDetailsModal && selectedPO && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowDetailsModal(false)}
+            />
+            <div className="relative bg-[#232323] w-full max-w-4xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-[#f5f5f5]">
+                  Purchase Order Details - {selectedPO.po_number}
+                </h2>
+                <button
+                  onClick={() => setShowDetailsModal(false)}
+                  className="text-[#b5b5b5] hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* Order Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">Supplier</div>
+                    <div className="text-lg text-[#f5f5f5] font-medium">
+                      {selectedPO.supplier?.company_name}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">Status</div>
+                    <span
+                      className={`inline-block px-3 py-1 rounded-full text-white text-sm ${getStatusColor(
+                        selectedPO.status
+                      )}`}
+                    >
+                      {selectedPO.status}
+                    </span>
+                  </div>
+
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Order Date
+                    </div>
+                    <div className="text-[#f5f5f5]">
+                      {formatDate(selectedPO.order_date)}
+                    </div>
+                  </div>
+
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Expected Delivery
+                    </div>
+                    <div className="text-[#f5f5f5]">
+                      {selectedPO.expected_delivery_date
+                        ? formatDate(selectedPO.expected_delivery_date)
+                        : "Not specified"}
+                    </div>
+                  </div>
+
+                  {selectedPO.date_received && (
+                    <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                      <div className="text-sm text-[#cccccc] mb-1">
+                        Date Received
+                      </div>
+                      <div className="text-[#f6b100] font-medium">
+                        {formatDate(selectedPO.date_received)}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Total Amount
+                    </div>
+                    <div className="text-[#f6b100] font-bold text-lg">
+                      ₱{selectedPO.total_amount.toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Items Table */}
+                <div>
+                  <h3 className="text-lg font-bold text-[#f5f5f5] mb-4">
+                    Order Items
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-[#383838]">
+                      <thead>
+                        <tr>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase">
+                            Material
+                          </th>
+                          <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase">
+                            Unit
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase">
+                            Ordered Qty
+                          </th>
+                          {selectedPO.status === "Delivered" && (
+                            <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase">
+                              Received Qty
+                            </th>
+                          )}
+                          <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase">
+                            Unit Price
+                          </th>
+                          <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase">
+                            Total
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#383838]">
+                        {selectedPO.items.map((item, idx) => (
+                          <tr key={idx}>
+                            <td className="px-4 py-2 text-[#f5f5f5]">
+                              {item.raw_material?.name}
+                            </td>
+                            <td className="px-4 py-2 text-[#f5f5f5]">
+                              {item.unit}
+                            </td>
+                            <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                              {item.quantity}
+                            </td>
+                            {selectedPO.status === "Delivered" && (
+                              <td className="px-4 py-2 text-[#f6b100] font-medium text-right">
+                                {item.received_quantity || 0}
+                              </td>
+                            )}
+                            <td className="px-4 py-2 text-[#f5f5f5] text-right">
+                              ₱{item.unit_price.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2 text-[#f6b100] font-bold text-right">
+                              ₱{item.total_price.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                {selectedPO.notes && (
+                  <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-2">Notes</div>
+                    <div className="text-[#f5f5f5]">{selectedPO.notes}</div>
+                  </div>
+                )}
+
+                {/* Close Button */}
+                <div className="flex justify-end pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowDetailsModal(false)}
+                    className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-4 py-2 rounded-md font-bold hover:bg-[#262626]"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         )}
