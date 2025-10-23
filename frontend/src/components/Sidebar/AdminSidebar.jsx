@@ -11,12 +11,18 @@ import {
   Wrench,
   Factory,
   ShoppingCart,
+  ChevronDown,
+  ChevronUp,
+  Box,
+  Boxes,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useState } from "react";
 
 const AdminSidebar = ({ onNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   const navigationItems = [
     {
@@ -27,15 +33,25 @@ const AdminSidebar = ({ onNavigate }) => {
     },
     {
       icon: Package,
-      text: "Manage Inventory",
-      path: "/admin-inventory",
-      isActive: location.pathname === "/admin-inventory",
-    },
-    {
-      icon: FileText,
-      text: "Menu",
-      path: "/admin-menu",
-      isActive: location.pathname === "/admin-menu",
+      text: "Inventory",
+      hasDropdown: true,
+      isActive:
+        location.pathname === "/admin-inventory-products" ||
+        location.pathname === "/admin-inventory-raw-materials",
+      subItems: [
+        {
+          icon: Box,
+          text: "Menus",
+          path: "/admin-inventory-menus",
+          isActive: location.pathname === "/admin-inventory-menus",
+        },
+        {
+          icon: Boxes,
+          text: "Raw Materials",
+          path: "/admin-inventory-raw-materials",
+          isActive: location.pathname === "/admin-inventory-raw-materials",
+        },
+      ],
     },
     {
       icon: ClipboardList,
@@ -142,32 +158,92 @@ const AdminSidebar = ({ onNavigate }) => {
         `}</style>
 
         {navigationItems.map((item, index) => (
-          <div
-            key={index}
-            onClick={() => handleNavigation(item.path)}
-            className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors relative ${
-              item.isActive
-                ? "text-[#C05050] bg-[#EECCCC] rounded-r-none"
-                : "text-white hover:bg-white/10"
-            }`}
-          >
-            <div className="flex items-center space-x-3">
-              <item.icon
-                size={20}
-                className={item.isActive ? "text-[#C05050]" : "text-white"}
-              />
-              <span
-                className={
-                  item.isActive ? "text-[#C05050] font-medium" : "text-white"
-                }
-              >
-                {item.text}
-              </span>
+          <div key={index}>
+            {/* Main Navigation Item */}
+            <div
+              onClick={() =>
+                item.hasDropdown
+                  ? setIsInventoryOpen(!isInventoryOpen)
+                  : handleNavigation(item.path)
+              }
+              className={`flex items-center justify-between p-3 rounded-lg cursor-pointer transition-colors relative ${
+                item.isActive
+                  ? "text-[#C05050] bg-[#EECCCC] rounded-r-none"
+                  : "text-white hover:bg-white/10"
+              }`}
+            >
+              <div className="flex items-center space-x-3">
+                <item.icon
+                  size={20}
+                  className={item.isActive ? "text-[#C05050]" : "text-white"}
+                />
+                <span
+                  className={
+                    item.isActive ? "text-[#C05050] font-medium" : "text-white"
+                  }
+                >
+                  {item.text}
+                </span>
+              </div>
+
+              {/* Dropdown Arrow for Inventory */}
+              {item.hasDropdown && (
+                <div className="ml-auto">
+                  {isInventoryOpen ? (
+                    <ChevronUp
+                      size={16}
+                      className={
+                        item.isActive ? "text-[#C05050]" : "text-white"
+                      }
+                    />
+                  ) : (
+                    <ChevronDown
+                      size={16}
+                      className={
+                        item.isActive ? "text-[#C05050]" : "text-white"
+                      }
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Active indicator bar */}
+              {item.isActive && (
+                <div className="absolute right-0 top-0 bottom-0 w-1 bg-[#C05050] rounded-l-full"></div>
+              )}
             </div>
 
-            {/* Active indicator bar */}
-            {item.isActive && (
-              <div className="absolute right-0 top-0 bottom-0 w-1 bg-[#C05050] rounded-l-full"></div>
+            {/* Dropdown Sub-items */}
+            {item.hasDropdown && isInventoryOpen && (
+              <div className="ml-4 mt-2 space-y-2">
+                {item.subItems.map((subItem, subIndex) => (
+                  <div
+                    key={subIndex}
+                    onClick={() => handleNavigation(subItem.path)}
+                    className={`flex items-center space-x-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                      subItem.isActive
+                        ? "text-[#C05050] bg-[#EECCCC]"
+                        : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    <subItem.icon
+                      size={18}
+                      className={
+                        subItem.isActive ? "text-[#C05050]" : "text-white/80"
+                      }
+                    />
+                    <span
+                      className={
+                        subItem.isActive
+                          ? "text-[#C05050] font-medium text-sm"
+                          : "text-white/80 text-sm"
+                      }
+                    >
+                      {subItem.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         ))}
