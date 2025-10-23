@@ -127,12 +127,20 @@ const AdminPurchaseOrders = () => {
     const newItems = [...formData.items];
     newItems[index][field] = value;
 
-    // If raw material changed, fetch unit conversions and reset unit conversion
+    // If raw material changed, fetch unit conversions and set base price
     if (field === "raw_material") {
       newItems[index].unit_conversion = "";
       newItems[index].unit_price = 0;
       newItems[index].total_price = 0;
+
       if (value) {
+        // Find the selected raw material and set its unit price
+        const selectedMaterial = rawMaterials.find((m) => m._id === value);
+        if (selectedMaterial) {
+          newItems[index].unit_price = selectedMaterial.unit_price || 0;
+          newItems[index].total_price =
+            newItems[index].quantity * (selectedMaterial.unit_price || 0);
+        }
         fetchUnitConversions(value);
       }
     }
@@ -142,14 +150,19 @@ const AdminPurchaseOrders = () => {
       const materialId = newItems[index].raw_material;
       const conversions = unitConversions[materialId] || [];
       const selectedConversion = conversions.find((conv) => conv._id === value);
+
       if (selectedConversion) {
         newItems[index].unit_price = selectedConversion.unit_price;
         newItems[index].total_price =
           newItems[index].quantity * selectedConversion.unit_price;
       } else if (value === "base_unit") {
-        // For base unit, allow manual price input (default to 0)
-        newItems[index].unit_price = 0;
-        newItems[index].total_price = 0;
+        // For base unit, use the raw material's base unit price
+        const selectedMaterial = rawMaterials.find((m) => m._id === materialId);
+        if (selectedMaterial) {
+          newItems[index].unit_price = selectedMaterial.unit_price || 0;
+          newItems[index].total_price =
+            newItems[index].quantity * (selectedMaterial.unit_price || 0);
+        }
       }
     }
 
