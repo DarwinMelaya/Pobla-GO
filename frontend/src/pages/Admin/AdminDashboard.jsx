@@ -103,12 +103,12 @@ const apiService = {
 
   // Get all inventory items
   getInventory: async () => {
-    return apiService.makeRequest("/inventory");
+    return apiService.makeRequest("/materials");
   },
 
   // Get expiring inventory items
   getExpiringInventory: async () => {
-    return apiService.makeRequest("/inventory/expiring/soon");
+    return apiService.makeRequest("/materials/expiring/soon");
   },
 
   // Get staff performance stats
@@ -525,33 +525,59 @@ const AdminDashboard = () => {
         {/* Header section */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">Dashboard</h1>
-            <p className="text-[#ababab]">Welcome back! Here's what's happening today.</p>
+            <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
+              Dashboard
+            </h1>
+            <p className="text-[#ababab]">
+              Welcome back! Here's what's happening today.
+            </p>
           </div>
-          <div className="text-sm text-[#ababab]">Last updated: {new Date().toLocaleString()}</div>
+          <div className="text-sm text-[#ababab]">
+            Last updated: {new Date().toLocaleString()}
+          </div>
         </div>
 
         {/* Metric Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
-            <p className="text-md text-[#ababab] font-semibold">Total Revenue</p>
-            <div className="text-2xl font-bold text-[#f6b100] my-2">₱{dashboardData.orders.totalRevenue.toLocaleString()}</div>
-            <div className="text-xs text-green-500 flex items-center">+12.5% from last month</div>
+            <p className="text-md text-[#ababab] font-semibold">
+              Total Revenue
+            </p>
+            <div className="text-2xl font-bold text-[#f6b100] my-2">
+              ₱{dashboardData.orders.totalRevenue.toLocaleString()}
+            </div>
+            <div className="text-xs text-green-500 flex items-center">
+              +12.5% from last month
+            </div>
           </div>
           <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
             <p className="text-md text-[#ababab] font-semibold">Total Orders</p>
-            <div className="text-2xl font-bold text-[#f5f5f5] my-2">{dashboardData.orders.total}</div>
-            <div className="text-xs text-blue-400 flex items-center">{dashboardData.orders.pending} pending</div>
+            <div className="text-2xl font-bold text-[#f5f5f5] my-2">
+              {dashboardData.orders.total}
+            </div>
+            <div className="text-xs text-blue-400 flex items-center">
+              {dashboardData.orders.pending} pending
+            </div>
           </div>
           <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
             <p className="text-md text-[#ababab] font-semibold">Reservations</p>
-            <div className="text-2xl font-bold text-[#e3bfff] my-2">{dashboardData.reservations.total}</div>
-            <div className="text-xs text-purple-300 flex items-center">{dashboardData.reservations.pending} pending</div>
+            <div className="text-2xl font-bold text-[#e3bfff] my-2">
+              {dashboardData.reservations.total}
+            </div>
+            <div className="text-xs text-purple-300 flex items-center">
+              {dashboardData.reservations.pending} pending
+            </div>
           </div>
           <div className="rounded-xl shadow-lg bg-[#232323] border border-[#383838] p-6">
-            <p className="text-md text-[#ababab] font-semibold">Low Stock Items</p>
-            <div className="text-2xl font-bold text-[#ffbd4f] my-2">{dashboardData.inventory.lowStock}</div>
-            <div className="text-xs text-orange-400 flex items-center">Needs attention</div>
+            <p className="text-md text-[#ababab] font-semibold">
+              Low Stock Items
+            </p>
+            <div className="text-2xl font-bold text-[#ffbd4f] my-2">
+              {dashboardData.inventory.lowStock}
+            </div>
+            <div className="text-xs text-orange-400 flex items-center">
+              Needs attention
+            </div>
           </div>
         </div>
 
@@ -559,7 +585,9 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-[#f5f5f5]">Orders Status</h3>
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
+                Orders Status
+              </h3>
               <PieChart className="w-5 h-5 text-[#ababab]" />
             </div>
             <div className="h-64">

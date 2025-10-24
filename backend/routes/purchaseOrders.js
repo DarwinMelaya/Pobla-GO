@@ -5,6 +5,7 @@ const Supplier = require("../models/Supplier");
 const RawMaterial = require("../models/RawMaterial");
 const UnitConversion = require("../models/UnitConversion");
 const User = require("../models/User");
+const Material = require("../models/Material");
 
 // Middleware to verify admin role using JWT
 const verifyAdmin = async (req, res, next) => {
@@ -453,7 +454,10 @@ router.delete("/:id", verifyAdmin, async (req, res) => {
 // Receive purchase order
 router.post("/:id/receive", verifyAdmin, async (req, res) => {
   try {
-    const purchaseOrder = await PurchaseOrder.findById(req.params.id);
+    const purchaseOrder = await PurchaseOrder.findById(req.params.id)
+      .populate("supplier", "company_name")
+      .populate("items.raw_material", "name unit category");
+
     if (!purchaseOrder) {
       return res
         .status(404)
@@ -488,7 +492,7 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
       });
     }
 
-    // Update received quantities for each item
+    // Update received quantities for each item and add to inventory
     for (let i = 0; i < items.length; i++) {
       if (
         items[i].received_quantity === undefined ||
@@ -501,7 +505,52 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
       }
 
       if (purchaseOrder.items[i]) {
-        purchaseOrder.items[i].received_quantity = items[i].received_quantity;
+        const receivedQty = items[i].received_quantity;
+        purchaseOrder.items[i].received_quantity = receivedQty;
+
+        // Add to inventory if received quantity is greater than 0
+        if (receivedQty > 0) {
+          const poItem = purchaseOrder.items[i];
+          const rawMaterial = poItem.raw_material;
+
+          // Check if material item already exists for this raw material and unit
+          let materialItem = await Material.findOne({
+            raw_material: rawMaterial._id,
+            unit: poItem.unit,
+          });
+
+          if (materialItem) {
+            // Update existing material
+            materialItem.quantity += receivedQty;
+            materialItem.available += receivedQty;
+            materialItem.stocks = materialItem.quantity;
+            materialItem.purchase_price = poItem.unit_price;
+            materialItem.supplier = purchaseOrder.supplier._id;
+            materialItem.supplier_name = purchaseOrder.supplier.company_name;
+            await materialItem.save();
+          } else {
+            // Create new material item
+            materialItem = new Material({
+              raw_material: rawMaterial._id,
+              name: rawMaterial.name,
+              category: rawMaterial.category,
+              quantity: receivedQty,
+              available: receivedQty,
+              stocks: receivedQty,
+              unit: poItem.unit,
+              type: "raw_material",
+              supplier: purchaseOrder.supplier._id,
+              supplier_name: purchaseOrder.supplier.company_name,
+              purchase_price: poItem.unit_price,
+              description: `Received from PO: ${purchaseOrder.po_number}`,
+            });
+            await materialItem.save();
+          }
+
+          console.log(
+            `Added ${receivedQty} ${poItem.unit} of ${rawMaterial.name} to materials`
+          );
+        }
       }
     }
 
@@ -530,7 +579,8 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
     res.json({
       success: true,
       data: populatedPO,
-      message: "Purchase order received successfully",
+      message:
+        "Purchase order received successfully and materials have been updated",
     });
   } catch (error) {
     console.error("Error receiving purchase order:", error);

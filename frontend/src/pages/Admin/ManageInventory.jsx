@@ -33,7 +33,7 @@ const ManageInventory = () => {
       if (searchTerm) queryParams.append("search", searchTerm);
       if (categoryFilter) queryParams.append("category", categoryFilter);
 
-      const response = await fetch(`${API_BASE}/inventory?${queryParams}`, {
+      const response = await fetch(`${API_BASE}/materials?${queryParams}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -57,7 +57,7 @@ const ManageInventory = () => {
   const fetchCategories = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/inventory/categories/list`, {
+      const response = await fetch(`${API_BASE}/materials/categories/list`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -82,8 +82,8 @@ const ManageInventory = () => {
     try {
       const token = getAuthToken();
       const url = editingItem
-        ? `${API_BASE}/inventory/${editingItem._id}`
-        : `${API_BASE}/inventory`;
+        ? `${API_BASE}/materials/${editingItem._id}`
+        : `${API_BASE}/materials`;
 
       const method = editingItem ? "PUT" : "POST";
 
@@ -127,7 +127,7 @@ const ManageInventory = () => {
     try {
       const token = getAuthToken();
       const response = await fetch(
-        `${API_BASE}/inventory/${itemToDelete._id}`,
+        `${API_BASE}/materials/${itemToDelete._id}`,
         {
           method: "DELETE",
           headers: {

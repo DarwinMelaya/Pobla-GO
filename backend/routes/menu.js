@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const Menu = require("../models/Menu");
-const Inventory = require("../models/Inventory");
+const Material = require("../models/Material");
 const User = require("../models/User");
 
 // Middleware to verify admin role using JWT
@@ -209,7 +209,7 @@ router.post("/", verifyAdmin, async (req, res) => {
         });
       }
 
-      const inventoryItem = await Inventory.findById(ingredient.inventoryItem);
+      const inventoryItem = await Material.findById(ingredient.inventoryItem);
       if (!inventoryItem) {
         return res.status(400).json({
           message: `Inventory item with ID ${ingredient.inventoryItem} not found`,
@@ -281,9 +281,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
           });
         }
 
-        const inventoryItem = await Inventory.findById(
-          ingredient.inventoryItem
-        );
+        const inventoryItem = await Material.findById(ingredient.inventoryItem);
         if (!inventoryItem) {
           return res.status(400).json({
             message: `Inventory item with ID ${ingredient.inventoryItem} not found`,
@@ -371,7 +369,7 @@ router.get("/categories/list", async (req, res) => {
 // GET /menu/inventory/available - Get inventory items that can be used as ingredients
 router.get("/inventory/available", verifyAdmin, async (req, res) => {
   try {
-    const inventoryItems = await Inventory.find({ quantity: { $gt: 0 } })
+    const inventoryItems = await Material.find({ quantity: { $gt: 0 } })
       .select("name category unit quantity")
       .sort({ name: 1 });
 

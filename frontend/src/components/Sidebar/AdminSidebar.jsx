@@ -49,7 +49,7 @@ const AdminSidebar = ({ onNavigate }) => {
           icon: Boxes,
           text: "Raw Materials",
           path: "/admin-inventory-materials",
-          isActive: location.pathname === "/admin-inventory-raw-materials",
+          isActive: location.pathname === "/admin-inventory-materials",
         },
       ],
     },

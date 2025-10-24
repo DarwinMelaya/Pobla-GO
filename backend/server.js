@@ -39,7 +39,7 @@ app.use(passport.session());
 
 // Routes
 app.use("/auth", require("./routes/auth"));
-app.use("/inventory", require("./routes/inventory"));
+app.use("/materials", require("./routes/materials"));
 app.use("/menu", require("./routes/menu"));
 app.use("/units", require("./routes/units"));
 app.use("/categories", require("./routes/categories"));
