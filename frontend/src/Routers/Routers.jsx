@@ -16,6 +16,7 @@ import {
   StaffManageReservation,
   AdminProductions,
   AdminPurchaseOrders,
+  AdminMaterials,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -98,6 +99,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Admin">
               <AdminPurchaseOrders />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-inventory-materials"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <AdminMaterials />
             </ProtectedRoute>
           }
         />

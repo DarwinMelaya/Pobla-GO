@@ -13,6 +13,7 @@ export { default as AdminViewSales } from "./Admin/AdminViewSales";
 export { default as AdminMaitenance } from "./Admin/AdminMaitenance";
 export { default as AdminProductions } from "./Admin/AdminProductions";
 export { default as AdminPurchaseOrders } from "./Admin/AdminPurchaseOrders";
+export { default as AdminMaterials } from "./Admin/AdminMaterials";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";
