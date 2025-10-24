@@ -1,6 +1,7 @@
 const express = require("express");
 const Material = require("../models/Material");
 const User = require("../models/User");
+const UnitConversion = require("../models/UnitConversion");
 const router = express.Router();
 
 // Middleware to verify admin role
@@ -360,6 +361,70 @@ router.get("/categories/list", async (req, res) => {
     });
   } catch (error) {
     console.error("Get categories error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// GET /materials/:id/conversions - Get material with all unit conversions
+router.get("/:id/conversions", async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id)
+      .populate("raw_material", "name unit category")
+      .populate("supplier", "company_name contact_person");
+
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        message: "Material item not found",
+      });
+    }
+
+    // Get all unit conversions for this raw material
+    const conversions = await UnitConversion.find({
+      raw_material_id: material.raw_material,
+    }).sort({ equivalent_unit: 1 });
+
+    // Calculate equivalent quantities in all available units
+    const equivalentQuantities = [
+      {
+        unit: material.unit,
+        quantity: material.quantity,
+        available: material.available,
+        isBase: true,
+      },
+    ];
+
+    // Add converted units
+    conversions.forEach((conversion) => {
+      // Convert base unit to equivalent unit
+      // Example: 10 Sacks * 25 (kilos per sack) = 250 kilos
+      const convertedQty = material.quantity * conversion.quantity;
+      const convertedAvailable = material.available * conversion.quantity;
+
+      equivalentQuantities.push({
+        unit: conversion.equivalent_unit,
+        quantity: convertedQty,
+        available: convertedAvailable,
+        isBase: false,
+        conversionId: conversion._id,
+        conversionFactor: conversion.quantity,
+      });
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        material,
+        conversions,
+        equivalentQuantities,
+      },
+    });
+  } catch (error) {
+    console.error("Get material conversions error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

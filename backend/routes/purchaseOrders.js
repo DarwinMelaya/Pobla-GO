@@ -169,7 +169,6 @@ router.post("/", verifyAdmin, async (req, res) => {
     for (const item of items) {
       if (
         !item.raw_material ||
-        !item.unit_conversion ||
         item.quantity === undefined ||
         item.quantity === null ||
         item.quantity === "" ||
@@ -179,8 +178,7 @@ router.post("/", verifyAdmin, async (req, res) => {
       ) {
         return res.status(400).json({
           success: false,
-          message:
-            "Each item must have raw_material, unit_conversion, quantity, and unit_price",
+          message: "Each item must have raw_material, quantity, and unit_price",
         });
       }
 
@@ -197,7 +195,11 @@ router.post("/", verifyAdmin, async (req, res) => {
       let unitConversionId = null;
 
       // Check if using base unit or unit conversion
-      if (item.unit_conversion === "base_unit") {
+      if (
+        !item.unit_conversion ||
+        item.unit_conversion === "" ||
+        item.unit_conversion === "base_unit"
+      ) {
         // Using base unit of raw material
         unit = rawMaterial.unit;
         unitConversionId = null;
@@ -312,7 +314,6 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       for (const item of items) {
         if (
           !item.raw_material ||
-          !item.unit_conversion ||
           item.quantity === undefined ||
           item.quantity === null ||
           item.quantity === "" ||
@@ -323,7 +324,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
           return res.status(400).json({
             success: false,
             message:
-              "Each item must have raw_material, unit_conversion, quantity, and unit_price",
+              "Each item must have raw_material, quantity, and unit_price",
           });
         }
 
@@ -339,7 +340,11 @@ router.put("/:id", verifyAdmin, async (req, res) => {
         let unitConversionId = null;
 
         // Check if using base unit or unit conversion
-        if (item.unit_conversion === "base_unit") {
+        if (
+          !item.unit_conversion ||
+          item.unit_conversion === "" ||
+          item.unit_conversion === "base_unit"
+        ) {
           // Using base unit of raw material
           unit = rawMaterial.unit;
           unitConversionId = null;
@@ -513,43 +518,71 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
           const poItem = purchaseOrder.items[i];
           const rawMaterial = poItem.raw_material;
 
-          // Check if material item already exists for this raw material and unit
+          // Convert to base unit if unit conversion was used
+          let baseUnitQty = receivedQty;
+          let baseUnit = rawMaterial.unit;
+          let basePricePerUnit = poItem.unit_price;
+
+          if (poItem.unit_conversion) {
+            // Fetch the unit conversion to get conversion factor
+            const unitConversion = await UnitConversion.findById(
+              poItem.unit_conversion
+            );
+
+            if (unitConversion) {
+              // Convert received quantity to base unit
+              // Example: If received 50 kilos and 1 Sack = 25 kilos, then baseUnitQty = 50 / 25 = 2 Sacks
+              baseUnitQty = receivedQty / unitConversion.quantity;
+              baseUnit = unitConversion.base_unit;
+              // Calculate base unit price from the conversion unit price
+              // If 1 kilo = ₱10 and 1 Sack = 25 kilos, then 1 Sack = ₱250
+              basePricePerUnit = poItem.unit_price * unitConversion.quantity;
+
+              console.log(
+                `Converting ${receivedQty} ${unitConversion.equivalent_unit} to ${baseUnitQty} ${baseUnit}`
+              );
+            }
+          }
+
+          // Check if material item already exists for this raw material in BASE UNIT
           let materialItem = await Material.findOne({
             raw_material: rawMaterial._id,
-            unit: poItem.unit,
+            unit: baseUnit,
           });
 
           if (materialItem) {
             // Update existing material
-            materialItem.quantity += receivedQty;
-            materialItem.available += receivedQty;
+            materialItem.quantity += baseUnitQty;
+            materialItem.available += baseUnitQty;
             materialItem.stocks = materialItem.quantity;
-            materialItem.purchase_price = poItem.unit_price;
+            materialItem.purchase_price = basePricePerUnit;
             materialItem.supplier = purchaseOrder.supplier._id;
             materialItem.supplier_name = purchaseOrder.supplier.company_name;
             await materialItem.save();
+            console.log(
+              `Updated ${rawMaterial.name}: Added ${baseUnitQty} ${baseUnit} (Total: ${materialItem.quantity})`
+            );
           } else {
-            // Create new material item
+            // Create new material item in BASE UNIT
             materialItem = new Material({
               raw_material: rawMaterial._id,
               name: rawMaterial.name,
               category: rawMaterial.category,
-              quantity: receivedQty,
-              available: receivedQty,
-              stocks: receivedQty,
-              unit: poItem.unit,
+              quantity: baseUnitQty,
+              available: baseUnitQty,
+              stocks: baseUnitQty,
+              unit: baseUnit,
               type: "raw_material",
               supplier: purchaseOrder.supplier._id,
               supplier_name: purchaseOrder.supplier.company_name,
-              purchase_price: poItem.unit_price,
+              purchase_price: basePricePerUnit,
               description: `Received from PO: ${purchaseOrder.po_number}`,
             });
             await materialItem.save();
+            console.log(
+              `Created new material: ${rawMaterial.name} with ${baseUnitQty} ${baseUnit}`
+            );
           }
-
-          console.log(
-            `Added ${receivedQty} ${poItem.unit} of ${rawMaterial.name} to materials`
-          );
         }
       }
     }

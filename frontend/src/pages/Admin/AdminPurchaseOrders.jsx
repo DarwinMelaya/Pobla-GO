@@ -155,8 +155,8 @@ const AdminPurchaseOrders = () => {
         newItems[index].unit_price = selectedConversion.unit_price;
         newItems[index].total_price =
           newItems[index].quantity * selectedConversion.unit_price;
-      } else if (value === "base_unit") {
-        // For base unit, use the raw material's base unit price
+      } else if (value === "base_unit" || value === "" || !value) {
+        // For base unit or empty, use the raw material's base unit price
         const selectedMaterial = rawMaterials.find((m) => m._id === materialId);
         if (selectedMaterial) {
           newItems[index].unit_price = selectedMaterial.unit_price || 0;
@@ -219,7 +219,6 @@ const AdminPurchaseOrders = () => {
       formData.items.some(
         (item) =>
           !item.raw_material ||
-          !item.unit_conversion ||
           item.quantity === "" ||
           item.quantity === null ||
           item.quantity === undefined ||
@@ -714,7 +713,7 @@ const AdminPurchaseOrders = () => {
 
                         <div>
                           <label className="block text-[#cccccc] text-sm mb-1">
-                            Unit <span className="text-red-400">*</span>
+                            Unit
                           </label>
                           <select
                             value={item.unit_conversion}
@@ -725,7 +724,6 @@ const AdminPurchaseOrders = () => {
                                 e.target.value
                               )
                             }
-                            required
                             disabled={!item.raw_material}
                             className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5] disabled:opacity-50"
                           >

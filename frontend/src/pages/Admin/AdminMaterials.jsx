@@ -22,6 +22,9 @@ const AdminMaterials = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [editingMaterial, setEditingMaterial] = useState(null);
   const [materialToDelete, setMaterialToDelete] = useState(null);
+  const [showConversionsModal, setShowConversionsModal] = useState(false);
+  const [selectedMaterialConversions, setSelectedMaterialConversions] =
+    useState(null);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -79,6 +82,32 @@ const AdminMaterials = () => {
       }
     } catch (err) {
       console.error("Failed to fetch categories:", err);
+    }
+  };
+
+  // Fetch material conversions
+  const fetchMaterialConversions = async (materialId) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE}/materials/${materialId}/conversions`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch conversions");
+      }
+
+      const data = await response.json();
+      setSelectedMaterialConversions(data.data);
+      setShowConversionsModal(true);
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -341,6 +370,15 @@ const AdminMaterials = () => {
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             <button
+                              onClick={() =>
+                                fetchMaterialConversions(material._id)
+                              }
+                              className="text-blue-500 hover:text-blue-600 p-2 hover:bg-[#383838] rounded-lg transition-all"
+                              title="View Unit Conversions"
+                            >
+                              <Package size={18} />
+                            </button>
+                            <button
                               onClick={() => {
                                 setEditingMaterial(material);
                                 setShowAddModal(true);
@@ -348,7 +386,7 @@ const AdminMaterials = () => {
                               className="text-[#f6b100] hover:text-[#dab000] p-2 hover:bg-[#383838] rounded-lg transition-all"
                               title="Edit Material"
                             >
-                              <Edit size={18} />
+                              {/* <Edit size={18} /> */}
                             </button>
                             <button
                               onClick={() => {
@@ -358,7 +396,7 @@ const AdminMaterials = () => {
                               className="text-red-500 hover:text-red-600 p-2 hover:bg-[#383838] rounded-lg transition-all"
                               title="Delete Material"
                             >
-                              <Trash2 size={18} />
+                              {/* <Trash2 size={18} /> */}
                             </button>
                           </div>
                         </td>
@@ -408,6 +446,155 @@ const AdminMaterials = () => {
                     className="flex-1 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-bold transition-colors disabled:opacity-50"
                   >
                     {loading ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Unit Conversions Modal */}
+        {showConversionsModal && selectedMaterialConversions && (
+          <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#232323] rounded-xl w-full max-w-2xl border border-[#383838] shadow-2xl max-h-[80vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-[#f5f5f5] mb-2">
+                      Unit Conversions
+                    </h3>
+                    <p className="text-[#ababab]">
+                      {selectedMaterialConversions.material.name}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowConversionsModal(false);
+                      setSelectedMaterialConversions(null);
+                    }}
+                    className="text-[#ababab] hover:text-white text-2xl leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Equivalent Quantities */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-bold text-[#cccccc] uppercase mb-3">
+                    Available in All Units
+                  </h4>
+                  <div className="space-y-3">
+                    {selectedMaterialConversions.equivalentQuantities.map(
+                      (eq, idx) => (
+                        <div
+                          key={idx}
+                          className={`bg-[#181818] p-4 rounded-lg border ${
+                            eq.isBase ? "border-[#f6b100]" : "border-[#383838]"
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[#f5f5f5] font-bold">
+                                  {eq.unit}
+                                </span>
+                                {eq.isBase && (
+                                  <span className="text-xs bg-[#f6b100] text-[#232323] px-2 py-1 rounded font-bold">
+                                    BASE UNIT
+                                  </span>
+                                )}
+                              </div>
+                              {!eq.isBase && eq.conversionFactor && (
+                                <p className="text-xs text-[#ababab] mt-1">
+                                  1 {selectedMaterialConversions.material.unit}{" "}
+                                  = {eq.conversionFactor} {eq.unit}
+                                </p>
+                              )}
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[#f5f5f5] font-bold text-lg">
+                                {eq.quantity.toFixed(2)}
+                              </div>
+                              <div className="text-[#ababab] text-xs">
+                                Total
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-green-500 font-bold text-lg">
+                                {eq.available.toFixed(2)}
+                              </div>
+                              <div className="text-[#ababab] text-xs">
+                                Available
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+
+                {/* Conversions Details */}
+                {selectedMaterialConversions.conversions.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-bold text-[#cccccc] uppercase mb-3">
+                      Conversion Details
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedMaterialConversions.conversions.map(
+                        (conversion) => (
+                          <div
+                            key={conversion._id}
+                            className="bg-[#181818] p-3 rounded-lg border border-[#383838]"
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <span className="text-[#f5f5f5] font-medium">
+                                  {conversion.equivalent_unit}
+                                </span>
+                                <p className="text-xs text-[#ababab] mt-1">
+                                  1 {conversion.base_unit} ={" "}
+                                  {conversion.quantity}{" "}
+                                  {conversion.equivalent_unit}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-[#f6b100] font-bold">
+                                  ₱{conversion.unit_price.toFixed(2)}
+                                </div>
+                                <div className="text-xs text-[#ababab]">
+                                  per {conversion.equivalent_unit}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {selectedMaterialConversions.conversions.length === 0 && (
+                  <div className="bg-[#181818] p-6 rounded-lg border border-[#383838] text-center">
+                    <Package
+                      size={32}
+                      className="mx-auto mb-2 text-[#ababab]"
+                    />
+                    <p className="text-[#ababab]">
+                      No unit conversions defined for this material
+                    </p>
+                  </div>
+                )}
+
+                <div className="mt-6 flex justify-end">
+                  <button
+                    onClick={() => {
+                      setShowConversionsModal(false);
+                      setSelectedMaterialConversions(null);
+                    }}
+                    className="bg-[#383838] hover:bg-[#484848] text-[#f5f5f5] px-6 py-2 rounded-lg font-bold transition-colors"
+                  >
+                    Close
                   </button>
                 </div>
               </div>
