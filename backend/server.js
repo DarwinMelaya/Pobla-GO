@@ -54,6 +54,7 @@ app.use("/menu-expenses", require("./routes/menuExpenses"));
 app.use("/menu-costing", require("./routes/menuCosting"));
 app.use("/expenses", require("./routes/expenses"));
 app.use("/purchase-orders", require("./routes/purchaseOrders"));
+app.use("/productions", require("./routes/productions"));
 
 // Start server
 const PORT = process.env.PORT || 5000;

@@ -25,6 +25,7 @@ const AdminMaterials = () => {
   const [showConversionsModal, setShowConversionsModal] = useState(false);
   const [selectedMaterialConversions, setSelectedMaterialConversions] =
     useState(null);
+  const [materialConversions, setMaterialConversions] = useState({});
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -58,6 +59,39 @@ const AdminMaterials = () => {
 
       const data = await response.json();
       setMaterials(data.data);
+
+      // Fetch unit conversions for each material
+      const conversionsMap = {};
+      for (const material of data.data) {
+        if (material.raw_material) {
+          try {
+            const convResponse = await fetch(
+              `${API_BASE}/unit-conversions/material/${material.raw_material}`,
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  "Content-Type": "application/json",
+                },
+              }
+            );
+            if (convResponse.ok) {
+              const convData = await convResponse.json();
+              console.log(`Conversions for ${material.name}:`, convData);
+              if (convData.success && convData.data.length > 0) {
+                conversionsMap[material._id] = convData.data[0]; // Use first conversion
+                console.log(
+                  `Stored conversion for ${material.name}:`,
+                  convData.data[0]
+                );
+              }
+            }
+          } catch (err) {
+            console.error("Error fetching conversion:", err);
+          }
+        }
+      }
+      console.log("All conversions map:", conversionsMap);
+      setMaterialConversions(conversionsMap);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -176,6 +210,46 @@ const AdminMaterials = () => {
     return "text-green-500";
   };
 
+  // Get display unit and value
+  const getDisplayQuantity = (value, material) => {
+    const roundedValue = Math.round(value * 100) / 100;
+
+    console.log(`getDisplayQuantity called:`, {
+      materialName: material.name,
+      value: value,
+      roundedValue: roundedValue,
+      unit: material.unit,
+      hasConversion: !!materialConversions[material._id],
+      conversion: materialConversions[material._id],
+    });
+
+    // If less than 1 and has unit conversion, convert to smaller unit
+    if (
+      roundedValue < 1 &&
+      roundedValue > 0 &&
+      materialConversions[material._id]
+    ) {
+      const conversion = materialConversions[material._id];
+      const convertedValue =
+        Math.round(roundedValue * conversion.quantity * 100) / 100;
+
+      console.log(
+        `Converting ${material.name}: ${roundedValue} ${material.unit} = ${convertedValue} ${conversion.equivalent_unit}`
+      );
+
+      return {
+        value: convertedValue,
+        unit: conversion.equivalent_unit,
+      };
+    }
+
+    // Otherwise use base unit
+    return {
+      value: roundedValue,
+      unit: material.unit,
+    };
+  };
+
   return (
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
@@ -190,13 +264,6 @@ const AdminMaterials = () => {
               Manage your raw materials stock and availability
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-6 py-3 rounded-xl font-bold shadow-lg transition-all flex items-center gap-2"
-          >
-            <Plus size={20} />
-            Add Material
-          </button>
         </div>
 
         {/* Success/Error Messages */}
@@ -343,19 +410,41 @@ const AdminMaterials = () => {
                           {material.unit}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-[#f5f5f5]">
-                            {material.quantity || material.stocks || 0}
-                          </div>
+                          {(() => {
+                            const display = getDisplayQuantity(
+                              material.quantity || material.stocks || 0,
+                              material
+                            );
+                            return (
+                              <div className="text-sm font-bold text-[#f5f5f5]">
+                                {display.value}{" "}
+                                <span className="text-[#ababab] font-normal text-xs">
+                                  {display.unit}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div
-                            className={`text-sm font-bold ${getStockStatus(
-                              material.available,
-                              material.quantity
-                            )}`}
-                          >
-                            {material.available || 0}
-                          </div>
+                          {(() => {
+                            const display = getDisplayQuantity(
+                              material.available || 0,
+                              material
+                            );
+                            return (
+                              <div
+                                className={`text-sm font-bold ${getStockStatus(
+                                  material.available,
+                                  material.quantity
+                                )}`}
+                              >
+                                {display.value}{" "}
+                                <span className="text-[#ababab] font-normal text-xs">
+                                  {display.unit}
+                                </span>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
                           {material.supplier_name ||
