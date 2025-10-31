@@ -1,34 +1,29 @@
 import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
-import AddMenuModal from "../../components/Modals/Admin/AddMenuModal";
-import DeleteMenuModal from "../../components/Modals/Admin/DeleteMenuModal";
-import ViewMenuModal from "../../components/Modals/Admin/ViewMenuModal";
 import toast from "react-hot-toast";
 import {
-  Plus,
-  Edit,
-  Trash2,
   ToggleLeft,
   ToggleRight,
   Search,
   Filter,
   Eye,
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
 } from "lucide-react";
 
 const AdminMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
-  const [availableInventory, setAvailableInventory] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("");
   const [categories, setCategories] = useState([]);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
   const [showViewModal, setShowViewModal] = useState(false);
   const [itemToView, setItemToView] = useState(null);
+  const [stats, setStats] = useState(null);
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -44,7 +39,6 @@ const AdminMenu = () => {
     try {
       const token = getAuthToken();
       const queryParams = new URLSearchParams();
-      if (searchTerm) queryParams.append("search", searchTerm);
       if (categoryFilter) queryParams.append("category", categoryFilter);
       if (availabilityFilter)
         queryParams.append("available", availabilityFilter);
@@ -62,6 +56,10 @@ const AdminMenu = () => {
 
       const data = await response.json();
       setMenuItems(data);
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(data.map(item => item.category))];
+      setCategories(uniqueCategories);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -69,11 +67,11 @@ const AdminMenu = () => {
     }
   };
 
-  // Fetch available inventory for ingredients
-  const fetchAvailableInventory = async () => {
+  // Fetch menu statistics
+  const fetchStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/inventory/available`, {
+      const response = await fetch(`${API_BASE}/menu/stats/summary`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -82,115 +80,11 @@ const AdminMenu = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setAvailableInventory(data);
+        setStats(data.data);
       }
     } catch (err) {
-      console.error("Failed to fetch inventory:", err);
+      console.error("Failed to fetch stats:", err);
     }
-  };
-
-  // Fetch categories
-  const fetchCategories = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/categories/list`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch categories:", err);
-    }
-  };
-
-  // Create or update menu item
-  const handleSubmit = async (formData) => {
-    setLoading(true);
-
-    try {
-      const token = getAuthToken();
-      const url = editingItem
-        ? `${API_BASE}/menu/${editingItem._id}`
-        : `${API_BASE}/menu`;
-
-      const method = editingItem ? "PUT" : "POST";
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to save menu item");
-      }
-
-      const data = await response.json();
-      toast.success(
-        editingItem
-          ? "Menu item updated successfully"
-          : "Menu item created successfully"
-      );
-      setShowForm(false);
-      setEditingItem(null);
-      fetchMenuItems();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Show delete confirmation modal
-  const handleDeleteClick = (item) => {
-    setItemToDelete(item);
-    setShowDeleteModal(true);
-  };
-
-  // Confirm delete menu item
-  const handleDeleteConfirm = async () => {
-    if (!itemToDelete) return;
-
-    setLoading(true);
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/${itemToDelete._id}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to delete menu item");
-      }
-
-      toast.success("Menu item deleted successfully");
-      setShowDeleteModal(false);
-      setItemToDelete(null);
-      fetchMenuItems();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Close delete modal
-  const handleCloseDeleteModal = () => {
-    setShowDeleteModal(false);
-    setItemToDelete(null);
   };
 
   // Show view modal
@@ -205,21 +99,8 @@ const AdminMenu = () => {
     setItemToView(null);
   };
 
-  // Edit menu item
-  const handleEdit = (item) => {
-    setEditingItem(item);
-    setShowForm(true);
-  };
-
-  // Close form
-  const handleCloseForm = () => {
-    setShowForm(false);
-    setEditingItem(null);
-  };
-
   // Toggle availability
   const handleToggleAvailability = async (item) => {
-    setLoading(true);
     try {
       const token = getAuthToken();
       const response = await fetch(
@@ -240,45 +121,121 @@ const AdminMenu = () => {
       const data = await response.json();
       toast.success(data.message);
       fetchMenuItems();
+      fetchStats();
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Filter menu items by search term
+  const filteredMenuItems = menuItems.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Load data on component mount
   useEffect(() => {
     fetchMenuItems();
-    fetchAvailableInventory();
-    fetchCategories();
+    fetchStats();
   }, []);
 
-  // Refetch when search or filter changes
+  // Refetch when filter changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchMenuItems();
     }, 500);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, categoryFilter, availabilityFilter]);
+  }, [categoryFilter, availabilityFilter]);
+
+  const getStockStatusBadge = (stockStatus) => {
+    switch (stockStatus) {
+      case "in_stock":
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-600 text-white">
+            <CheckCircle className="w-3 h-3" /> In Stock
+          </span>
+        );
+      case "low_stock":
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-yellow-600 text-white">
+            <AlertTriangle className="w-3 h-3" /> Low Stock
+          </span>
+        );
+      case "out_of_stock":
+        return (
+          <span className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-red-600 text-white">
+            <XCircle className="w-3 h-3" /> Out of Stock
+          </span>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8 relative z-10">
-          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide">
-            Manage Menu
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
+                <Package className="w-8 h-8 text-[#f6b100]" />
+                Menu Management
           </h1>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-xl font-bold shadow"
-          >
-            Add New Menu Item
-          </button>
+              <p className="text-[#b5b5b5] mt-2">
+                View and manage production-based menu items. To add new items, go to{" "}
+                <a href="/admin/productions" className="text-[#f6b100] hover:underline font-medium">
+                  Productions
+                </a>.
+              </p>
+            </div>
+          </div>
+
+          {/* Statistics Cards */}
+          {stats && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-[#232323] p-4 rounded-lg border border-[#383838]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[#cccccc] text-sm">Total Items</p>
+                    <p className="text-2xl font-bold text-[#f5f5f5]">{stats.total}</p>
+                  </div>
+                  <Package className="w-8 h-8 text-blue-500" />
+                </div>
+              </div>
+              <div className="bg-[#232323] p-4 rounded-lg border border-[#383838]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[#cccccc] text-sm">Available</p>
+                    <p className="text-2xl font-bold text-green-500">{stats.available}</p>
+                  </div>
+                  <CheckCircle className="w-8 h-8 text-green-500" />
+                </div>
+              </div>
+              <div className="bg-[#232323] p-4 rounded-lg border border-[#383838]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[#cccccc] text-sm">Low Stock</p>
+                    <p className="text-2xl font-bold text-yellow-500">{stats.lowStock}</p>
+                  </div>
+                  <AlertTriangle className="w-8 h-8 text-yellow-500" />
+                </div>
+              </div>
+              <div className="bg-[#232323] p-4 rounded-lg border border-[#383838]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[#cccccc] text-sm">Out of Stock</p>
+                    <p className="text-2xl font-bold text-red-500">{stats.outOfStock}</p>
+                  </div>
+                  <XCircle className="w-8 h-8 text-red-500" />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Filters/Search: card */}
+        {/* Filters/Search */}
         <div className="bg-[#232323] p-6 rounded-lg shadow mb-6 border border-[#383838]">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -291,7 +248,7 @@ const AdminMenu = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name..."
+                  placeholder="Search by name or category..."
                   className="w-full pl-10 pr-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
                 />
               </div>
@@ -348,22 +305,26 @@ const AdminMenu = () => {
           {loading ? (
             <div className="col-span-full flex justify-center items-center py-12">
               <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#C05050]" />
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-[#f6b100]" />
                 <p className="mt-2 text-[#ababab]">Loading menu items...</p>
               </div>
             </div>
-          ) : menuItems.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-[#ababab] text-lg">No menu items found</p>
+          ) : filteredMenuItems.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-[#232323] rounded-lg border border-[#383838]">
+              <Package className="w-16 h-16 text-[#666] mx-auto mb-4" />
+              <p className="text-[#ababab] text-lg mb-2">No menu items found</p>
+              <p className="text-[#888] text-sm">
+                Create a production with "Completed" status to add menu items.
+              </p>
             </div>
           ) : (
-            menuItems.map((item) => (
+            filteredMenuItems.map((item) => (
               <div
                 key={item._id}
                 className="bg-[#232323] rounded-lg shadow-md border border-[#383838] overflow-hidden hover:shadow-lg transition-shadow"
               >
                 {/* Image */}
-                {item.image && (
+                {item.image ? (
                   <div className="h-48 overflow-hidden">
                     <img
                       src={item.image}
@@ -371,15 +332,20 @@ const AdminMenu = () => {
                       className="w-full h-full object-cover"
                     />
                   </div>
+                ) : (
+                  <div className="h-48 bg-[#181818] flex items-center justify-center">
+                    <Package className="w-16 h-16 text-[#666]" />
+                  </div>
                 )}
+                
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
-                    <h3 className="text-lg font-bold text-[#f5f5f5]">
+                    <h3 className="text-lg font-bold text-[#f5f5f5] line-clamp-1">
                       {item.name}
                     </h3>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-bold ${
+                      className={`px-2 py-1 rounded-full text-xs font-bold flex-shrink-0 ml-2 ${
                         item.is_available
                           ? "bg-green-700 text-white"
                           : "bg-red-600 text-white"
@@ -388,59 +354,57 @@ const AdminMenu = () => {
                       {item.is_available ? "Available" : "Unavailable"}
                     </span>
                   </div>
-                  <p className="text-[#b5b5b5] text-sm mb-2 line-clamp-2">
+                  
+                  <p className="text-[#b5b5b5] text-sm mb-3 line-clamp-2">
                     {item.description || "No description available"}
                   </p>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-[#cccccc]">
-                      {item.category}
-                    </span>
+                  
+                  <div className="space-y-2 mb-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#cccccc]">Category</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">{item.category}</span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#cccccc]">Price</span>
                     <span className="text-lg font-bold text-[#f6b100]">
-                      ₱{item.price}
+                        ₱{item.price?.toFixed(2) || "0.00"}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-xs text-[#cccccc]">Servings:</span>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#cccccc]">Servings</span>
                     <span className="text-sm font-bold text-[#f5f5f5]">
-                      {item.servings || 1}
+                        {item.servings || 0}
                     </span>
+                    </div>
+                    
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-[#cccccc]">Stock Status</span>
+                      <div>{getStockStatusBadge(item.stockStatus)}</div>
+                    </div>
                   </div>
-                  {item.preparation_time && (
-                    <p className="text-xs text-[#cccccc] mb-2">
-                      Prep time: {item.preparation_time} minutes
-                    </p>
-                  )}
+                  
                   {/* Actions */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-3 border-t border-[#383838]">
                     <button
                       onClick={() => handleViewClick(item)}
-                      className="px-3 py-1 bg-blue-700 text-white rounded text-sm font-bold hover:bg-blue-800 transition-colors flex items-center justify-center"
+                      className="flex-1 px-3 py-2 bg-blue-700 text-white rounded text-sm font-bold hover:bg-blue-800 transition-colors flex items-center justify-center gap-1"
                       title="View Details"
                     >
-                      <Eye className="w-3 h-3" />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(item)}
-                      className="flex-1 px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Edit className="w-3 h-3" />
-                      Edit
+                      <Eye className="w-4 h-4" />
+                      View
                     </button>
                     <button
                       onClick={() => handleToggleAvailability(item)}
-                      className="px-3 py-1 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded text-sm font-bold hover:bg-[#262626] transition-colors flex items-center justify-center"
+                      className="px-3 py-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded text-sm font-bold hover:bg-[#262626] transition-colors flex items-center justify-center"
+                      title={item.is_available ? "Mark as Unavailable" : "Mark as Available"}
                     >
                       {item.is_available ? (
-                        <ToggleRight className="w-3 h-3" />
+                        <ToggleRight className="w-5 h-5 text-green-500" />
                       ) : (
-                        <ToggleLeft className="w-3 h-3" />
+                        <ToggleLeft className="w-5 h-5 text-red-500" />
                       )}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteClick(item)}
-                      className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
-                    >
-                      <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
                 </div>
@@ -449,51 +413,148 @@ const AdminMenu = () => {
           )}
         </div>
 
-        {/* Add/Edit Menu Modal */}
-        <AddMenuModal
-          isOpen={showForm}
-          onClose={handleCloseForm}
-          onSubmit={handleSubmit}
-          loading={loading}
-          editingItem={editingItem}
-          initialData={
-            editingItem
-              ? {
-                  name: editingItem.name,
-                  description: editingItem.description,
-                  category: editingItem.category,
-                  price: editingItem.price,
-                  image: editingItem.image,
-                  ingredients:
-                    editingItem.ingredients?.map((ing) => ({
-                      ...ing,
-                      inventoryName: ing.inventoryItem?.name || "",
-                    })) || [],
-                  preparation_time: editingItem.preparation_time,
-                  serving_size: editingItem.serving_size,
-                  servings: editingItem.servings,
-                  is_available: editingItem.is_available,
-                }
-              : {}
-          }
-          availableInventory={availableInventory}
-        />
+        {/* View Modal */}
+        {showViewModal && itemToView && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={handleCloseViewModal}
+            />
+            <div className="relative bg-[#232323] w-full max-w-3xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-[#f5f5f5] flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-[#f6b100]" />
+                  Menu Item Details
+                </h2>
+                <button
+                  onClick={handleCloseViewModal}
+                  className="text-[#b5b5b5] hover:text-white"
+                  aria-label="Close"
+                >
+                  <XCircle className="w-6 h-6" />
+                </button>
+              </div>
 
-        {/* Delete Confirmation Modal */}
-        <DeleteMenuModal
-          isOpen={showDeleteModal}
-          onClose={handleCloseDeleteModal}
-          onConfirm={handleDeleteConfirm}
-          loading={loading}
-          itemName={itemToDelete?.name}
-        />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Image */}
+                <div>
+                  {itemToView.image ? (
+                    <img
+                      src={itemToView.image}
+                      alt={itemToView.name}
+                      className="w-full h-64 object-cover rounded-lg border border-[#383838]"
+                    />
+                  ) : (
+                    <div className="w-full h-64 bg-[#181818] rounded-lg border border-[#383838] flex items-center justify-center">
+                      <Package className="w-16 h-16 text-[#666]" />
+                    </div>
+                  )}
+                </div>
 
-        {/* View Menu Modal */}
-        <ViewMenuModal
-          isOpen={showViewModal}
-          onClose={handleCloseViewModal}
-          menuItem={itemToView}
-        />
+                {/* Details */}
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs text-[#cccccc] uppercase">Name</label>
+                    <p className="text-[#f5f5f5] font-medium text-lg">{itemToView.name}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#cccccc] uppercase">Category</label>
+                    <p className="text-[#f5f5f5]">{itemToView.category}</p>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#cccccc] uppercase">Price</label>
+                    <p className="text-[#f6b100] font-bold text-2xl">
+                      ₱{itemToView.price?.toFixed(2) || "0.00"}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs text-[#cccccc] uppercase">Servings Available</label>
+                      <p className="text-[#f5f5f5] font-semibold text-xl">{itemToView.servings || 0}</p>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-[#cccccc] uppercase">Stock Status</label>
+                      <div className="mt-1">{getStockStatusBadge(itemToView.stockStatus)}</div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-[#cccccc] uppercase">Availability</label>
+                    <p className="text-[#f5f5f5] flex items-center gap-2 mt-1">
+                      {itemToView.is_available ? (
+                        <>
+                          <CheckCircle className="w-4 h-4 text-green-500" />
+                          <span className="text-green-500 font-medium">Available for Order</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4 text-red-500" />
+                          <span className="text-red-500 font-medium">Not Available</span>
+                        </>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {itemToView.description && (
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-[#cccccc] uppercase">Description</label>
+                    <p className="text-[#f5f5f5] mt-1">{itemToView.description}</p>
+                  </div>
+                )}
+
+                {/* Production History */}
+                {itemToView.production_history && itemToView.production_history.length > 0 && (
+                  <div className="md:col-span-2">
+                    <label className="text-xs text-[#cccccc] uppercase mb-2 block">
+                      Production History
+                    </label>
+                    <div className="bg-[#181818] rounded-lg p-4 border border-[#383838]">
+                      <div className="space-y-2">
+                        {itemToView.production_history.map((prod, index) => (
+                          <div
+                            key={index}
+                            className="flex justify-between items-center text-sm py-2 border-b border-[#383838] last:border-0"
+                          >
+                            <span className="text-[#f5f5f5] flex items-center gap-2">
+                              <Package className="w-4 h-4 text-[#f6b100]" />
+                              +{prod.quantity_added} servings added
+                            </span>
+                            <span className="text-[#888]">
+                              {new Date(prod.date_added).toLocaleDateString()}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-[#383838]">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[#cccccc] font-medium">Total Productions:</span>
+                          <span className="text-[#f6b100] font-bold">
+                            {itemToView.production_history.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-[#383838] flex justify-end">
+                <button
+                  onClick={handleCloseViewModal}
+                  className="px-4 py-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded-md font-bold hover:bg-[#262626]"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

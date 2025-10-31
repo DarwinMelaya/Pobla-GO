@@ -1,6 +1,17 @@
 const mongoose = require("mongoose");
 
 const MenuSchema = new mongoose.Schema({
+  // Reference to MenuMaintenance (the base menu item definition)
+  menu_maintenance_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "MenuMaintenance",
+    required: true,
+  },
+  // Reference to the latest/source production
+  production_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Production",
+  },
   name: {
     type: String,
     required: true,
@@ -14,67 +25,56 @@ const MenuSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true,
-    enum: [
-      "Appetizer",
-      "Main Course",
-      "Dessert",
-      "Beverage",
-      "Side Dish",
-      "Other",
-    ],
   },
+  // SRP (Suggested Retail Price) from production costing
   price: {
     type: Number,
     required: true,
     min: 0,
+    default: 0,
   },
-  // Base64 encoded image - no size limit as requested
+  // Base64 encoded image from MenuMaintenance
   image: {
-    type: String, // Will store base64 encoded image data
+    type: String,
   },
-  // Ingredients array with references to inventory items
-  ingredients: [
+  // Total available servings from all completed productions
+  servings: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  // Critical level from MenuMaintenance
+  critical_level: {
+    type: Number,
+    min: 1,
+    max: 4,
+  },
+  // Availability status (auto-calculated based on servings)
+  is_available: {
+    type: Boolean,
+    default: false,
+  },
+  // Track production history
+  production_history: [
     {
-      inventoryItem: {
+      production_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Inventory",
-        required: true,
+        ref: "Production",
       },
-      quantity: {
+      quantity_added: {
         type: Number,
-        required: true,
-        min: 0,
+        default: 0,
       },
-      unit: {
-        type: String,
-        required: true,
-        trim: true,
+      date_added: {
+        type: Date,
+        default: Date.now,
       },
     },
   ],
-  // Additional fields for menu management
-  preparation_time: {
-    type: Number, // in minutes
-    min: 0,
-  },
-  serving_size: {
-    type: String,
-    trim: true,
-  },
-  servings: {
-    type: Number,
-    min: 1,
-    default: 1,
-  },
-  is_available: {
-    type: Boolean,
-    default: true,
-  },
-  // Admin who created this menu item
-  created_by: {
+  // Last updated by
+  updated_by: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
   },
   // Timestamps
   createdAt: {
@@ -90,101 +90,143 @@ const MenuSchema = new mongoose.Schema({
 // Update the updatedAt field before saving
 MenuSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
+
+  // Auto-update availability based on servings and critical level
+  if (this.servings > 0) {
+    this.is_available = true;
+  } else {
+    this.is_available = false;
+  }
+
   next();
 });
 
-// Virtual to calculate total cost based on ingredients
-MenuSchema.virtual("estimatedCost").get(function () {
-  // This would need to be calculated based on inventory prices
-  // For now, return 0 as we don't have pricing in inventory
-  return 0;
-});
+// Method to add servings from a completed production
+MenuSchema.methods.addFromProduction = async function (production, userId) {
+  this.servings += production.quantity;
 
-// Method to check if all ingredients are available in sufficient quantity
-MenuSchema.methods.checkIngredientAvailability = async function () {
-  const Inventory = mongoose.model("Inventory");
-  const availability = [];
+  // Add to production history
+  this.production_history.push({
+    production_id: production._id,
+    quantity_added: production.quantity,
+    date_added: new Date(),
+  });
 
-  for (const ingredient of this.ingredients) {
-    const inventoryItem = await Inventory.findById(ingredient.inventoryItem);
-    if (!inventoryItem) {
-      availability.push({
-        ingredient: ingredient.inventoryItem,
-        available: false,
-        reason: "Item not found in inventory",
-      });
-    } else if (inventoryItem.quantity < ingredient.quantity) {
-      availability.push({
-        ingredient: inventoryItem.name,
-        available: false,
-        reason: `Insufficient quantity. Available: ${inventoryItem.quantity} ${inventoryItem.unit}, Required: ${ingredient.quantity} ${ingredient.unit}`,
-      });
-    } else {
-      availability.push({
-        ingredient: inventoryItem.name,
-        available: true,
-        availableQuantity: inventoryItem.quantity,
-      });
-    }
-  }
+  this.production_id = production._id;
+  this.updated_by = userId;
 
-  return availability;
+  await this.save();
+  return this;
 };
 
-// Method to calculate how many of this menu item can be made based on available ingredients
-MenuSchema.methods.calculateAvailableQuantity = async function () {
-  const Inventory = mongoose.model("Inventory");
-  let maxAvailable = Infinity;
+// Method to deduct servings when menu item is ordered
+MenuSchema.methods.deductServings = async function (quantity = 1) {
+  if (this.servings < quantity) {
+    throw new Error(
+      `Insufficient servings. Available: ${this.servings}, Requested: ${quantity}`
+    );
+  }
 
-  for (const ingredient of this.ingredients) {
-    const inventoryItem = await Inventory.findById(ingredient.inventoryItem);
-    if (!inventoryItem) {
-      return 0; // If ingredient doesn't exist, can't make any
+  this.servings -= quantity;
+  await this.save();
+  return this;
+};
+
+// Method to check stock status based on critical level
+MenuSchema.methods.getStockStatus = function () {
+  if (this.servings <= 0) {
+    return "out_of_stock";
+  }
+
+  // Critical level threshold logic
+  const thresholds = {
+    1: 10, // Low critical - alert at 10 servings
+    2: 20, // Medium critical - alert at 20 servings
+    3: 30, // High critical - alert at 30 servings
+    4: 50, // Critical - alert at 50 servings
+  };
+
+  const threshold = thresholds[this.critical_level] || 10;
+
+  if (this.servings <= threshold) {
+    return "low_stock";
+  }
+
+  return "in_stock";
+};
+
+// Static method to create or update menu from production
+MenuSchema.statics.createOrUpdateFromProduction = async function (
+  production,
+  userId
+) {
+  try {
+    const MenuMaintenance = mongoose.model("MenuMaintenance");
+    const MenuCosting = mongoose.model("MenuCosting");
+
+    console.log("📋 Menu.createOrUpdateFromProduction called");
+    console.log("  Production menu_id:", production.menu_id);
+    console.log("  Production menu_id type:", typeof production.menu_id);
+
+    // Get menu maintenance details
+    const menuMaintenance = await MenuMaintenance.findById(production.menu_id);
+    if (!menuMaintenance) {
+      console.error("❌ MenuMaintenance not found for ID:", production.menu_id);
+      throw new Error(
+        `Menu maintenance item not found for ID: ${production.menu_id}`
+      );
     }
+    console.log("✅ Found MenuMaintenance:", menuMaintenance.name);
 
-    if (inventoryItem.quantity <= 0) {
-      return 0; // If no inventory, can't make any
-    }
-
-    // Check if units are compatible (same unit)
-    if (inventoryItem.unit.toLowerCase() !== ingredient.unit.toLowerCase()) {
-      // unit mismatch; skipping conversion in this version
-      // For now, assume same unit if they're similar (basic conversion)
-      // In a real application, you'd want a proper unit conversion system
-    }
-
-    // Calculate how many can be made with this ingredient
-    const possibleWithThisIngredient = Math.floor(
-      inventoryItem.quantity / ingredient.quantity
+    // Get costing details
+    const costing = await MenuCosting.findOne({ menu_id: production.menu_id });
+    console.log(
+      "💰 Costing found:",
+      costing ? `SRP: ${costing.srp}` : "No costing data"
     );
 
-    maxAvailable = Math.min(maxAvailable, possibleWithThisIngredient);
-  }
+    // Check if menu already exists
+    let menu = await this.findOne({ menu_maintenance_id: production.menu_id });
 
-  const result = maxAvailable === Infinity ? 0 : maxAvailable;
-  return result;
-};
+    if (menu) {
+      console.log("♻️ Existing menu found - updating servings");
+      console.log("  Current servings:", menu.servings);
+      console.log("  Adding:", production.quantity);
+      // Update existing menu - add servings
+      await menu.addFromProduction(production, userId);
+      console.log("  New servings:", menu.servings);
+    } else {
+      console.log("✨ Creating new menu item");
+      // Create new menu item
+      menu = new this({
+        menu_maintenance_id: production.menu_id,
+        production_id: production._id,
+        name: menuMaintenance.name,
+        description: menuMaintenance.description || "",
+        category: menuMaintenance.category,
+        price: costing?.srp || 0,
+        image: menuMaintenance.image || "",
+        servings: production.quantity,
+        critical_level: menuMaintenance.critical_level,
+        is_available: production.quantity > 0,
+        production_history: [
+          {
+            production_id: production._id,
+            quantity_added: production.quantity,
+            date_added: new Date(),
+          },
+        ],
+        updated_by: userId,
+      });
 
-// Method to check if sufficient servings are available
-MenuSchema.methods.hasSufficientServings = function (quantity = 1) {
-  return this.servings >= quantity;
-};
-
-// Method to update inventory when menu item is ordered
-MenuSchema.methods.updateInventoryOnOrder = async function (quantity = 1) {
-  const Inventory = mongoose.model("Inventory");
-
-  for (const ingredient of this.ingredients) {
-    const inventoryItem = await Inventory.findById(ingredient.inventoryItem);
-    if (inventoryItem) {
-      const requiredQuantity = ingredient.quantity * quantity;
-      if (inventoryItem.quantity >= requiredQuantity) {
-        inventoryItem.quantity -= requiredQuantity;
-        await inventoryItem.save();
-      } else {
-        throw new Error(`Insufficient ${inventoryItem.name} in inventory`);
-      }
+      await menu.save();
+      console.log("✅ New menu item created with ID:", menu._id);
     }
+
+    return menu;
+  } catch (error) {
+    console.error("❌ Error in createOrUpdateFromProduction:", error);
+    throw error;
   }
 };
 

@@ -8,6 +8,7 @@ const Material = require("../models/Material");
 const RawMaterial = require("../models/RawMaterial");
 const UnitConversion = require("../models/UnitConversion");
 const User = require("../models/User");
+const Menu = require("../models/Menu");
 
 // Helper function to deduct inventory based on recipe
 const deductInventoryForProduction = async (menuId, productionQuantity) => {
@@ -271,11 +272,44 @@ router.post("/", verifyAdmin, async (req, res) => {
     await production.populate("menu_id", "name category description image");
     await production.populate("created_by", "firstName lastName email");
 
+    // If production status is "Completed", automatically add to Menu
+    let menuUpdateMessage = "";
+    let menuData = null;
+    if (production.status === "Completed") {
+      try {
+        console.log("🔄 Creating/Updating Menu from Production:");
+        console.log("  Production ID:", production._id);
+        console.log("  Menu Maintenance ID:", production.menu_id);
+        console.log("  Quantity:", production.quantity);
+        
+        const updatedMenu = await Menu.createOrUpdateFromProduction(
+          production,
+          req.user._id
+        );
+        
+        console.log("✅ Menu created/updated successfully:");
+        console.log("  Menu ID:", updatedMenu._id);
+        console.log("  Menu Name:", updatedMenu.name);
+        console.log("  Servings:", updatedMenu.servings);
+        
+        menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
+        menuData = updatedMenu;
+      } catch (menuError) {
+        console.error("❌ Error updating menu:", menuError);
+        console.error("Error details:", menuError.message);
+        console.error("Stack:", menuError.stack);
+        menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
+      }
+    } else {
+      console.log(`ℹ️ Production created with status: ${production.status} (Menu will be updated when status changes to "Completed")`);
+    }
+
     res.status(201).json({
       success: true,
       data: production,
+      menuData: menuData,
       inventoryDeductions: inventoryDeductions.deductions,
-      message: "Production created and inventory deducted successfully",
+      message: `Production created and inventory deducted successfully.${menuUpdateMessage}`,
     });
   } catch (error) {
     res
@@ -294,6 +328,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
         .json({ success: false, message: "Production not found" });
     }
 
+    const oldStatus = production.status;
     const { quantity, production_date, status, actual_cost, notes } = req.body;
 
     const fields = [
@@ -331,7 +366,41 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     await production.populate("menu_id", "name category description image");
     await production.populate("created_by", "firstName lastName email");
 
-    res.json({ success: true, data: production });
+    // If status changed to "Completed", automatically add to Menu
+    let menuUpdateMessage = "";
+    let menuData = null;
+    if (oldStatus !== "Completed" && production.status === "Completed") {
+      try {
+        console.log("🔄 Status changed to Completed - Creating/Updating Menu:");
+        console.log("  Production ID:", production._id);
+        console.log("  Menu Maintenance ID:", production.menu_id);
+        console.log("  Quantity:", production.quantity);
+        
+        const updatedMenu = await Menu.createOrUpdateFromProduction(
+          production,
+          req.user._id
+        );
+        
+        console.log("✅ Menu created/updated successfully:");
+        console.log("  Menu ID:", updatedMenu._id);
+        console.log("  Menu Name:", updatedMenu.name);
+        console.log("  Servings:", updatedMenu.servings);
+        
+        menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
+        menuData = updatedMenu;
+      } catch (menuError) {
+        console.error("❌ Error updating menu:", menuError);
+        console.error("Error details:", menuError.message);
+        menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: production,
+      menuData: menuData,
+      message: `Production updated successfully.${menuUpdateMessage}`,
+    });
   } catch (error) {
     res
       .status(500)

@@ -42,8 +42,8 @@ const AdminSidebar = ({ onNavigate }) => {
         {
           icon: Box,
           text: "Menus",
-          path: "/admin-inventory-menus",
-          isActive: location.pathname === "/admin-inventory-menus",
+          path: "/admin-menu",
+          isActive: location.pathname === "/admin-menu",
         },
         {
           icon: Boxes,
