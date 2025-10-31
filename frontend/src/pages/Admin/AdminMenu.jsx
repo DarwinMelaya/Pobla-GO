@@ -55,10 +55,18 @@ const AdminMenu = () => {
       }
 
       const data = await response.json();
-      setMenuItems(data);
+      
+      // Handle response format from /menu endpoint
+      const itemsArray = data.success && Array.isArray(data.items) 
+        ? data.items 
+        : Array.isArray(data) 
+        ? data 
+        : [];
+      
+      setMenuItems(itemsArray);
       
       // Extract unique categories
-      const uniqueCategories = [...new Set(data.map(item => item.category))];
+      const uniqueCategories = [...new Set(itemsArray.map(item => item.category))];
       setCategories(uniqueCategories);
     } catch (err) {
       toast.error(err.message);
@@ -71,7 +79,7 @@ const AdminMenu = () => {
   const fetchStats = async () => {
     try {
       const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/stats/summary`, {
+      const response = await fetch(`${API_BASE}/menu/stats/inventory`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -80,7 +88,15 @@ const AdminMenu = () => {
 
       if (response.ok) {
         const data = await response.json();
-        setStats(data.data);
+        // Map the response to match component expectations
+        if (data.success && data.stats) {
+          setStats({
+            total: data.stats.total_items || 0,
+            available: data.stats.available_items || 0,
+            lowStock: data.stats.low_stock || 0,
+            outOfStock: data.stats.out_of_stock || 0,
+          });
+        }
       }
     } catch (err) {
       console.error("Failed to fetch stats:", err);
@@ -381,7 +397,7 @@ const AdminMenu = () => {
                     
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#cccccc]">Stock Status</span>
-                      <div>{getStockStatusBadge(item.stockStatus)}</div>
+                      <div>{getStockStatusBadge(item.stock_status)}</div>
                     </div>
                   </div>
                   
@@ -478,7 +494,7 @@ const AdminMenu = () => {
 
                     <div>
                       <label className="text-xs text-[#cccccc] uppercase">Stock Status</label>
-                      <div className="mt-1">{getStockStatusBadge(itemToView.stockStatus)}</div>
+                      <div className="mt-1">{getStockStatusBadge(itemToView.stock_status)}</div>
                     </div>
                   </div>
 

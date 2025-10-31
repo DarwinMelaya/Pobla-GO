@@ -211,32 +211,37 @@ router.post("/", verifyAuth, async (req, res) => {
 
     await OrderItem.insertMany(orderItems);
 
-    // Update inventory and servings for menu items
+    // Check availability and update servings for menu items
     for (const item of order_items) {
       if (item.menu_item_id) {
         try {
           const menuItem = await Menu.findById(item.menu_item_id);
-          if (menuItem) {
-            // Check if sufficient servings are available
-            if (!menuItem.hasSufficientServings(item.quantity)) {
-              return res.status(400).json({
-                message: `Insufficient servings for ${menuItem.name}. Available: ${menuItem.servings}, Required: ${item.quantity}`,
-              });
-            }
-
-            // Update inventory (ingredients)
-            await menuItem.updateInventoryOnOrder(item.quantity);
-
-            // Reduce servings
-            menuItem.servings -= item.quantity;
-            await menuItem.save();
+          if (!menuItem) {
+            return res.status(400).json({
+              message: `Menu item not found: ${item.item_name}`,
+            });
           }
+
+          // Check if sufficient servings are available
+          if (!menuItem.hasSufficientServings(item.quantity)) {
+            return res.status(400).json({
+              message: `Insufficient servings for ${menuItem.name}. Available: ${menuItem.servings}, Required: ${item.quantity}`,
+            });
+          }
+
+          // Update inventory (ingredients) - for tracking purposes
+          await menuItem.updateInventoryOnOrder(item.quantity);
+
+          // Reduce servings using the model method
+          await menuItem.deductServings(item.quantity);
         } catch (error) {
           console.error(
             `Failed to update inventory/servings for menu item ${item.menu_item_id}:`,
             error
           );
-          // Continue processing other items
+          return res.status(400).json({
+            message: error.message || "Failed to process menu item",
+          });
         }
       }
     }
@@ -324,9 +329,11 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
           try {
             const menuItem = await Menu.findById(item.menu_item_id);
             if (menuItem) {
-              // Restore servings
-              menuItem.servings += item.quantity;
-              await menuItem.save();
+              // Restore servings using the model method
+              await menuItem.restoreServings(item.quantity);
+              console.log(
+                `✅ Restored ${item.quantity} servings for ${menuItem.name}`
+              );
             }
           } catch (error) {
             console.error(
@@ -386,22 +393,26 @@ router.delete("/:id", verifyAuth, async (req, res) => {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    // Restore servings for menu items before deleting
-    const orderItems = await OrderItem.find({ order_id: order._id });
-    for (const item of orderItems) {
-      if (item.menu_item_id) {
-        try {
-          const menuItem = await Menu.findById(item.menu_item_id);
-          if (menuItem) {
-            // Restore servings
-            menuItem.servings += item.quantity;
-            await menuItem.save();
+    // Restore servings for menu items before deleting (only if not completed)
+    if (order.status !== "completed") {
+      const orderItems = await OrderItem.find({ order_id: order._id });
+      for (const item of orderItems) {
+        if (item.menu_item_id) {
+          try {
+            const menuItem = await Menu.findById(item.menu_item_id);
+            if (menuItem) {
+              // Restore servings using the model method
+              await menuItem.restoreServings(item.quantity);
+              console.log(
+                `✅ Restored ${item.quantity} servings for ${menuItem.name} (Order deleted)`
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Failed to restore servings for menu item ${item.menu_item_id}:`,
+              error
+            );
           }
-        } catch (error) {
-          console.error(
-            `Failed to restore servings for menu item ${item.menu_item_id}:`,
-            error
-          );
         }
       }
     }

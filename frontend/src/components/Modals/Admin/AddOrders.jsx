@@ -9,9 +9,6 @@ const AddOrders = ({
   menuItems = [],
   menuItemsLoading = false,
   onFetchMenuItems,
-  onCreateTestMenuData,
-  onDebugDatabase,
-  onForceTestData,
 }) => {
   const [orderForm, setOrderForm] = useState({
     customer_name: "",
@@ -629,32 +626,16 @@ const AddOrders = ({
                 <p className="text-[#ababab] mb-4">
                   No available menu items found
                 </p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={onFetchMenuItems}
-                    className="px-4 py-2 bg-[#f6b100] text-[#1f1f1f] rounded-lg font-semibold hover:bg-[#dab000] transition-colors text-sm shadow-lg"
-                  >
-                    Retry
-                  </button>
-                  <button
-                    onClick={onCreateTestMenuData}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors text-sm shadow-lg"
-                  >
-                    Create Test Data
-                  </button>
-                  <button
-                    onClick={onDebugDatabase}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors text-sm shadow-lg"
-                  >
-                    Debug DB
-                  </button>
-                  <button
-                    onClick={onForceTestData}
-                    className="px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors text-sm shadow-lg"
-                  >
-                    Force Test
-                  </button>
-                </div>
+                <p className="text-sm text-[#767676] mb-4">
+                  Please ensure menu items are added through Menu Maintenance and have available servings from Production.
+                </p>
+                <button
+                  onClick={onFetchMenuItems}
+                  className="px-4 py-2 bg-[#f6b100] text-[#1f1f1f] rounded-lg font-semibold hover:bg-[#dab000] transition-colors text-sm shadow-lg"
+                >
+                  <RefreshCw size={16} className="inline mr-2" />
+                  Refresh Menu
+                </button>
               </div>
             ) : getFilteredMenuItems().length === 0 ? (
               <div className="text-center py-8">
@@ -707,11 +688,23 @@ const AddOrders = ({
                         <h5 className="font-medium text-base text-[#f5f5f5] mb-1 truncate">
                           {item.name || "No name"}
                         </h5>
+                        <p className="text-xs text-[#ababab] mb-1 truncate">
+                          {item.category}
+                        </p>
                         <p className="text-sm text-[#f6b100] font-semibold">
                           {formatCurrency(item.price || 0)}
                         </p>
-                        <div className="mt-1 text-xs">
-                          <p>Servings: {availableServings}</p>
+                        <div className="mt-2 text-xs">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="text-[#ababab]">Available:</span>
+                            <span className={`font-bold ${
+                              isOutOfStock ? 'text-red-400' : 
+                              isLowStock ? 'text-[#f6b100]' : 
+                              'text-green-400'
+                            }`}>
+                              {availableServings}
+                            </span>
+                          </div>
                           {isOutOfStock && (
                             <span className="inline-block mt-1 px-2 py-1 bg-[#313131] text-red-400 text-xs font-bold rounded">
                               OUT OF STOCK

@@ -49,8 +49,13 @@ const MenuSchema = new mongoose.Schema({
     min: 1,
     max: 4,
   },
-  // Availability status (auto-calculated based on servings)
+  // Availability status (auto-calculated based on servings, but can be manually overridden)
   is_available: {
+    type: Boolean,
+    default: false,
+  },
+  // Track if availability was manually set (to prevent auto-override)
+  manually_disabled: {
     type: Boolean,
     default: false,
   },
@@ -91,12 +96,16 @@ const MenuSchema = new mongoose.Schema({
 MenuSchema.pre("save", function (next) {
   this.updatedAt = Date.now();
 
-  // Auto-update availability based on servings and critical level
-  if (this.servings > 0) {
+  // Auto-update availability based on servings
+  // But respect manual disabling (manually_disabled flag)
+  if (this.servings > 0 && !this.manually_disabled) {
     this.is_available = true;
-  } else {
+  } else if (this.servings === 0) {
+    // Always set to unavailable if no servings
     this.is_available = false;
+    this.manually_disabled = false; // Reset manual override
   }
+  // If manually_disabled and servings > 0, keep is_available as set manually
 
   next();
 });
@@ -119,9 +128,14 @@ MenuSchema.methods.addFromProduction = async function (production, userId) {
   return this;
 };
 
+// Method to check if sufficient servings are available
+MenuSchema.methods.hasSufficientServings = function (quantity = 1) {
+  return this.servings >= quantity;
+};
+
 // Method to deduct servings when menu item is ordered
 MenuSchema.methods.deductServings = async function (quantity = 1) {
-  if (this.servings < quantity) {
+  if (!this.hasSufficientServings(quantity)) {
     throw new Error(
       `Insufficient servings. Available: ${this.servings}, Requested: ${quantity}`
     );
@@ -129,6 +143,23 @@ MenuSchema.methods.deductServings = async function (quantity = 1) {
 
   this.servings -= quantity;
   await this.save();
+  return this;
+};
+
+// Method to restore servings (when order is cancelled)
+MenuSchema.methods.restoreServings = async function (quantity = 1) {
+  this.servings += quantity;
+  await this.save();
+  return this;
+};
+
+// Method to update inventory when an order is placed
+MenuSchema.methods.updateInventoryOnOrder = async function (quantity = 1) {
+  // This method can be expanded to track ingredient usage if needed
+  // For now, it just logs the order
+  console.log(
+    `📦 Inventory updated: ${this.name} - ${quantity} servings ordered`
+  );
   return this;
 };
 

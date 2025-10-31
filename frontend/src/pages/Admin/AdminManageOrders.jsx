@@ -134,22 +134,13 @@ const AdminManageOrders = () => {
     try {
       const token = getAuthToken();
 
-      // First try to get all menu items to see what's available
-      let response;
-      try {
-        response = await fetch(`${API_BASE}/menu`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      } catch (authError) {
-        response = await fetch(`${API_BASE}/menu`, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      }
+      // Fetch available menu items with servings
+      const response = await fetch(`${API_BASE}/menu?available_only=true`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -159,38 +150,26 @@ const AdminManageOrders = () => {
 
       const data = await response.json();
 
-      // Handle different response formats
+      // Handle response format from new /menu endpoint
       let menuItemsArray = [];
-      if (Array.isArray(data)) {
-        menuItemsArray = data;
-      } else if (data && Array.isArray(data.items)) {
+      if (data.success && Array.isArray(data.items)) {
         menuItemsArray = data.items;
-      } else if (data && Array.isArray(data.menuItems)) {
-        menuItemsArray = data.menuItems;
+      } else if (Array.isArray(data)) {
+        menuItemsArray = data;
       } else {
         console.error("Unexpected data format:", data);
         menuItemsArray = [];
       }
 
-      // Filter for available items
-      const availableItems = menuItemsArray.filter(
-        (item) => item.is_available === true
-      );
-
-      // Test if items have the expected structure
-      if (availableItems.length > 0) {
-        // verified item structure
-      }
-
-      // Force set some test data if no items found
-      if (availableItems.length === 0 && menuItemsArray.length > 0) {
-        setMenuItems(menuItemsArray);
-      } else {
-        setMenuItems(availableItems);
-      }
+      // Items are already filtered by availability from backend
+      // Each item has: _id, name, price, servings, availableServings, is_available, stock_status
+      console.log(`✅ Loaded ${menuItemsArray.length} available menu items`);
+      
+      setMenuItems(menuItemsArray);
     } catch (error) {
       console.error("Error fetching menu items:", error);
       toast.error(`Failed to fetch menu items: ${error.message}`);
+      setMenuItems([]);
     } finally {
       setMenuItemsLoading(false);
     }
@@ -375,68 +354,6 @@ const AdminManageOrders = () => {
     fetchMenuItems();
   };
 
-  // Create test menu data
-  const createTestMenuData = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/test-data`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create test data");
-      }
-
-      const data = await response.json();
-      toast.success(data.message);
-      fetchMenuItems();
-    } catch (error) {
-      console.error("Error creating test data:", error);
-      toast.error("Failed to create test data");
-    }
-  };
-
-  // Debug database connection
-  const debugDatabase = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/menu/debug`);
-      const data = await response.json();
-      toast.success(
-        `Debug: ${data.totalItems} total, ${data.availableItems} available`
-      );
-    } catch (error) {
-      console.error("Debug error:", error);
-      toast.error("Debug failed");
-    }
-  };
-
-  // Force test data for debugging
-  const forceTestData = () => {
-    const testItems = [
-      {
-        _id: "test1",
-        name: "Test Burger",
-        category: "Main Course",
-        price: 12.99,
-        description: "A test burger",
-        is_available: true,
-      },
-      {
-        _id: "test2",
-        name: "Test Pizza",
-        category: "Main Course",
-        price: 15.99,
-        description: "A test pizza",
-        is_available: true,
-      },
-    ];
-    setMenuItems(testItems);
-    toast.success("Hardcoded test data set");
-  };
 
   useEffect(() => {
     fetchOrders();
@@ -989,9 +906,6 @@ const AdminManageOrders = () => {
           menuItems={menuItems}
           menuItemsLoading={menuItemsLoading}
           onFetchMenuItems={fetchMenuItems}
-          onCreateTestMenuData={createTestMenuData}
-          onDebugDatabase={debugDatabase}
-          onForceTestData={forceTestData}
         />
 
         {/* Staff Performance Modal */}

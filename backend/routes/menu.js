@@ -1,18 +1,41 @@
+/**
+ * Menu Routes - Integration with Order Management System
+ * =====================================================
+ * 
+ * This routes file handles the Menu items that are available for ordering.
+ * 
+ * IMPORTANT: Menu vs MenuMaintenance
+ * ----------------------------------
+ * - MenuMaintenance: Base menu item definitions (recipes, ingredients, etc.)
+ * - Menu: Actual available items with servings from Production
+ * 
+ * Flow:
+ * 1. MenuMaintenance items are created in the system
+ * 2. Production creates menu items based on MenuMaintenance
+ * 3. Menu items are automatically created/updated with servings from Production
+ * 4. Orders deduct servings from Menu items
+ * 5. When orders are cancelled, servings are restored
+ * 
+ * Integration Points:
+ * - GET /menu - Fetch available menu items for ordering (with servings)
+ * - Orders automatically update Menu.servings when created/cancelled/deleted
+ * - Menu.is_available is auto-calculated based on servings > 0
+ * - Stock status (out_of_stock, low_stock, in_stock) based on critical_level
+ */
+
 const express = require("express");
 const router = express.Router();
 const Menu = require("../models/Menu");
-const MenuMaintenance = require("../models/MenuMaintenance");
 const User = require("../models/User");
 
-// Middleware to verify admin role using JWT
-const verifyAdmin = async (req, res, next) => {
+// Middleware to verify authentication (optional for public menu viewing)
+const verifyAuth = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: "Access denied. No token provided.",
-      });
+      // Allow public access to menu
+      req.user = null;
+      return next();
     }
 
     const jwt = require("jsonwebtoken");
@@ -22,262 +45,91 @@ const verifyAdmin = async (req, res, next) => {
     );
 
     const user = await User.findById(decoded.userId);
-    if (!user || user.role !== "Admin") {
-      return res.status(403).json({
-        success: false,
-        message: "Access denied. Admin role required.",
-      });
+    if (!user) {
+      req.user = null;
+      return next();
     }
 
     req.user = user;
     next();
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      message: "Invalid token.",
-    });
+    // Allow public access even if token is invalid
+    req.user = null;
+    next();
   }
 };
 
-// GET /menu/stock - Get menu items with stock information (Admin only)
-router.get("/stock", verifyAdmin, async (req, res) => {
+// GET /menu - Get all available menu items with servings
+router.get("/", verifyAuth, async (req, res) => {
   try {
-    const menuItems = await Menu.find({})
-      .populate(
-        "menu_maintenance_id",
-        "name category description critical_level"
-      )
-      .populate("production_id", "production_date status")
-      .populate("updated_by", "firstName lastName")
-      .sort({ updatedAt: -1 });
+    const { category, search, available_only = "true" } = req.query;
 
-    const menuItemsWithStock = menuItems.map((item) => {
-      return {
-        ...item.toObject(),
-        stockStatus: item.getStockStatus(),
-        availableServings: item.servings,
-      };
-    });
-
-    res.json(menuItemsWithStock);
-  } catch (error) {
-    console.error("Menu stock API error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// GET /menu - Get all menu items (public access - for customer ordering)
-router.get("/", async (req, res) => {
-  try {
-    const { category, available } = req.query;
     let filter = {};
 
+    // Filter by availability
+    if (available_only === "true") {
+      filter.is_available = true;
+      filter.servings = { $gt: 0 };
+    }
+
+    // Filter by category
     if (category) {
       filter.category = category;
     }
 
-    if (available !== undefined) {
-      filter.is_available = available === "true";
+    // Search by name or description
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
     }
 
     const menuItems = await Menu.find(filter)
       .populate("menu_maintenance_id", "name category description")
+      .populate("updated_by", "name")
       .sort({ category: 1, name: 1 });
 
-    // Add stock status and servings info to each menu item
-    const menuItemsWithInfo = menuItems.map((item) => {
-      return {
-        ...item.toObject(),
-        stockStatus: item.getStockStatus(),
-        availableServings: item.servings,
-      };
+    // Add availableServings field for frontend compatibility
+    const itemsWithServings = menuItems.map((item) => ({
+      _id: item._id,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      price: item.price,
+      image: item.image,
+      servings: item.servings,
+      availableServings: item.servings, // Alias for frontend
+      critical_level: item.critical_level,
+      is_available: item.is_available,
+      stock_status: item.getStockStatus(),
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+
+    res.json({
+      success: true,
+      items: itemsWithServings,
+      total: itemsWithServings.length,
     });
-
-    // Add cache control headers to prevent stale data
-    res.set("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.set("Pragma", "no-cache");
-    res.set("Expires", "0");
-
-    res.json(menuItemsWithInfo);
   } catch (error) {
-    console.error("Menu API error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    console.error("Error fetching menu items:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 
-// GET /menu/:id - Get specific menu item with full details
-router.get("/:id", async (req, res) => {
+// GET /menu/:id - Get specific menu item
+router.get("/:id", verifyAuth, async (req, res) => {
   try {
     const menuItem = await Menu.findById(req.params.id)
-      .populate(
-        "menu_maintenance_id",
-        "name category description critical_level"
-      )
-      .populate("production_id", "production_date status quantity")
-      .populate(
-        "production_history.production_id",
-        "production_date quantity status"
-      )
-      .populate("updated_by", "firstName lastName");
+      .populate("menu_maintenance_id")
+      .populate("production_id")
+      .populate("updated_by", "name");
 
-    if (!menuItem) {
-      return res.status(404).json({ message: "Menu item not found" });
-    }
-
-    const response = {
-      ...menuItem.toObject(),
-      stockStatus: menuItem.getStockStatus(),
-      availableServings: menuItem.servings,
-    };
-
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// POST /menu - Menu items are now auto-created from Production
-router.post("/", verifyAdmin, async (req, res) => {
-  return res.status(400).json({
-    success: false,
-    message:
-      "Menu items are now automatically created from Productions. Please create a Production with 'Completed' status to add menu items.",
-    redirectTo: "/productions",
-  });
-});
-
-// PUT /menu/:id - Update menu item (Admin only - limited updates)
-router.put("/:id", verifyAdmin, async (req, res) => {
-  try {
-    const { price, is_available } = req.body;
-
-    const menuItem = await Menu.findById(req.params.id);
-
-    if (!menuItem) {
-      return res.status(404).json({ message: "Menu item not found" });
-    }
-
-    // Only allow updating price and availability
-    // Servings are managed through productions
-    if (price !== undefined) menuItem.price = price;
-    if (is_available !== undefined) menuItem.is_available = is_available;
-
-    menuItem.updated_by = req.user._id;
-    await menuItem.save();
-
-    // Populate the response
-    await menuItem.populate([
-      { path: "menu_maintenance_id", select: "name category description" },
-      { path: "updated_by", select: "firstName lastName" },
-    ]);
-
-    res.json({
-      success: true,
-      data: menuItem,
-      message: "Menu item updated successfully",
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// DELETE /menu/:id - Delete menu item (Admin only - use with caution)
-router.delete("/:id", verifyAdmin, async (req, res) => {
-  try {
-    const menuItem = await Menu.findById(req.params.id);
-
-    if (!menuItem) {
-      return res.status(404).json({ message: "Menu item not found" });
-    }
-
-    await Menu.findByIdAndDelete(req.params.id);
-    res.json({
-      success: true,
-      message:
-        "Menu item deleted successfully. Note: This will not affect production records.",
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// PUT /menu/:id/toggle-availability - Toggle menu item availability (Admin only)
-router.put("/:id/toggle-availability", verifyAdmin, async (req, res) => {
-  try {
-    const menuItem = await Menu.findById(req.params.id);
-
-    if (!menuItem) {
-      return res.status(404).json({ message: "Menu item not found" });
-    }
-
-    menuItem.is_available = !menuItem.is_available;
-    menuItem.updated_by = req.user._id;
-    await menuItem.save();
-
-    res.json({
-      success: true,
-      message: `Menu item ${
-        menuItem.is_available ? "enabled" : "disabled"
-      } successfully`,
-      is_available: menuItem.is_available,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// GET /menu/categories/list - Get all available categories
-router.get("/categories/list", async (req, res) => {
-  try {
-    const categories = await Menu.distinct("category");
-    res.json(categories);
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// GET /menu/stats - Get menu statistics
-router.get("/stats/summary", verifyAdmin, async (req, res) => {
-  try {
-    const totalItems = await Menu.countDocuments();
-    const availableItems = await Menu.countDocuments({ is_available: true });
-    const outOfStockItems = await Menu.countDocuments({ servings: 0 });
-
-    // Get low stock items based on critical levels
-    const lowStockItems = await Menu.find({
-      servings: { $gt: 0, $lte: 20 },
-    }).select("name servings critical_level");
-
-    res.json({
-      success: true,
-      data: {
-        total: totalItems,
-        available: availableItems,
-        outOfStock: outOfStockItems,
-        lowStock: lowStockItems.length,
-        lowStockDetails: lowStockItems,
-      },
-      message: "Menu statistics retrieved successfully",
-    });
-  } catch (error) {
-    console.error("Menu stats error:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// POST /menu/:id/deduct - Deduct servings when ordered (for order processing)
-router.post("/:id/deduct", verifyAdmin, async (req, res) => {
-  try {
-    const { quantity } = req.body;
-
-    if (!quantity || quantity < 1) {
-      return res.status(400).json({
-        success: false,
-        message: "Valid quantity is required",
-      });
-    }
-
-    const menuItem = await Menu.findById(req.params.id);
     if (!menuItem) {
       return res.status(404).json({
         success: false,
@@ -285,55 +137,177 @@ router.post("/:id/deduct", verifyAdmin, async (req, res) => {
       });
     }
 
-    await menuItem.deductServings(quantity);
-
     res.json({
       success: true,
-      message: `Deducted ${quantity} serving(s) from ${menuItem.name}`,
-      remainingServings: menuItem.servings,
-      stockStatus: menuItem.getStockStatus(),
+      data: {
+        ...menuItem.toObject(),
+        availableServings: menuItem.servings,
+        stock_status: menuItem.getStockStatus(),
+      },
     });
   } catch (error) {
-    res.status(400).json({
+    console.error("Error fetching menu item:", error);
+    res.status(500).json({
       success: false,
-      message: error.message,
+      message: "Server error",
+      error: error.message,
     });
   }
 });
 
-// GET /menu/debug/all - Debug endpoint to check all menu data
-router.get("/debug/all", verifyAdmin, async (req, res) => {
+// GET /menu/categories/list - Get all unique categories
+router.get("/categories/list", verifyAuth, async (req, res) => {
   try {
-    const menuItems = await Menu.find({})
-      .populate("menu_maintenance_id")
-      .populate("production_id")
-      .populate("production_history.production_id");
+    const categories = await Menu.distinct("category");
+    res.json({
+      success: true,
+      categories: categories.sort(),
+    });
+  } catch (error) {
+    console.error("Error fetching categories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
 
-    const productions = await require("../models/Production")
-      .find({})
-      .populate("menu_id");
+// GET /menu/stats/inventory - Get inventory statistics
+router.get("/stats/inventory", verifyAuth, async (req, res) => {
+  try {
+    const allItems = await Menu.find();
 
-    const menuMaintenance = await MenuMaintenance.find({});
+    const stats = {
+      total_items: allItems.length,
+      available_items: allItems.filter((item) => item.is_available).length,
+      out_of_stock: allItems.filter(
+        (item) => item.getStockStatus() === "out_of_stock"
+      ).length,
+      low_stock: allItems.filter((item) => item.getStockStatus() === "low_stock")
+        .length,
+      in_stock: allItems.filter((item) => item.getStockStatus() === "in_stock")
+        .length,
+      total_servings: allItems.reduce((sum, item) => sum + item.servings, 0),
+    };
 
     res.json({
       success: true,
-      data: {
-        menuItems: menuItems,
-        menuItemsCount: menuItems.length,
-        productions: productions,
-        productionsCount: productions.length,
-        menuMaintenance: menuMaintenance,
-        menuMaintenanceCount: menuMaintenance.length,
-      },
-      message: "Debug data retrieved",
+      stats,
     });
   } catch (error) {
-    console.error("Debug error:", error);
+    console.error("Error fetching inventory stats:", error);
     res.status(500).json({
       success: false,
-      message: "Debug error",
+      message: "Server error",
       error: error.message,
-      stack: error.stack,
+    });
+  }
+});
+
+// POST /menu/check-availability - Check if multiple items have sufficient servings
+router.post("/check-availability", verifyAuth, async (req, res) => {
+  try {
+    const { items } = req.body; // Expected: [{ menu_item_id, quantity }]
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Items array is required",
+      });
+    }
+
+    const availabilityResults = [];
+
+    for (const item of items) {
+      const menuItem = await Menu.findById(item.menu_item_id);
+
+      if (!menuItem) {
+        availabilityResults.push({
+          menu_item_id: item.menu_item_id,
+          available: false,
+          reason: "Menu item not found",
+        });
+        continue;
+      }
+
+      const hasStock = menuItem.hasSufficientServings(item.quantity);
+      availabilityResults.push({
+        menu_item_id: item.menu_item_id,
+        name: menuItem.name,
+        requested: item.quantity,
+        available_servings: menuItem.servings,
+        available: hasStock,
+        reason: hasStock ? "Available" : "Insufficient servings",
+      });
+    }
+
+    const allAvailable = availabilityResults.every((result) => result.available);
+
+    res.json({
+      success: true,
+      all_available: allAvailable,
+      items: availabilityResults,
+    });
+  } catch (error) {
+    console.error("Error checking availability:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// PUT /menu/:id/toggle-availability - Toggle menu item availability
+router.put("/:id/toggle-availability", verifyAuth, async (req, res) => {
+  try {
+    const menuItem = await Menu.findById(req.params.id);
+
+    if (!menuItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Menu item not found",
+      });
+    }
+
+    // Check if we can enable (need servings > 0)
+    if (!menuItem.is_available && menuItem.servings === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot enable menu item with 0 servings. Please produce more servings first.",
+      });
+    }
+
+    // Toggle availability
+    if (menuItem.is_available) {
+      // Disabling: Set manually_disabled flag
+      menuItem.is_available = false;
+      menuItem.manually_disabled = true;
+    } else {
+      // Enabling: Clear manually_disabled flag
+      menuItem.is_available = true;
+      menuItem.manually_disabled = false;
+    }
+    
+    await menuItem.save();
+
+    res.json({
+      success: true,
+      message: `Menu item ${menuItem.is_available ? "enabled" : "disabled"} successfully`,
+      data: {
+        _id: menuItem._id,
+        name: menuItem.name,
+        is_available: menuItem.is_available,
+        servings: menuItem.servings,
+      },
+    });
+  } catch (error) {
+    console.error("Error toggling availability:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
     });
   }
 });
