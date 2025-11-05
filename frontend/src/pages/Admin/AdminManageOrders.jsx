@@ -348,10 +348,9 @@ const AdminManageOrders = () => {
     }
   };
 
-  // Open add order modal
+  // Open add order modal (now opens POS in new tab)
   const openAddOrderModal = () => {
-    setShowAddOrderModal(true);
-    fetchMenuItems();
+    window.open('/pos', '_blank');
   };
 
 

@@ -122,6 +122,63 @@ router.get("/", verifyAuth, async (req, res) => {
   }
 });
 
+// GET /menu/available - Get only available menu items (simplified for POS)
+router.get("/available", verifyAuth, async (req, res) => {
+  try {
+    const { category, search } = req.query;
+
+    let filter = {
+      is_available: true,
+      servings: { $gt: 0 }
+    };
+
+    // Filter by category
+    if (category) {
+      filter.category = category;
+    }
+
+    // Search by name or description
+    if (search) {
+      filter.$or = [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const menuItems = await Menu.find(filter)
+      .populate("menu_maintenance_id", "name category description")
+      .populate("updated_by", "name")
+      .sort({ category: 1, name: 1 });
+
+    // Return simplified array for POS system
+    const itemsWithServings = menuItems.map((item) => ({
+      _id: item._id,
+      name: item.name,
+      description: item.description,
+      category: item.category,
+      price: item.price,
+      image: item.image,
+      servings: item.servings,
+      availableServings: item.servings, // Alias for frontend
+      critical_level: item.critical_level,
+      is_available: item.is_available,
+      stock_status: item.getStockStatus(),
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+
+    // Return array directly (POS expects array, not wrapped object)
+    res.json(itemsWithServings);
+  } catch (error) {
+    console.error("Error fetching available menu items:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 // GET /menu/:id - Get specific menu item
 router.get("/:id", verifyAuth, async (req, res) => {
   try {
