@@ -81,7 +81,14 @@ const UnitConversion = ({ material, onBack }) => {
     // Only auto-calculate if we have values and SRP is empty or 0
     if (unitPrice > 0 && (!form.srp || parseFloat(form.srp) === 0)) {
       const markupDecimal = markupPercent / 100;
-      const srpPerUnit = unitPrice * (1 + markupDecimal);
+      let srpPerUnit = unitPrice * (1 + markupDecimal);
+      
+      // Ensure SRP is always greater than unit_price (backend requirement)
+      // Add a minimum 0.01% markup if SRP equals or is less than unit_price
+      if (srpPerUnit <= unitPrice) {
+        srpPerUnit = unitPrice * 1.0001; // Add 0.01% minimum markup
+      }
+      
       setForm((prev) => ({
         ...prev,
         srp: srpPerUnit.toFixed(2),
@@ -108,7 +115,14 @@ const UnitConversion = ({ material, onBack }) => {
 
         // Always calculate SRP, even if unitPrice is 0
         const markupDecimal = markupPercent / 100;
-        const srpPerUnit = unitPrice * (1 + markupDecimal);
+        let srpPerUnit = unitPrice * (1 + markupDecimal);
+        
+        // Ensure SRP is always greater than unit_price (backend requirement)
+        // Add a minimum 0.01% markup if SRP equals or is less than unit_price
+        if (unitPrice > 0 && srpPerUnit <= unitPrice) {
+          srpPerUnit = unitPrice * 1.0001; // Add 0.01% minimum markup
+        }
+        
         newForm.srp = srpPerUnit.toFixed(2);
       }
 
@@ -151,7 +165,15 @@ const UnitConversion = ({ material, onBack }) => {
 
     // Calculate SRP using Philippine formula
     const markupDecimal = markupPercent / 100;
-    const calculatedSRP = unitPrice * (1 + markupDecimal);
+    let calculatedSRP = unitPrice * (1 + markupDecimal);
+    
+    // Ensure SRP is always greater than unit_price (backend requirement)
+    // Use existing SRP if available, otherwise calculate
+    if (conversion.srp && parseFloat(conversion.srp) > unitPrice) {
+      calculatedSRP = parseFloat(conversion.srp);
+    } else if (calculatedSRP <= unitPrice) {
+      calculatedSRP = unitPrice * 1.0001; // Add 0.01% minimum markup
+    }
 
     setForm({
       base_unit: conversion.base_unit || "",
@@ -213,13 +235,40 @@ const UnitConversion = ({ material, onBack }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!form.equivalent_unit || !form.quantity || !form.unit_price) {
+    // Validate required fields
+    if (!material?._id) {
+      toast.error("Material information is missing");
+      return;
+    }
+
+    if (!form.base_unit || !form.equivalent_unit || !form.quantity || !form.unit_price) {
       toast.error("Please fill all required fields");
       return;
     }
 
-    // SRP is auto-calculated, so no need for validation
-    // The SRP field will always contain the correct calculated value
+    // Parse and validate numeric values
+    const quantity = parseFloat(form.quantity);
+    const unitPrice = parseFloat(form.unit_price);
+    const markupPercent = parseFloat(form.markup_percent) || 0;
+    const srp = parseFloat(form.srp);
+
+    // Check for NaN or invalid values
+    if (isNaN(quantity) || isNaN(unitPrice) || isNaN(srp)) {
+      toast.error("Please enter valid numeric values");
+      return;
+    }
+
+    // Validate positive values
+    if (quantity <= 0 || unitPrice <= 0 || srp <= 0) {
+      toast.error("Quantity, unit price, and SRP must be greater than 0");
+      return;
+    }
+
+    // Ensure SRP is greater than unit_price (backend requirement)
+    if (srp <= unitPrice) {
+      toast.error("SRP must be greater than unit price");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -227,10 +276,10 @@ const UnitConversion = ({ material, onBack }) => {
         raw_material_id: material._id,
         base_unit: form.base_unit,
         equivalent_unit: form.equivalent_unit,
-        quantity: parseFloat(form.quantity),
-        unit_price: parseFloat(form.unit_price),
-        markup_percent: parseFloat(form.markup_percent),
-        srp: parseFloat(form.srp),
+        quantity: quantity,
+        unit_price: unitPrice,
+        markup_percent: markupPercent,
+        srp: srp,
         is_default_retail: form.is_default_retail,
       };
 

@@ -3,6 +3,7 @@ const router = express.Router();
 const MenuCosting = require("../models/MenuCosting");
 const MenuRecipe = require("../models/MenuRecipe");
 const MenuExpense = require("../models/MenuExpense");
+const UnitConversion = require("../models/UnitConversion");
 const jwt = require("jsonwebtoken");
 
 // Middleware to verify admin role using JWT
@@ -73,17 +74,49 @@ router.post("/", verifyAdmin, async (req, res) => {
 
     // Calculate total production cost from recipes and expenses
     const [recipes, expenses] = await Promise.all([
-      MenuRecipe.find({ menu_id }).populate("raw_material_id", "unit_price"),
+      MenuRecipe.find({ menu_id }).populate("raw_material_id", "unit_price unit"),
       MenuExpense.find({ menu_id }),
     ]);
+
+    // Get all unit conversions for all materials in recipes
+    const materialIds = recipes
+      .map((r) => r.raw_material_id?._id || r.raw_material_id)
+      .filter(Boolean);
+    
+    const allConversions = await UnitConversion.find({
+      raw_material_id: { $in: materialIds },
+    });
 
     // Calculate total cost from recipes
     let totalRecipeCost = 0;
     recipes.forEach((recipe) => {
       const material = recipe.raw_material_id;
-      if (material && material.unit_price) {
-        totalRecipeCost += material.unit_price * recipe.quantity;
-      }
+      if (!material) return;
+
+      const materialId = material._id || material;
+      
+      // Check if the unit matches the material's base unit
+      const isBaseUnit = material.unit === recipe.unit;
+
+      // Find unit conversion for this recipe's unit AND material
+      const unitConversion = allConversions.find((conversion) => {
+        const convMaterialId =
+          conversion.raw_material_id?._id ||
+          conversion.raw_material_id ||
+          conversion.raw_material;
+        return (
+          String(convMaterialId) === String(materialId) &&
+          conversion.equivalent_unit === recipe.unit
+        );
+      });
+
+      // Use unit conversion price if available and not base unit, otherwise use material's base price
+      const unitPrice =
+        !isBaseUnit && unitConversion && unitConversion.unit_price
+          ? unitConversion.unit_price
+          : material.unit_price || 0;
+
+      totalRecipeCost += unitPrice * recipe.quantity;
     });
 
     // Calculate total cost from expenses
@@ -185,18 +218,50 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     const [recipes, expenses] = await Promise.all([
       MenuRecipe.find({ menu_id: costing.menu_id }).populate(
         "raw_material_id",
-        "unit_price"
+        "unit_price unit"
       ),
       MenuExpense.find({ menu_id: costing.menu_id }),
     ]);
+
+    // Get all unit conversions for all materials in recipes
+    const materialIds = recipes
+      .map((r) => r.raw_material_id?._id || r.raw_material_id)
+      .filter(Boolean);
+    
+    const allConversions = await UnitConversion.find({
+      raw_material_id: { $in: materialIds },
+    });
 
     // Calculate total cost from recipes
     let totalRecipeCost = 0;
     recipes.forEach((recipe) => {
       const material = recipe.raw_material_id;
-      if (material && material.unit_price) {
-        totalRecipeCost += material.unit_price * recipe.quantity;
-      }
+      if (!material) return;
+
+      const materialId = material._id || material;
+      
+      // Check if the unit matches the material's base unit
+      const isBaseUnit = material.unit === recipe.unit;
+
+      // Find unit conversion for this recipe's unit AND material
+      const unitConversion = allConversions.find((conversion) => {
+        const convMaterialId =
+          conversion.raw_material_id?._id ||
+          conversion.raw_material_id ||
+          conversion.raw_material;
+        return (
+          String(convMaterialId) === String(materialId) &&
+          conversion.equivalent_unit === recipe.unit
+        );
+      });
+
+      // Use unit conversion price if available and not base unit, otherwise use material's base price
+      const unitPrice =
+        !isBaseUnit && unitConversion && unitConversion.unit_price
+          ? unitConversion.unit_price
+          : material.unit_price || 0;
+
+      totalRecipeCost += unitPrice * recipe.quantity;
     });
 
     // Calculate total cost from expenses

@@ -265,7 +265,17 @@ const Recipe = ({ menuItem, onBack }) => {
       );
       const data = await res.json();
       if (data?.success) {
-        setUnitConversions(Array.isArray(data.data) ? data.data : []);
+        const newConversions = Array.isArray(data.data) ? data.data : [];
+        // Merge with existing conversions, removing duplicates
+        setUnitConversions((prev) => {
+          const existingIds = new Set(
+            prev.map((conv) => conv._id || conv.id).filter(Boolean)
+          );
+          const toAdd = newConversions.filter(
+            (conv) => !existingIds.has(conv._id || conv.id)
+          );
+          return [...prev, ...toAdd];
+        });
       }
     } catch (error) {
       console.error("Error fetching unit conversions:", error);
@@ -347,9 +357,17 @@ const Recipe = ({ menuItem, onBack }) => {
 
   const getSelectedUnitConversion = () => {
     if (!form.raw_material_id || !form.unit) return null;
-    return unitConversions.find(
-      (conversion) => conversion.equivalent_unit === form.unit
-    );
+    const materialIdStr = String(form.raw_material_id);
+    return unitConversions.find((conversion) => {
+      const convMaterialId =
+        conversion.raw_material_id?._id ||
+        conversion.raw_material_id ||
+        conversion.raw_material;
+      return (
+        conversion.equivalent_unit === form.unit &&
+        String(convMaterialId) === materialIdStr
+      );
+    });
   };
 
   const calculateIngredientCost = () => {
@@ -359,12 +377,15 @@ const Recipe = ({ menuItem, onBack }) => {
 
     if (!material || !quantity) return "0.00";
 
-    let unitPrice = material.unit_price || 0;
+    // Check if the unit matches the material's base unit
+    const isBaseUnit = material.unit === form.unit;
 
-    // If using a unit conversion, use the conversion's unit price
-    if (conversion && conversion.unit_price) {
-      unitPrice = conversion.unit_price;
-    }
+    // If using a unit conversion (not base unit), use the conversion's unit price
+    // Otherwise, use the material's base unit price
+    const unitPrice =
+      !isBaseUnit && conversion && conversion.unit_price
+        ? conversion.unit_price
+        : material.unit_price || 0;
 
     return (unitPrice * quantity).toFixed(2);
   };
@@ -375,8 +396,12 @@ const Recipe = ({ menuItem, onBack }) => {
 
     if (!material) return 0;
 
-    // If using a unit conversion, use the conversion's unit price
-    if (conversion && conversion.unit_price) {
+    // Check if the unit matches the material's base unit
+    const isBaseUnit = material.unit === form.unit;
+
+    // If using a unit conversion (not base unit), use the conversion's unit price
+    // Otherwise, use the material's base unit price
+    if (!isBaseUnit && conversion && conversion.unit_price) {
       return conversion.unit_price;
     }
 
@@ -538,9 +563,33 @@ const Recipe = ({ menuItem, onBack }) => {
     let totalRecipeCost = 0;
     recipeItems.forEach((item) => {
       const material = item.raw_material_id;
-      if (material && material.unit_price) {
-        totalRecipeCost += material.unit_price * item.quantity;
-      }
+      if (!material) return;
+
+      const materialId = material._id || material;
+      const materialIdStr = String(materialId);
+
+      // Check if the unit matches the material's base unit
+      const isBaseUnit = material.unit === item.unit;
+
+      // Find unit conversion for this item's unit AND material
+      const unitConversion = unitConversions.find((conversion) => {
+        const convMaterialId =
+          conversion.raw_material_id?._id ||
+          conversion.raw_material_id ||
+          conversion.raw_material;
+        return (
+          conversion.equivalent_unit === item.unit &&
+          String(convMaterialId) === materialIdStr
+        );
+      });
+
+      // Use unit conversion price if available and not base unit, otherwise use material's base price
+      const unitPrice =
+        !isBaseUnit && unitConversion?.unit_price
+          ? unitConversion.unit_price
+          : material.unit_price || 0;
+
+      totalRecipeCost += unitPrice * item.quantity;
     });
 
     // Calculate total cost from expenses
@@ -730,15 +779,31 @@ const Recipe = ({ menuItem, onBack }) => {
                   {recipeItems.map((item) => {
                     // Use the populated raw material data from the backend
                     const material = item.raw_material_id;
+                    const materialId = material?._id || material;
+                    const materialIdStr = String(materialId);
 
-                    // Find unit conversion for this item's unit
+                    // Find unit conversion for this item's unit AND material
                     const unitConversion = unitConversions.find(
-                      (conversion) => conversion.equivalent_unit === item.unit
+                      (conversion) => {
+                        const convMaterialId =
+                          conversion.raw_material_id?._id ||
+                          conversion.raw_material_id ||
+                          conversion.raw_material;
+                        return (
+                          conversion.equivalent_unit === item.unit &&
+                          String(convMaterialId) === materialIdStr
+                        );
+                      }
                     );
 
-                    // Use unit conversion price if available, otherwise use material's base price
+                    // Check if the unit matches the material's base unit
+                    const isBaseUnit = material?.unit === item.unit;
+
+                    // Use unit conversion price if available and not base unit, otherwise use material's base price
                     const unitPrice =
-                      unitConversion?.unit_price || material?.unit_price || 0;
+                      !isBaseUnit && unitConversion?.unit_price
+                        ? unitConversion.unit_price
+                        : material?.unit_price || 0;
                     const total = unitPrice * item.quantity;
 
                     return (
@@ -795,18 +860,31 @@ const Recipe = ({ menuItem, onBack }) => {
                         .reduce((total, item) => {
                           // Use the populated raw material data from the backend
                           const material = item.raw_material_id;
+                          const materialId = material?._id || material;
+                          const materialIdStr = String(materialId);
 
-                          // Find unit conversion for this item's unit
+                          // Find unit conversion for this item's unit AND material
                           const unitConversion = unitConversions.find(
-                            (conversion) =>
-                              conversion.equivalent_unit === item.unit
+                            (conversion) => {
+                              const convMaterialId =
+                                conversion.raw_material_id?._id ||
+                                conversion.raw_material_id ||
+                                conversion.raw_material;
+                              return (
+                                conversion.equivalent_unit === item.unit &&
+                                String(convMaterialId) === materialIdStr
+                              );
+                            }
                           );
 
-                          // Use unit conversion price if available, otherwise use material's base price
+                          // Check if the unit matches the material's base unit
+                          const isBaseUnit = material?.unit === item.unit;
+
+                          // Use unit conversion price if available and not base unit, otherwise use material's base price
                           const unitPrice =
-                            unitConversion?.unit_price ||
-                            material?.unit_price ||
-                            0;
+                            !isBaseUnit && unitConversion?.unit_price
+                              ? unitConversion.unit_price
+                              : material?.unit_price || 0;
 
                           return total + unitPrice * item.quantity;
                         }, 0)
