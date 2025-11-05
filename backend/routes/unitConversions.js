@@ -101,11 +101,11 @@ router.post("/", verifyAdmin, async (req, res) => {
       });
     }
 
-    // Validate SRP is greater than unit price
-    if (parseFloat(srp) <= parseFloat(unit_price)) {
+    // Validate SRP is greater than or equal to unit price
+    if (parseFloat(srp) < parseFloat(unit_price)) {
       return res.status(400).json({
         success: false,
-        message: "SRP must be greater than unit price",
+        message: "SRP must be greater than or equal to unit price",
       });
     }
 
@@ -170,15 +170,15 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       is_default_retail,
     } = req.body;
 
-    // Validate SRP is greater than unit price if provided
+    // Validate SRP is greater than or equal to unit price if provided
     if (
       srp !== undefined &&
       unit_price !== undefined &&
-      parseFloat(srp) <= parseFloat(unit_price)
+      parseFloat(srp) < parseFloat(unit_price)
     ) {
       return res.status(400).json({
         success: false,
-        message: "SRP must be greater than unit price",
+        message: "SRP must be greater than or equal to unit price",
       });
     }
 

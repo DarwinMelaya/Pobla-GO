@@ -81,14 +81,10 @@ const UnitConversion = ({ material, onBack }) => {
     // Only auto-calculate if we have values and SRP is empty or 0
     if (unitPrice > 0 && (!form.srp || parseFloat(form.srp) === 0)) {
       const markupDecimal = markupPercent / 100;
-      let srpPerUnit = unitPrice * (1 + markupDecimal);
-      
-      // Ensure SRP is always greater than unit_price (backend requirement)
-      // Add a minimum 0.01% markup if SRP equals or is less than unit_price
-      if (srpPerUnit <= unitPrice) {
-        srpPerUnit = unitPrice * 1.0001; // Add 0.01% minimum markup
-      }
-      
+      // Calculate SRP based on formula: SRP = Unit Price × (1 + Mark Up)
+      // If markup is 0 or empty, SRP = Unit Price (no automatic markup)
+      const srpPerUnit = unitPrice * (1 + markupDecimal);
+
       setForm((prev) => ({
         ...prev,
         srp: srpPerUnit.toFixed(2),
@@ -113,16 +109,11 @@ const UnitConversion = ({ material, onBack }) => {
             name === "markup_percent" ? value : newForm.markup_percent
           ) || 0;
 
-        // Always calculate SRP, even if unitPrice is 0
+        // Calculate SRP based on formula: SRP = Unit Price × (1 + Mark Up)
+        // If markup is 0 or empty, SRP = Unit Price (no automatic markup)
         const markupDecimal = markupPercent / 100;
-        let srpPerUnit = unitPrice * (1 + markupDecimal);
-        
-        // Ensure SRP is always greater than unit_price (backend requirement)
-        // Add a minimum 0.01% markup if SRP equals or is less than unit_price
-        if (unitPrice > 0 && srpPerUnit <= unitPrice) {
-          srpPerUnit = unitPrice * 1.0001; // Add 0.01% minimum markup
-        }
-        
+        const srpPerUnit = unitPrice * (1 + markupDecimal);
+
         newForm.srp = srpPerUnit.toFixed(2);
       }
 
@@ -163,16 +154,14 @@ const UnitConversion = ({ material, onBack }) => {
     const unitPrice = parseFloat(conversion.unit_price) || 0;
     const markupPercent = parseFloat(conversion.markup_percent) || 0;
 
-    // Calculate SRP using Philippine formula
+    // Calculate SRP using Philippine formula: SRP = Unit Price × (1 + Mark Up)
+    // If markup is 0 or empty, SRP = Unit Price (no automatic markup)
     const markupDecimal = markupPercent / 100;
     let calculatedSRP = unitPrice * (1 + markupDecimal);
-    
-    // Ensure SRP is always greater than unit_price (backend requirement)
-    // Use existing SRP if available, otherwise calculate
+
+    // Use existing SRP if available and it's greater than unit_price
     if (conversion.srp && parseFloat(conversion.srp) > unitPrice) {
       calculatedSRP = parseFloat(conversion.srp);
-    } else if (calculatedSRP <= unitPrice) {
-      calculatedSRP = unitPrice * 1.0001; // Add 0.01% minimum markup
     }
 
     setForm({
@@ -241,7 +230,12 @@ const UnitConversion = ({ material, onBack }) => {
       return;
     }
 
-    if (!form.base_unit || !form.equivalent_unit || !form.quantity || !form.unit_price) {
+    if (
+      !form.base_unit ||
+      !form.equivalent_unit ||
+      !form.quantity ||
+      !form.unit_price
+    ) {
       toast.error("Please fill all required fields");
       return;
     }
@@ -264,9 +258,9 @@ const UnitConversion = ({ material, onBack }) => {
       return;
     }
 
-    // Ensure SRP is greater than unit_price (backend requirement)
-    if (srp <= unitPrice) {
-      toast.error("SRP must be greater than unit price");
+    // Ensure SRP is greater than or equal to unit_price (backend requirement)
+    if (srp < unitPrice) {
+      toast.error("SRP must be greater than or equal to unit price");
       return;
     }
 
