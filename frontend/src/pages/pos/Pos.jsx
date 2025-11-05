@@ -618,164 +618,173 @@ const Pos = () => {
       {/* Main POS Layout */}
       <div className="flex h-[calc(100vh-89px)]">
         {/* Left - Menu Items */}
-        <div className="w-1/3 border-r border-[#383838] p-6 overflow-y-auto bg-[#181818]">
-          <h4 className="text-xl font-semibold text-[#f5f5f5] mb-4">
-            Menu Items
-          </h4>
-          {/* Category selection UI */}
-          <div className="flex flex-wrap gap-3 mb-6">
-            {categories.map((cat, i) => (
-              <button
-                key={cat + i}
-                className={`px-5 py-2 rounded-full font-bold transition-all duration-200 text-sm shadow-lg border-2 focus:outline-none ${
-                  selectedCategory === cat
-                    ? "bg-[#f6b100] text-[#1f1f1f] border-[#f6b100]"
-                    : "bg-[#232323] text-[#ababab] border-[#353535] hover:bg-[#353535] hover:text-[#f6b100]"
-                }`}
-                onClick={() => setSelectedCategory(cat)}
-              >
-                {cat}
-              </button>
-            ))}
+        <div className="w-1/3 border-r border-[#383838] flex flex-col bg-[#181818]">
+          {/* Fixed Header Section */}
+          <div className="p-6 pb-4 flex-shrink-0 bg-[#181818] border-b border-[#383838]">
+            <h4 className="text-xl font-semibold text-[#f5f5f5] mb-4">
+              Menu Items
+            </h4>
+            {/* Category selection UI */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              {categories.map((cat, i) => (
+                <button
+                  key={cat + i}
+                  className={`px-5 py-2 rounded-full font-bold transition-all duration-200 text-sm shadow-lg border-2 focus:outline-none ${
+                    selectedCategory === cat
+                      ? "bg-[#f6b100] text-[#1f1f1f] border-[#f6b100]"
+                      : "bg-[#232323] text-[#ababab] border-[#353535] hover:bg-[#353535] hover:text-[#f6b100]"
+                  }`}
+                  onClick={() => setSelectedCategory(cat)}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative">
+              <Search
+                size={20}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ababab]"
+              />
+              <input
+                type="text"
+                placeholder="Search menu items..."
+                value={menuSearchTerm}
+                onChange={(e) => setMenuSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-3 py-2 bg-[#232323] border border-[#353535] rounded-lg text-sm text-[#f5f5f5] ring-0 focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] shadow"
+              />
+              {menuSearchTerm && (
+                <div className="mt-2 text-xs text-[#ababab]">
+                  {getFilteredMenuItems().length} of {menuItems.length} items
+                  found
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Search Input */}
-          <div className="mb-6 relative">
-            <Search
-              size={20}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#ababab]"
-            />
-            <input
-              type="text"
-              placeholder="Search menu items..."
-              value={menuSearchTerm}
-              onChange={(e) => setMenuSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-3 py-2 bg-[#232323] border border-[#353535] rounded-lg text-sm text-[#f5f5f5] ring-0 focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] shadow"
-            />
-            {menuSearchTerm && (
-              <div className="mt-2 text-xs text-[#ababab]">
-                {getFilteredMenuItems().length} of {menuItems.length} items
-                found
+          {/* Scrollable Menu Content */}
+          <div className="flex-1 p-6 pt-4 overflow-y-auto">
+            {menuItemsLoading ? (
+              <div className="flex justify-center items-center py-8">
+                <RefreshCw size={26} className="animate-spin text-[#f6b100]" />
+                <span className="ml-2 text-[#f5f5f5]">
+                  Loading menu items...
+                </span>
+              </div>
+            ) : menuItems.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-[#ababab] mb-4">
+                  No available menu items found
+                </p>
+                <p className="text-sm text-[#767676] mb-4">
+                  Please ensure menu items are added through Menu Maintenance
+                  and have available servings from Production.
+                </p>
+                <button
+                  onClick={fetchMenuItems}
+                  className="px-4 py-2 bg-[#f6b100] text-[#1f1f1f] rounded-lg font-semibold hover:bg-[#dab000] transition-colors text-sm shadow-lg"
+                >
+                  <RefreshCw size={16} className="inline mr-2" />
+                  Refresh Menu
+                </button>
+              </div>
+            ) : getFilteredMenuItems().length === 0 ? (
+              <div className="text-center py-8">
+                <Search size={48} className="mx-auto text-[#383838] mb-4" />
+                <p className="text-[#ababab] mb-2">No menu items found</p>
+                <p className="text-sm text-[#383838]">
+                  Try adjusting your search terms
+                </p>
+                {menuSearchTerm && (
+                  <button
+                    onClick={() => setMenuSearchTerm("")}
+                    className="mt-2 px-3 py-1 text-sm text-[#f6b100] hover:underline"
+                  >
+                    Clear search
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {getFilteredMenuItems().map((item, index) => {
+                  const itemQuantity =
+                    orderForm.order_items.find(
+                      (orderItem) => orderItem.menu_item_id === item._id
+                    )?.quantity || 0;
+                  const availableServings =
+                    item.availableServings || item.servings || 0;
+                  const isOutOfStock = availableServings <= 0;
+                  const isLowStock =
+                    availableServings <= 2 && availableServings > 0;
+
+                  return (
+                    <div
+                      key={item._id || index}
+                      className={`relative rounded-lg p-4 min-h-[100px] shadow cursor-pointer transition-colors flex flex-col justify-between border-2 ${
+                        isOutOfStock
+                          ? "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed"
+                          : isLowStock
+                          ? "bg-[#38301b] border-yellow-600"
+                          : "bg-[#262626] border-[#383838] hover:border-[#f6b100]"
+                      }`}
+                      onClick={() => !isOutOfStock && addItemToOrder(item)}
+                    >
+                      {/* Quantity badge */}
+                      {itemQuantity > 0 && (
+                        <div className="absolute top-2 right-2 bg-[#f6b100] text-[#232323] rounded-full w-7 h-7 flex items-center justify-center text-base font-bold shadow border-2 border-[#383838]">
+                          {itemQuantity}
+                        </div>
+                      )}
+                      <div className="text-center">
+                        <h5 className="font-medium text-base text-[#f5f5f5] mb-1 truncate">
+                          {item.name || "No name"}
+                        </h5>
+                        <p className="text-xs text-[#ababab] mb-1 truncate">
+                          {item.category}
+                        </p>
+                        <p className="text-sm text-[#f6b100] font-semibold">
+                          {formatCurrency(item.price || 0)}
+                        </p>
+                        <div className="mt-2 text-xs">
+                          <div className="flex items-center justify-center gap-1 mb-1">
+                            <span className="text-[#ababab]">Available:</span>
+                            <span
+                              className={`font-bold ${
+                                isOutOfStock
+                                  ? "text-red-400"
+                                  : isLowStock
+                                  ? "text-[#f6b100]"
+                                  : "text-green-400"
+                              }`}
+                            >
+                              {availableServings}
+                            </span>
+                          </div>
+                          {isOutOfStock && (
+                            <span className="inline-block mt-1 px-2 py-1 bg-[#313131] text-red-400 text-xs font-bold rounded">
+                              OUT OF STOCK
+                            </span>
+                          )}
+                          {isLowStock && !isOutOfStock && (
+                            <span className="inline-block mt-1 px-2 py-1 bg-[#50440a] text-[#f6b100] text-xs font-bold rounded">
+                              LOW STOCK
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
-
-          {menuItemsLoading ? (
-            <div className="flex justify-center items-center py-8">
-              <RefreshCw size={26} className="animate-spin text-[#f6b100]" />
-              <span className="ml-2 text-[#f5f5f5]">Loading menu items...</span>
-            </div>
-          ) : menuItems.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-[#ababab] mb-4">
-                No available menu items found
-              </p>
-              <p className="text-sm text-[#767676] mb-4">
-                Please ensure menu items are added through Menu Maintenance and
-                have available servings from Production.
-              </p>
-              <button
-                onClick={fetchMenuItems}
-                className="px-4 py-2 bg-[#f6b100] text-[#1f1f1f] rounded-lg font-semibold hover:bg-[#dab000] transition-colors text-sm shadow-lg"
-              >
-                <RefreshCw size={16} className="inline mr-2" />
-                Refresh Menu
-              </button>
-            </div>
-          ) : getFilteredMenuItems().length === 0 ? (
-            <div className="text-center py-8">
-              <Search size={48} className="mx-auto text-[#383838] mb-4" />
-              <p className="text-[#ababab] mb-2">No menu items found</p>
-              <p className="text-sm text-[#383838]">
-                Try adjusting your search terms
-              </p>
-              {menuSearchTerm && (
-                <button
-                  onClick={() => setMenuSearchTerm("")}
-                  className="mt-2 px-3 py-1 text-sm text-[#f6b100] hover:underline"
-                >
-                  Clear search
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-4">
-              {getFilteredMenuItems().map((item, index) => {
-                const itemQuantity =
-                  orderForm.order_items.find(
-                    (orderItem) => orderItem.menu_item_id === item._id
-                  )?.quantity || 0;
-                const availableServings =
-                  item.availableServings || item.servings || 0;
-                const isOutOfStock = availableServings <= 0;
-                const isLowStock =
-                  availableServings <= 2 && availableServings > 0;
-
-                return (
-                  <div
-                    key={item._id || index}
-                    className={`relative rounded-lg p-4 min-h-[100px] shadow cursor-pointer transition-colors flex flex-col justify-between border-2 ${
-                      isOutOfStock
-                        ? "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed"
-                        : isLowStock
-                        ? "bg-[#38301b] border-yellow-600"
-                        : "bg-[#262626] border-[#383838] hover:border-[#f6b100]"
-                    }`}
-                    onClick={() => !isOutOfStock && addItemToOrder(item)}
-                  >
-                    {/* Quantity badge */}
-                    {itemQuantity > 0 && (
-                      <div className="absolute top-2 right-2 bg-[#f6b100] text-[#232323] rounded-full w-7 h-7 flex items-center justify-center text-base font-bold shadow border-2 border-[#383838]">
-                        {itemQuantity}
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <h5 className="font-medium text-base text-[#f5f5f5] mb-1 truncate">
-                        {item.name || "No name"}
-                      </h5>
-                      <p className="text-xs text-[#ababab] mb-1 truncate">
-                        {item.category}
-                      </p>
-                      <p className="text-sm text-[#f6b100] font-semibold">
-                        {formatCurrency(item.price || 0)}
-                      </p>
-                      <div className="mt-2 text-xs">
-                        <div className="flex items-center justify-center gap-1 mb-1">
-                          <span className="text-[#ababab]">Available:</span>
-                          <span
-                            className={`font-bold ${
-                              isOutOfStock
-                                ? "text-red-400"
-                                : isLowStock
-                                ? "text-[#f6b100]"
-                                : "text-green-400"
-                            }`}
-                          >
-                            {availableServings}
-                          </span>
-                        </div>
-                        {isOutOfStock && (
-                          <span className="inline-block mt-1 px-2 py-1 bg-[#313131] text-red-400 text-xs font-bold rounded">
-                            OUT OF STOCK
-                          </span>
-                        )}
-                        {isLowStock && !isOutOfStock && (
-                          <span className="inline-block mt-1 px-2 py-1 bg-[#50440a] text-[#f6b100] text-xs font-bold rounded">
-                            LOW STOCK
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
         </div>
 
         {/* Middle - Order Summary */}
         <div className="w-1/3 border-r border-[#383838] flex flex-col bg-[#232323]">
-          <div className="bg-[#181818] px-6 py-4 border-b border-[#383838]">
+          {/* Fixed Header */}
+          <div className="bg-[#181818] px-6 py-4 border-b border-[#383838] flex-shrink-0">
             <div className="grid grid-cols-4 gap-2 text-base font-bold text-[#ababab]">
               <div>ID</div>
               <div>Item</div>
@@ -783,6 +792,7 @@ const Pos = () => {
               <div>Price</div>
             </div>
           </div>
+          {/* Scrollable Order Items */}
           <div className="flex-1 p-6 overflow-y-auto">
             {orderForm.order_items.length === 0 ? (
               <div className="text-center text-[#ababab] py-8">
@@ -793,28 +803,68 @@ const Pos = () => {
                 {orderForm.order_items.map((item, index) => (
                   <div
                     key={index}
-                    className="grid grid-cols-4 gap-2 text-base bg-[#262626] text-[#f5f5f5] p-3 rounded-lg border border-[#383838] shadow"
+                    className="bg-[#262626] text-[#f5f5f5] p-3 rounded-lg border border-[#383838] shadow"
                   >
-                    <div>#{index + 1}</div>
-                    <div className="font-medium truncate">{item.item_name}</div>
-                    <div className="text-center">{item.quantity}</div>
-                    <div className="text-right font-semibold text-[#f6b100]">
-                      {formatCurrency(item.total_price)}
+                    <div className="grid grid-cols-4 gap-2 text-base mb-2">
+                      <div>#{index + 1}</div>
+                      <div className="font-medium truncate col-span-2">
+                        {item.item_name}
+                      </div>
+                      <div className="text-right font-semibold text-[#f6b100]">
+                        {formatCurrency(item.total_price)}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() =>
+                            updateItemQuantity(index, item.quantity - 1)
+                          }
+                          className="p-1.5 bg-[#353535] hover:bg-[#ff4747] text-white rounded-lg transition-colors"
+                          title="Decrease quantity"
+                        >
+                          <Minus size={16} />
+                        </button>
+                        <span className="text-base font-semibold min-w-[30px] text-center">
+                          {item.quantity}
+                        </span>
+                        <button
+                          onClick={() =>
+                            updateItemQuantity(index, item.quantity + 1)
+                          }
+                          className="p-1.5 bg-[#353535] hover:bg-[#4ec57a] text-white rounded-lg transition-colors"
+                          title="Increase quantity"
+                        >
+                          <Plus size={16} />
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => removeItemFromOrder(index)}
+                        className="p-1.5 bg-[#353535] hover:bg-[#ff4747] text-white rounded-lg transition-colors"
+                        title="Remove item"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div className="px-6 py-4 border-t border-[#383838]">
+          <div className="px-6 py-4 border-t border-[#383838] bg-[#181818] flex-shrink-0">
             <button
               onClick={() =>
                 setOrderForm((prev) => ({ ...prev, order_items: [] }))
               }
-              className="w-full px-5 py-3 bg-[#ff4747] text-white rounded-lg font-semibold hover:bg-[#c0392b] transition shadow-sm"
               disabled={orderForm.order_items.length === 0}
+              className={`w-full px-5 py-3 rounded-lg font-semibold transition shadow-lg flex items-center justify-center gap-2 ${
+                orderForm.order_items.length === 0
+                  ? "bg-[#353535] text-[#767676] cursor-not-allowed"
+                  : "bg-[#ff4747] text-white hover:bg-[#c0392b]"
+              }`}
             >
-              Delete All
+              <Trash2 size={18} />
+              <span>Clear All Items</span>
             </button>
           </div>
         </div>
