@@ -264,92 +264,111 @@ const RawMaterials = () => {
       ) : materials.length === 0 ? (
         <div className="text-[#ababab]">No raw materials found.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#383838]">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Supplier
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Unit
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Unit Price
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Markup %
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Critical
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#383838]">
-              {materials.map((m) => (
-                <tr key={m._id}>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{m.name}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">
-                    {m.supplier || ""}
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{m.unit}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
-                    {typeof m.unit_price === "number"
-                      ? m.unit_price.toFixed(2)
-                      : "0.00"}
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
-                    {typeof m.markup_percent === "number"
-                      ? m.markup_percent.toFixed(2)
-                      : "0.00"}
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{m.category}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5] text-right">
-                    {m.critical_level ?? 0}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleEquivalent(m)}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
-                      >
-                        <ArrowRight className="w-3 h-3" /> Equivalent
-                      </button>
-                      <button
-                        onClick={() => startEdit(m)}
-                        className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
-                      >
-                        <Edit className="w-3 h-3" /> Edit
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(m)}
-                        className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-[#383838]">
+                <thead>
+                  <tr>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden lg:table-cell">
+                      Supplier
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Unit
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden md:table-cell">
+                      Unit Price
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden lg:table-cell">
+                      Markup %
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden md:table-cell">
+                      Category
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden lg:table-cell">
+                      Critical
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#383838]">
+                  {materials.map((m) => (
+                    <tr key={m._id}>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-sm sm:text-base">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{m.name}</span>
+                          <div className="flex flex-col gap-1 md:hidden mt-1 text-xs text-[#bababa]">
+                            {m.supplier && <span>Supplier: {m.supplier}</span>}
+                            <span>Price: {typeof m.unit_price === "number" ? m.unit_price.toFixed(2) : "0.00"}</span>
+                            <span>Category: {m.category}</span>
+                            {m.markup_percent && (
+                              <span>Markup: {typeof m.markup_percent === "number" ? m.markup_percent.toFixed(2) : "0.00"}%</span>
+                            )}
+                            <span>Critical: {m.critical_level ?? 0}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden lg:table-cell">
+                        {m.supplier || ""}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5]">{m.unit}</td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-right hidden md:table-cell">
+                        {typeof m.unit_price === "number"
+                          ? m.unit_price.toFixed(2)
+                          : "0.00"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-right hidden lg:table-cell">
+                        {typeof m.markup_percent === "number"
+                          ? m.markup_percent.toFixed(2)
+                          : "0.00"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden md:table-cell">
+                        {m.category}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-right hidden lg:table-cell">
+                        {m.critical_level ?? 0}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <div className="flex justify-end gap-1 sm:gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleEquivalent(m)}
+                            className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
+                          >
+                            <ArrowRight className="w-3 h-3" /> <span className="hidden sm:inline">Equivalent</span>
+                          </button>
+                          <button
+                            onClick={() => startEdit(m)}
+                            className="px-2 sm:px-3 py-1 bg-yellow-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" /> <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(m)}
+                            className="px-2 sm:px-3 py-1 bg-red-700 text-white rounded text-xs sm:text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div className="absolute inset-0 bg-black/50" onClick={resetForm} />
-          <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[85vh] overflow-y-auto">
+          <div className="relative bg-[#232323] w-full max-w-2xl rounded-lg border border-[#383838] shadow p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-[#f5f5f5]">
                 {editingId ? "Edit Raw Material" : "Add Raw Material"}
@@ -546,7 +565,7 @@ const RawMaterials = () => {
       )}
 
       {isDeleteOpen && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => {
@@ -554,7 +573,7 @@ const RawMaterials = () => {
               setDeleteTarget(null);
             }}
           />
-          <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
+          <div className="relative bg-[#232323] w-full max-w-md rounded-lg border border-[#383838] shadow p-4 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-[#f5f5f5]">
                 Delete Raw Material

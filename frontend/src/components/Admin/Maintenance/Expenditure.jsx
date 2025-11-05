@@ -170,58 +170,69 @@ const Expenditure = () => {
       ) : expenses.length === 0 ? (
         <div className="text-[#ababab]">No expenses found.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#383838]">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Expense
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#383838]">
-              {expenses.map((expense) => (
-                <tr key={expense._id}>
-                  <td className="px-4 py-2 text-[#f5f5f5]">
-                    {expense.expense}
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">
-                    {expense.description || "-"}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => startEdit(expense)}
-                        className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
-                      >
-                        <Edit className="w-3 h-3" /> Edit
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(expense)}
-                        className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-[#383838]">
+                <thead>
+                  <tr>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Expense
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden sm:table-cell">
+                      Description
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#383838]">
+                  {expenses.map((expense) => (
+                    <tr key={expense._id}>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-sm sm:text-base">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{expense.expense}</span>
+                          {expense.description && (
+                            <span className="text-xs text-[#bababa] sm:hidden mt-1">
+                              {expense.description}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden sm:table-cell">
+                        {expense.description || "-"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <div className="flex justify-end gap-1 sm:gap-2 flex-wrap">
+                          <button
+                            onClick={() => startEdit(expense)}
+                            className="px-2 sm:px-3 py-1 bg-yellow-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" /> <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(expense)}
+                            className="px-2 sm:px-3 py-1 bg-red-700 text-white rounded text-xs sm:text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div className="absolute inset-0 bg-black/50" onClick={resetForm} />
-          <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[85vh] overflow-y-auto">
+          <div className="relative bg-[#232323] w-full max-w-2xl rounded-lg border border-[#383838] shadow p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-[#f5f5f5]">
                 {editingId ? "Edit Expense" : "Add Expense"}
@@ -297,7 +308,7 @@ const Expenditure = () => {
       )}
 
       {isDeleteOpen && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => {
@@ -305,7 +316,7 @@ const Expenditure = () => {
               setDeleteTarget(null);
             }}
           />
-          <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
+          <div className="relative bg-[#232323] w-full max-w-md rounded-lg border border-[#383838] shadow p-4 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-[#f5f5f5]">
                 Delete Expense

@@ -318,96 +318,119 @@ const Menus = () => {
       ) : menuItems.length === 0 ? (
         <div className="text-[#ababab]">No menu items found.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-[#383838]">
-            <thead>
-              <tr>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Image
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Category
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Critical Level
-                </th>
-                <th className="px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Description
-                </th>
-                <th className="px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#383838]">
-              {menuItems.map((item) => (
-                <tr key={item._id}>
-                  <td className="px-4 py-2">
-                    {item.image ? (
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-[#181818] flex items-center justify-center">
-                        <img
-                          src={item.image}
-                          alt={item.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 rounded-lg bg-[#181818] flex items-center justify-center">
-                        <span className="text-[#666] text-xs">No Image</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{item.name}</td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">{item.category}</td>
-                  <td className="px-4 py-2">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${getCriticalLevelColor(
-                        item.critical_level
-                      )}`}
-                    >
-                      {item.critical_level}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-[#f5f5f5]">
-                    {item.description || "-"}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => handleRecipe(item)}
-                        className="px-3 py-1 bg-blue-600 text-white rounded text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
-                      >
-                        <ChefHat className="w-3 h-3" /> Recipe
-                      </button>
-                      <button
-                        onClick={() => startEdit(item)}
-                        className="px-3 py-1 bg-yellow-600 text-white rounded text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
-                      >
-                        <Edit className="w-3 h-3" /> Edit
-                      </button>
-                      <button
-                        onClick={() => confirmDelete(item)}
-                        className="px-3 py-1 bg-red-700 text-white rounded text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
-                        aria-label="Delete"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-x-auto -mx-6 px-6">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-[#383838]">
+                <thead>
+                  <tr>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Image
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden md:table-cell">
+                      Category
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden lg:table-cell">
+                      Critical Level
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider hidden lg:table-cell">
+                      Description
+                    </th>
+                    <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#383838]">
+                  {menuItems.map((item) => (
+                    <tr key={item._id}>
+                      <td className="px-2 sm:px-4 py-2">
+                        {item.image ? (
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg overflow-hidden bg-[#181818] flex items-center justify-center">
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-[#181818] flex items-center justify-center">
+                            <span className="text-[#666] text-xs">No Image</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-sm sm:text-base">
+                        <div className="flex flex-col sm:block">
+                          <span className="font-medium">{item.name}</span>
+                          <div className="flex flex-col gap-1 md:hidden mt-1">
+                            <span className="text-xs text-[#bababa]">Cat: {item.category}</span>
+                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium w-fit ${getCriticalLevelColor(
+                              item.critical_level
+                            )}`}>
+                              Level: {item.critical_level}
+                            </span>
+                            {item.description && (
+                              <span className="text-xs text-[#bababa]">
+                                {item.description}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden md:table-cell">
+                        {item.category}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 hidden lg:table-cell">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${getCriticalLevelColor(
+                            item.critical_level
+                          )}`}
+                        >
+                          {item.critical_level}
+                        </span>
+                      </td>
+                      <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden lg:table-cell">
+                        {item.description || "-"}
+                      </td>
+                      <td className="px-2 sm:px-4 py-2">
+                        <div className="flex justify-end gap-1 sm:gap-2 flex-wrap">
+                          <button
+                            onClick={() => handleRecipe(item)}
+                            className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
+                          >
+                            <ChefHat className="w-3 h-3" /> <span className="hidden sm:inline">Recipe</span>
+                          </button>
+                          <button
+                            onClick={() => startEdit(item)}
+                            className="px-2 sm:px-3 py-1 bg-yellow-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
+                          >
+                            <Edit className="w-3 h-3" /> <span className="hidden sm:inline">Edit</span>
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(item)}
+                            className="px-2 sm:px-3 py-1 bg-red-700 text-white rounded text-xs sm:text-sm font-bold hover:bg-red-800 transition-colors flex items-center justify-center"
+                            aria-label="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div className="absolute inset-0 bg-black/50" onClick={resetForm} />
-          <div className="relative bg-[#232323] w-full max-w-2xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[85vh] overflow-y-auto">
+          <div className="relative bg-[#232323] w-full max-w-2xl rounded-lg border border-[#383838] shadow p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold text-[#f5f5f5]">
                 {editingId ? "Edit Menu Item" : "Add Menu Item"}
@@ -585,7 +608,7 @@ const Menus = () => {
       )}
 
       {isDeleteOpen && deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto p-4">
           <div
             className="absolute inset-0 bg-black/50"
             onClick={() => {
@@ -593,7 +616,7 @@ const Menus = () => {
               setDeleteTarget(null);
             }}
           />
-          <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
+          <div className="relative bg-[#232323] w-full max-w-md rounded-lg border border-[#383838] shadow p-4 sm:p-6">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-bold text-[#f5f5f5]">
                 Delete Menu Item
