@@ -20,6 +20,7 @@ import {
   Pos,
   StaffProductions,
   AdminUsers,
+  StaffInventoryMaterials,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -160,6 +161,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Staff">
               <StaffProductions />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/staff-inventory-materials"
+          element={
+            <ProtectedRoute requiredRole="Staff">
+              <StaffInventoryMaterials />
             </ProtectedRoute>
           }
         />

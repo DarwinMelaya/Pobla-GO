@@ -22,6 +22,7 @@ export { default as StaffMenu } from "./Staff/StaffMenu";
 export { default as StaffManageOrders } from "./Staff/StaffManageOrders";
 export { default as StaffManageReservation } from "./Staff/StaffManageReservation";
 export { default as StaffProductions } from "./Staff/StaffProductions";
+export { default as StaffInventoryMaterials } from "./Staff/StaffInventoryMaterials";
 
 // POS
 export { default as Pos } from "./pos/Pos";
