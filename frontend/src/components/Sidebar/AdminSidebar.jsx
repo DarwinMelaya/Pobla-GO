@@ -8,6 +8,7 @@ import {
   TrendingUp,
   FileBarChart,
   UserCheck,
+  User,
   Wrench,
   Factory,
   ShoppingCart,
@@ -81,6 +82,12 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       text: "Purchase Orders",
       path: "/admin-purchase-orders",
       isActive: location.pathname === "/admin-purchase-orders",
+    },
+    {
+      icon: User,
+      text: "User",
+      path: "/admin-users",
+      isActive: location.pathname === "/admin-users",
     },
     {
       icon: Wrench,
@@ -169,7 +176,9 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
                 <item.icon
                   size={18}
                   className={`flex-shrink-0 ${
-                    item.isActive ? "text-[#C05050]" : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                    item.isActive
+                      ? "text-[#C05050]"
+                      : "text-[#ababab] group-hover:text-[#f5f5f5]"
                   }`}
                 />
                 <span className="text-sm truncate">{item.text}</span>
@@ -182,7 +191,9 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
                   className={`flex-shrink-0 transition-transform duration-200 ${
                     isInventoryOpen ? "rotate-180" : ""
                   } ${
-                    item.isActive ? "text-[#C05050]" : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                    item.isActive
+                      ? "text-[#C05050]"
+                      : "text-[#ababab] group-hover:text-[#f5f5f5]"
                   }`}
                 />
               )}
