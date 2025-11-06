@@ -17,7 +17,6 @@ import {
 
 const StaffMenu = () => {
   const [menuItems, setMenuItems] = useState([]);
-  const [availableInventory, setAvailableInventory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -44,7 +43,6 @@ const StaffMenu = () => {
     try {
       const token = getAuthToken();
       const queryParams = new URLSearchParams();
-      if (searchTerm) queryParams.append("search", searchTerm);
       if (categoryFilter) queryParams.append("category", categoryFilter);
       if (availabilityFilter)
         queryParams.append("available", availabilityFilter);
@@ -61,7 +59,19 @@ const StaffMenu = () => {
       }
 
       const data = await response.json();
-      setMenuItems(data);
+      
+      // Handle response format from /menu endpoint
+      const itemsArray = data.success && Array.isArray(data.items) 
+        ? data.items 
+        : Array.isArray(data) 
+        ? data 
+        : [];
+      
+      setMenuItems(itemsArray);
+      
+      // Extract unique categories
+      const uniqueCategories = [...new Set(itemsArray.map(item => item.category))];
+      setCategories(uniqueCategories);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -69,45 +79,7 @@ const StaffMenu = () => {
     }
   };
 
-  // Fetch available inventory for ingredients
-  const fetchAvailableInventory = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/inventory/available`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
 
-      if (response.ok) {
-        const data = await response.json();
-        setAvailableInventory(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch inventory:", err);
-    }
-  };
-
-  // Fetch categories
-  const fetchCategories = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/categories/list`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch categories:", err);
-    }
-  };
 
   // Create or update menu item
   const handleSubmit = async (formData) => {
@@ -219,7 +191,6 @@ const StaffMenu = () => {
 
   // Toggle availability
   const handleToggleAvailability = async (item) => {
-    setLoading(true);
     try {
       const token = getAuthToken();
       const response = await fetch(
@@ -242,25 +213,27 @@ const StaffMenu = () => {
       fetchMenuItems();
     } catch (err) {
       toast.error(err.message);
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Filter menu items by search term
+  const filteredMenuItems = menuItems.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Load data on component mount
   useEffect(() => {
     fetchMenuItems();
-    fetchAvailableInventory();
-    fetchCategories();
   }, []);
 
-  // Refetch when search or filter changes
+  // Refetch when filter changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       fetchMenuItems();
     }, 500);
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, categoryFilter, availabilityFilter]);
+  }, [categoryFilter, availabilityFilter]);
 
   return (
     <Layout>
@@ -281,7 +254,7 @@ const StaffMenu = () => {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name..."
+                  placeholder="Search by name or category..."
                   className="w-full pl-10 pr-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
                 />
               </div>
@@ -338,12 +311,15 @@ const StaffMenu = () => {
                 <p className="mt-2 text-[#ababab]">Loading menu items...</p>
               </div>
             </div>
-          ) : menuItems.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <p className="text-[#ababab] text-lg">No menu items found</p>
+          ) : filteredMenuItems.length === 0 ? (
+            <div className="col-span-full text-center py-12 bg-[#232323] rounded-lg border border-[#383838]">
+              <p className="text-[#ababab] text-lg mb-2">No menu items found</p>
+              <p className="text-[#888] text-sm">
+                Create a production with "Completed" status to add menu items.
+              </p>
             </div>
           ) : (
-            menuItems.map((item) => (
+            filteredMenuItems.map((item) => (
               <div
                 key={item._id}
                 className="bg-[#232323] rounded-lg shadow-md border border-[#383838] overflow-hidden hover:shadow-lg transition-shadow"
@@ -456,7 +432,7 @@ const StaffMenu = () => {
                 }
               : {}
           }
-          availableInventory={availableInventory}
+          availableInventory={[]}
         />
 
         {/* Delete Confirmation Modal */}

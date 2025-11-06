@@ -164,8 +164,37 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
+// Middleware to verify staff or admin role using JWT
+const verifyStaffOrAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. No token provided.",
+      });
+    }
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "yourSecretKey"
+    );
+    const user = await User.findById(decoded.userId);
+    if (!user || (user.role !== "Admin" && user.role !== "Staff")) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Staff or Admin role required.",
+      });
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token." });
+  }
+};
+
 // List all productions with filtering
-router.get("/", verifyAdmin, async (req, res) => {
+router.get("/", verifyStaffOrAdmin, async (req, res) => {
   try {
     const { status, menu_id, start_date, end_date } = req.query;
     const filter = {};
@@ -192,7 +221,7 @@ router.get("/", verifyAdmin, async (req, res) => {
 });
 
 // Get single production by ID
-router.get("/:id", verifyAdmin, async (req, res) => {
+router.get("/:id", verifyStaffOrAdmin, async (req, res) => {
   try {
     const production = await Production.findById(req.params.id)
       .populate("menu_id", "name category description image")
@@ -213,7 +242,7 @@ router.get("/:id", verifyAdmin, async (req, res) => {
 });
 
 // Create new production
-router.post("/", verifyAdmin, async (req, res) => {
+router.post("/", verifyStaffOrAdmin, async (req, res) => {
   try {
     const { menu_id, quantity, production_date, status, notes } = req.body;
 
@@ -319,7 +348,7 @@ router.post("/", verifyAdmin, async (req, res) => {
 });
 
 // Update production
-router.put("/:id", verifyAdmin, async (req, res) => {
+router.put("/:id", verifyStaffOrAdmin, async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);
     if (!production) {
@@ -409,7 +438,7 @@ router.put("/:id", verifyAdmin, async (req, res) => {
 });
 
 // Delete production
-router.delete("/:id", verifyAdmin, async (req, res) => {
+router.delete("/:id", verifyStaffOrAdmin, async (req, res) => {
   try {
     const production = await Production.findById(req.params.id);
     if (!production) {
@@ -428,7 +457,7 @@ router.delete("/:id", verifyAdmin, async (req, res) => {
 });
 
 // Get production statistics
-router.get("/stats/summary", verifyAdmin, async (req, res) => {
+router.get("/stats/summary", verifyStaffOrAdmin, async (req, res) => {
   try {
     const totalProductions = await Production.countDocuments();
     const completedProductions = await Production.countDocuments({

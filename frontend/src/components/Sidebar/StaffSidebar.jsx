@@ -4,12 +4,19 @@ import {
   ClipboardList,
   Calendar,
   LogOut,
+  Package,
+  Factory,
+  ChevronDown,
+  Box,
+  Boxes,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 const StaffSidebar = ({ onNavigate, isOpen = true, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
   const navigationItems = [
     // {
@@ -19,10 +26,26 @@ const StaffSidebar = ({ onNavigate, isOpen = true, onClose }) => {
     //   isActive: location.pathname === "/staff-dashboard",
     // },
     {
-      icon: FileText,
-      text: "Menu",
-      path: "/staff-menu",
-      isActive: location.pathname === "/staff-menu",
+      icon: Package,
+      text: "Inventory",
+      hasDropdown: true,
+      isActive:
+        location.pathname === "/staff-menu" ||
+        location.pathname === "/staff-inventory-materials",
+      subItems: [
+        {
+          icon: Box,
+          text: "Menus",
+          path: "/staff-menu",
+          isActive: location.pathname === "/staff-menu",
+        },
+        {
+          icon: Boxes,
+          text: "Raw Materials",
+          path: "/staff-inventory-materials",
+          isActive: location.pathname === "/staff-inventory-materials",
+        },
+      ],
     },
     {
       icon: ClipboardList,
@@ -36,7 +59,21 @@ const StaffSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       path: "/staff-reservations",
       isActive: location.pathname === "/staff-reservations",
     },
+    {
+      icon: Factory,
+      text: "Productions",
+      path: "/staff-productions",
+      isActive: location.pathname === "/staff-productions",
+    },
   ];
+
+  // Auto-open dropdown if any sub-item is active
+  useEffect(() => {
+    const inventoryItem = navigationItems.find((item) => item.hasDropdown);
+    if (inventoryItem?.subItems?.some((subItem) => subItem.isActive)) {
+      setIsInventoryOpen(true);
+    }
+  }, [location.pathname]);
 
   const handleNavigation = (path) => {
     navigate(path);
@@ -79,28 +116,79 @@ const StaffSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       {/* Navigation Items - Scrollable */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
         {navigationItems.map((item, index) => (
-          <div
-            key={index}
-            onClick={() => handleNavigation(item.path)}
-            className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 relative ${
-              item.isActive
-                ? "bg-[#232323] text-[#f5f5f5] font-medium"
-                : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
-            }`}
-          >
-            <item.icon
-              size={18}
-              className={`flex-shrink-0 ${
+          <div key={index}>
+            {/* Main Navigation Item */}
+            <div
+              onClick={() =>
+                item.hasDropdown
+                  ? setIsInventoryOpen(!isInventoryOpen)
+                  : handleNavigation(item.path)
+              }
+              className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 relative ${
                 item.isActive
-                  ? "text-[#C05050]"
-                  : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                  ? "bg-[#232323] text-[#f5f5f5] font-medium"
+                  : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
               }`}
-            />
-            <span className="text-sm truncate">{item.text}</span>
+            >
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <item.icon
+                  size={18}
+                  className={`flex-shrink-0 ${
+                    item.isActive ? "text-[#C05050]" : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                  }`}
+                />
+                <span className="text-sm truncate">{item.text}</span>
+              </div>
 
-            {/* Active indicator bar */}
-            {item.isActive && (
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#C05050] rounded-r-full"></div>
+              {/* Dropdown Arrow for Inventory */}
+              {item.hasDropdown && (
+                <ChevronDown
+                  size={16}
+                  className={`flex-shrink-0 transition-transform duration-200 ${
+                    isInventoryOpen ? "rotate-180" : ""
+                  } ${
+                    item.isActive ? "text-[#C05050]" : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                  }`}
+                />
+              )}
+
+              {/* Active indicator bar */}
+              {item.isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#C05050] rounded-r-full"></div>
+              )}
+            </div>
+
+            {/* Dropdown Sub-items */}
+            {item.hasDropdown && isInventoryOpen && (
+              <div className="ml-7 mt-1 space-y-1 border-l border-[#383838] pl-3">
+                {item.subItems.map((subItem, subIndex) => (
+                  <div
+                    key={subIndex}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNavigation(subItem.path);
+                    }}
+                    className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
+                      subItem.isActive
+                        ? "bg-[#232323] text-[#f5f5f5] font-medium"
+                        : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
+                    }`}
+                  >
+                    <subItem.icon
+                      size={16}
+                      className={`flex-shrink-0 ${
+                        subItem.isActive
+                          ? "text-[#C05050]"
+                          : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                      }`}
+                    />
+                    <span className="text-sm truncate">{subItem.text}</span>
+                    {subItem.isActive && (
+                      <div className="ml-auto w-1 h-1 rounded-full bg-[#C05050]"></div>
+                    )}
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         ))}
