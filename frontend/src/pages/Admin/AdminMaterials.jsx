@@ -65,8 +65,10 @@ const AdminMaterials = () => {
       for (const material of data.data) {
         if (material.raw_material) {
           try {
+            // Extract raw_material ID (handle both populated object and ID string)
+            const rawMaterialId = material.raw_material._id || material.raw_material;
             const convResponse = await fetch(
-              `${API_BASE}/unit-conversions/material/${material.raw_material}`,
+              `${API_BASE}/unit-conversions/material/${rawMaterialId}`,
               {
                 headers: {
                   Authorization: `Bearer ${token}`,
@@ -76,13 +78,8 @@ const AdminMaterials = () => {
             );
             if (convResponse.ok) {
               const convData = await convResponse.json();
-              console.log(`Conversions for ${material.name}:`, convData);
               if (convData.success && convData.data.length > 0) {
                 conversionsMap[material._id] = convData.data[0]; // Use first conversion
-                console.log(
-                  `Stored conversion for ${material.name}:`,
-                  convData.data[0]
-                );
               }
             }
           } catch (err) {
@@ -90,7 +87,6 @@ const AdminMaterials = () => {
           }
         }
       }
-      console.log("All conversions map:", conversionsMap);
       setMaterialConversions(conversionsMap);
     } catch (err) {
       setError(err.message);
@@ -214,15 +210,6 @@ const AdminMaterials = () => {
   const getDisplayQuantity = (value, material) => {
     const roundedValue = Math.round(value * 100) / 100;
 
-    console.log(`getDisplayQuantity called:`, {
-      materialName: material.name,
-      value: value,
-      roundedValue: roundedValue,
-      unit: material.unit,
-      hasConversion: !!materialConversions[material._id],
-      conversion: materialConversions[material._id],
-    });
-
     // If less than 1 and has unit conversion, convert to smaller unit
     if (
       roundedValue < 1 &&
@@ -232,10 +219,6 @@ const AdminMaterials = () => {
       const conversion = materialConversions[material._id];
       const convertedValue =
         Math.round(roundedValue * conversion.quantity * 100) / 100;
-
-      console.log(
-        `Converting ${material.name}: ${roundedValue} ${material.unit} = ${convertedValue} ${conversion.equivalent_unit}`
-      );
 
       return {
         value: convertedValue,

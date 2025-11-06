@@ -4,7 +4,42 @@ const User = require("../models/User");
 const UnitConversion = require("../models/UnitConversion");
 const router = express.Router();
 
-// Middleware to verify admin role
+// Middleware to verify admin or staff role (for read operations)
+const verifyAdminOrStaff = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. No token provided.",
+      });
+    }
+
+    const jwt = require("jsonwebtoken");
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "yourSecretKey"
+    );
+
+    const user = await User.findById(decoded.userId);
+    if (!user || (user.role !== "Admin" && user.role !== "Staff")) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin or Staff role required.",
+      });
+    }
+
+    req.user = user;
+    next();
+  } catch (error) {
+    res.status(401).json({
+      success: false,
+      message: "Invalid token.",
+    });
+  }
+};
+
+// Middleware to verify admin role (for write operations)
 const verifyAdmin = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
@@ -39,11 +74,8 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-// Apply admin verification to all routes
-router.use(verifyAdmin);
-
-// GET /materials - Get all material items
-router.get("/", async (req, res) => {
+// GET /materials - Get all material items (Admin or Staff)
+router.get("/", verifyAdminOrStaff, async (req, res) => {
   try {
     const {
       category,
@@ -94,8 +126,116 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /materials/:id - Get single material item
-router.get("/:id", async (req, res) => {
+// GET /materials/expiring/soon - Get items expiring soon (within 30 days) (Admin or Staff)
+router.get("/expiring/soon", verifyAdminOrStaff, async (req, res) => {
+  try {
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
+    const expiringItems = await Material.find({
+      expiry_date: { $lte: thirtyDaysFromNow, $gte: new Date() },
+    }).sort({ expiry_date: 1 });
+
+    res.status(200).json({
+      success: true,
+      data: expiringItems,
+      count: expiringItems.length,
+    });
+  } catch (error) {
+    console.error("Get expiring items error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// GET /materials/categories - Get all unique categories (Admin or Staff)
+router.get("/categories/list", verifyAdminOrStaff, async (req, res) => {
+  try {
+    const categories = await Material.distinct("category");
+
+    res.status(200).json({
+      success: true,
+      data: categories,
+    });
+  } catch (error) {
+    console.error("Get categories error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// GET /materials/:id/conversions - Get material with all unit conversions (Admin or Staff)
+router.get("/:id/conversions", verifyAdminOrStaff, async (req, res) => {
+  try {
+    const material = await Material.findById(req.params.id)
+      .populate("raw_material", "name unit category")
+      .populate("supplier", "company_name contact_person");
+
+    if (!material) {
+      return res.status(404).json({
+        success: false,
+        message: "Material item not found",
+      });
+    }
+
+    // Get all unit conversions for this raw material
+    const conversions = await UnitConversion.find({
+      raw_material_id: material.raw_material,
+    }).sort({ equivalent_unit: 1 });
+
+    // Calculate equivalent quantities in all available units
+    const equivalentQuantities = [
+      {
+        unit: material.unit,
+        quantity: material.quantity,
+        available: material.available,
+        isBase: true,
+      },
+    ];
+
+    // Add converted units
+    conversions.forEach((conversion) => {
+      // Convert base unit to equivalent unit
+      // Example: 10 Sacks * 25 (kilos per sack) = 250 kilos
+      const convertedQty = material.quantity * conversion.quantity;
+      const convertedAvailable = material.available * conversion.quantity;
+
+      equivalentQuantities.push({
+        unit: conversion.equivalent_unit,
+        quantity: convertedQty,
+        available: convertedAvailable,
+        isBase: false,
+        conversionId: conversion._id,
+        conversionFactor: conversion.quantity,
+      });
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        material,
+        conversions,
+        equivalentQuantities,
+      },
+    });
+  } catch (error) {
+    console.error("Get material conversions error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// GET /materials/:id - Get single material item (Admin or Staff)
+router.get("/:id", verifyAdminOrStaff, async (req, res) => {
   try {
     const material = await Material.findById(req.params.id)
       .populate("raw_material", "name unit category")
@@ -122,8 +262,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// POST /materials - Create new material item
-router.post("/", async (req, res) => {
+// POST /materials - Create new material item (Admin only)
+router.post("/", verifyAdmin, async (req, res) => {
   try {
     const {
       raw_material,
@@ -207,8 +347,8 @@ router.post("/", async (req, res) => {
   }
 });
 
-// PUT /materials/:id - Update material item
-router.put("/:id", async (req, res) => {
+// PUT /materials/:id - Update material item (Admin only)
+router.put("/:id", verifyAdmin, async (req, res) => {
   try {
     const {
       raw_material,
@@ -298,8 +438,8 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// DELETE /materials/:id - Delete material item
-router.delete("/:id", async (req, res) => {
+// DELETE /materials/:id - Delete material item (Admin only)
+router.delete("/:id", verifyAdmin, async (req, res) => {
   try {
     const material = await Material.findById(req.params.id);
     if (!material) {
@@ -317,114 +457,6 @@ router.delete("/:id", async (req, res) => {
     });
   } catch (error) {
     console.error("Delete material error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
-
-// GET /materials/expiring/soon - Get items expiring soon (within 30 days)
-router.get("/expiring/soon", async (req, res) => {
-  try {
-    const thirtyDaysFromNow = new Date();
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-
-    const expiringItems = await Material.find({
-      expiry_date: { $lte: thirtyDaysFromNow, $gte: new Date() },
-    }).sort({ expiry_date: 1 });
-
-    res.status(200).json({
-      success: true,
-      data: expiringItems,
-      count: expiringItems.length,
-    });
-  } catch (error) {
-    console.error("Get expiring items error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
-
-// GET /materials/categories - Get all unique categories
-router.get("/categories/list", async (req, res) => {
-  try {
-    const categories = await Material.distinct("category");
-
-    res.status(200).json({
-      success: true,
-      data: categories,
-    });
-  } catch (error) {
-    console.error("Get categories error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error",
-      error: error.message,
-    });
-  }
-});
-
-// GET /materials/:id/conversions - Get material with all unit conversions
-router.get("/:id/conversions", async (req, res) => {
-  try {
-    const material = await Material.findById(req.params.id)
-      .populate("raw_material", "name unit category")
-      .populate("supplier", "company_name contact_person");
-
-    if (!material) {
-      return res.status(404).json({
-        success: false,
-        message: "Material item not found",
-      });
-    }
-
-    // Get all unit conversions for this raw material
-    const conversions = await UnitConversion.find({
-      raw_material_id: material.raw_material,
-    }).sort({ equivalent_unit: 1 });
-
-    // Calculate equivalent quantities in all available units
-    const equivalentQuantities = [
-      {
-        unit: material.unit,
-        quantity: material.quantity,
-        available: material.available,
-        isBase: true,
-      },
-    ];
-
-    // Add converted units
-    conversions.forEach((conversion) => {
-      // Convert base unit to equivalent unit
-      // Example: 10 Sacks * 25 (kilos per sack) = 250 kilos
-      const convertedQty = material.quantity * conversion.quantity;
-      const convertedAvailable = material.available * conversion.quantity;
-
-      equivalentQuantities.push({
-        unit: conversion.equivalent_unit,
-        quantity: convertedQty,
-        available: convertedAvailable,
-        isBase: false,
-        conversionId: conversion._id,
-        conversionFactor: conversion.quantity,
-      });
-    });
-
-    res.status(200).json({
-      success: true,
-      data: {
-        material,
-        conversions,
-        equivalentQuantities,
-      },
-    });
-  } catch (error) {
-    console.error("Get material conversions error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
