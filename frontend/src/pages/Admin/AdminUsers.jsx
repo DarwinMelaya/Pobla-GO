@@ -1,11 +1,145 @@
+import { useState, useEffect, useMemo } from "react";
 import Layout from "../../components/Layout/Layout";
+import toast from "react-hot-toast";
+import { Users } from "lucide-react";
+
+const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+
 const AdminUsers = () => {
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const authHeaders = useMemo(() => {
+    const token = localStorage.getItem("token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }, []);
+
+  useEffect(() => {
+    fetchUsers();
+  }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE}/auth/users`, {
+        headers: { ...authHeaders },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(Array.isArray(data?.data) ? data.data : []);
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData?.message || "Failed to fetch users");
+      }
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      toast.error("Error fetching users");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const roleColors = {
+    Admin: "bg-purple-600 text-white",
+    Staff: "bg-blue-600 text-white",
+  };
+
   return (
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
-        <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
-          Users
-        </h1>
+        {/* Header */}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
+            <Users className="w-8 h-8 text-[#f6b100]" />
+            Users Management
+          </h1>
+          <p className="text-[#b5b5b5] mt-2">
+            View and manage all system users
+          </p>
+        </div>
+
+        {/* Users Table */}
+        {loading ? (
+          <div className="text-[#ababab] p-8 text-center">Loading...</div>
+        ) : users.length === 0 ? (
+          <div className="bg-[#232323] p-12 rounded-lg border border-[#383838] text-center">
+            <Users className="w-16 h-16 text-[#666] mx-auto mb-4" />
+            <p className="text-[#ababab] text-lg">No users found.</p>
+          </div>
+        ) : (
+          <div className="bg-[#232323] rounded-lg shadow border border-[#383838] overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-[#383838]">
+                <thead className="bg-[#181818]">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Name
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Email
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Phone
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Role
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Created At
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#383838]">
+                  {users.map((user) => (
+                    <tr
+                      key={user._id}
+                      className="hover:bg-[#2a2a2a] transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-[#f5f5f5]">
+                          {user.name || user.displayName || "N/A"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-[#cccccc]">{user.email}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-[#cccccc]">
+                          {user.phone || "N/A"}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            roleColors[user.role] || "bg-gray-600 text-white"
+                          }`}
+                        >
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-[#cccccc]">
+                          {formatDate(user.createdAt)}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   );

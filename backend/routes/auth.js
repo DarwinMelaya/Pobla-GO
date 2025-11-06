@@ -139,6 +139,56 @@ router.post("/signup", async (req, res) => {
   }
 });
 
+// Middleware to verify admin role using JWT
+const verifyAdmin = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. No token provided.",
+      });
+    }
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "yourSecretKey"
+    );
+    const user = await User.findById(decoded.userId);
+    if (!user || user.role !== "Admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin role required.",
+      });
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token." });
+  }
+};
+
+// Get all users (Admin only)
+router.get("/users", verifyAdmin, async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select("-password") // Exclude password from response
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: users,
+      total: users.length,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
 // Logout
 router.get("/logout", (req, res) => {
   req.logout((err) => {
