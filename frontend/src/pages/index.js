@@ -15,6 +15,7 @@ export { default as AdminProductions } from "./Admin/AdminProductions";
 export { default as AdminPurchaseOrders } from "./Admin/AdminPurchaseOrders";
 export { default as AdminMaterials } from "./Admin/AdminMaterials";
 export { default as AdminUsers } from "./Admin/AdminUsers";
+export { default as AdminInventoryReports } from "./Admin/AdminInventoryReports";
 
 // Staff
 export { default as StaffDashboard } from "./Staff/StaffDashboard";

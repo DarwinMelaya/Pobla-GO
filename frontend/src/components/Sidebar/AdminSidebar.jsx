@@ -23,6 +23,7 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
+  const [isReportsOpen, setIsReportsOpen] = useState(false);
 
   const navigationItems = [
     {
@@ -66,12 +67,6 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       isActive: location.pathname === "/admin-reservations",
     },
     {
-      icon: TrendingUp,
-      text: "View Sales",
-      path: "/admin-sales",
-      isActive: location.pathname === "/admin-sales",
-    },
-    {
       icon: Factory,
       text: "Productions",
       path: "/admin-productions",
@@ -82,6 +77,28 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       text: "Purchase Orders",
       path: "/admin-purchase-orders",
       isActive: location.pathname === "/admin-purchase-orders",
+    },
+    {
+      icon: FileBarChart,
+      text: "Reports",
+      hasDropdown: true,
+      isActive:
+        location.pathname === "/admin-sales-report" ||
+        location.pathname === "/admin-inventory-report",
+      subItems: [
+        {
+          icon: TrendingUp,
+          text: "Sales Report",
+          path: "/admin-sales-report",
+          isActive: location.pathname === "/admin-sales-report",
+        },
+        {
+          icon: Package,
+          text: "Inventory Report",
+          path: "/admin-inventory-report",
+          isActive: location.pathname === "/admin-inventory-report",
+        },
+      ],
     },
     {
       icon: User,
@@ -95,12 +112,7 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       path: "/admin-maintenance",
       isActive: location.pathname === "/admin-maintenance",
     },
-    // {
-    //   icon: FileBarChart,
-    //   text: "Generate Reports",
-    //   path: "/admin-reports",
-    //   isActive: location.pathname === "/admin-reports",
-    // },
+
     // {
     //   icon: UserCheck,
     //   text: "View Staff Logs",
@@ -111,9 +123,18 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
 
   // Auto-open dropdown if any sub-item is active
   useEffect(() => {
-    const inventoryItem = navigationItems.find((item) => item.hasDropdown);
+    const inventoryItem = navigationItems.find(
+      (item) => item.text === "Inventory" && item.hasDropdown
+    );
+    const reportsItem = navigationItems.find(
+      (item) => item.text === "Reports" && item.hasDropdown
+    );
+
     if (inventoryItem?.subItems?.some((subItem) => subItem.isActive)) {
       setIsInventoryOpen(true);
+    }
+    if (reportsItem?.subItems?.some((subItem) => subItem.isActive)) {
+      setIsReportsOpen(true);
     }
   }, [location.pathname]);
 
@@ -161,11 +182,17 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
           <div key={index}>
             {/* Main Navigation Item */}
             <div
-              onClick={() =>
-                item.hasDropdown
-                  ? setIsInventoryOpen(!isInventoryOpen)
-                  : handleNavigation(item.path)
-              }
+              onClick={() => {
+                if (item.hasDropdown) {
+                  if (item.text === "Inventory") {
+                    setIsInventoryOpen(!isInventoryOpen);
+                  } else if (item.text === "Reports") {
+                    setIsReportsOpen(!isReportsOpen);
+                  }
+                } else {
+                  handleNavigation(item.path);
+                }
+              }}
               className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 relative ${
                 item.isActive
                   ? "bg-[#232323] text-[#f5f5f5] font-medium"
@@ -184,12 +211,15 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
                 <span className="text-sm truncate">{item.text}</span>
               </div>
 
-              {/* Dropdown Arrow for Inventory */}
+              {/* Dropdown Arrow */}
               {item.hasDropdown && (
                 <ChevronDown
                   size={16}
                   className={`flex-shrink-0 transition-transform duration-200 ${
-                    isInventoryOpen ? "rotate-180" : ""
+                    (item.text === "Inventory" && isInventoryOpen) ||
+                    (item.text === "Reports" && isReportsOpen)
+                      ? "rotate-180"
+                      : ""
                   } ${
                     item.isActive
                       ? "text-[#C05050]"
@@ -205,37 +235,39 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
             </div>
 
             {/* Dropdown Sub-items */}
-            {item.hasDropdown && isInventoryOpen && (
-              <div className="ml-7 mt-1 space-y-1 border-l border-[#383838] pl-3">
-                {item.subItems.map((subItem, subIndex) => (
-                  <div
-                    key={subIndex}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleNavigation(subItem.path);
-                    }}
-                    className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
-                      subItem.isActive
-                        ? "bg-[#232323] text-[#f5f5f5] font-medium"
-                        : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
-                    }`}
-                  >
-                    <subItem.icon
-                      size={16}
-                      className={`flex-shrink-0 ${
+            {item.hasDropdown &&
+              ((item.text === "Inventory" && isInventoryOpen) ||
+                (item.text === "Reports" && isReportsOpen)) && (
+                <div className="ml-7 mt-1 space-y-1 border-l border-[#383838] pl-3">
+                  {item.subItems.map((subItem, subIndex) => (
+                    <div
+                      key={subIndex}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleNavigation(subItem.path);
+                      }}
+                      className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
                         subItem.isActive
-                          ? "text-[#C05050]"
-                          : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                          ? "bg-[#232323] text-[#f5f5f5] font-medium"
+                          : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
                       }`}
-                    />
-                    <span className="text-sm truncate">{subItem.text}</span>
-                    {subItem.isActive && (
-                      <div className="ml-auto w-1 h-1 rounded-full bg-[#C05050]"></div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                    >
+                      <subItem.icon
+                        size={16}
+                        className={`flex-shrink-0 ${
+                          subItem.isActive
+                            ? "text-[#C05050]"
+                            : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                        }`}
+                      />
+                      <span className="text-sm truncate">{subItem.text}</span>
+                      {subItem.isActive && (
+                        <div className="ml-auto w-1 h-1 rounded-full bg-[#C05050]"></div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
           </div>
         ))}
       </nav>
