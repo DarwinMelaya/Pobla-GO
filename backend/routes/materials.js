@@ -170,6 +170,261 @@ router.get("/categories/list", verifyAdminOrStaff, async (req, res) => {
   }
 });
 
+// GET /materials/reports - Get comprehensive inventory reports (Admin only)
+router.get("/reports", verifyAdminOrStaff, async (req, res) => {
+  try {
+    const { lowStockThreshold = 10 } = req.query;
+
+    // Get all materials
+    const allMaterials = await Material.find()
+      .populate("raw_material", "name unit category")
+      .populate("supplier", "company_name contact_person")
+      .sort({ name: 1 });
+
+    const now = new Date();
+    const thirtyDaysFromNow = new Date();
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+    // Calculate statistics
+    const totalItems = allMaterials.length;
+    const totalQuantity = allMaterials.reduce(
+      (sum, item) => sum + (item.quantity || 0),
+      0
+    );
+    const totalAvailable = allMaterials.reduce(
+      (sum, item) => sum + (item.available || 0),
+      0
+    );
+    const totalValue = allMaterials.reduce((sum, item) => {
+      const value = (item.quantity || 0) * (item.purchase_price || 0);
+      return sum + value;
+    }, 0);
+
+    // Low stock items (quantity less than threshold)
+    const lowStockItems = allMaterials.filter(
+      (item) => item.quantity < parseFloat(lowStockThreshold)
+    );
+
+    // Out of stock items
+    const outOfStockItems = allMaterials.filter(
+      (item) => item.quantity === 0
+    );
+
+    // Expiring items (within 30 days)
+    const expiringItems = allMaterials.filter((item) => {
+      if (!item.expiry_date) return false;
+      const expiryDate = new Date(item.expiry_date);
+      return expiryDate >= now && expiryDate <= thirtyDaysFromNow;
+    });
+
+    // Urgent expiring items (within 7 days)
+    const urgentExpiringItems = allMaterials.filter((item) => {
+      if (!item.expiry_date) return false;
+      const expiryDate = new Date(item.expiry_date);
+      return expiryDate >= now && expiryDate <= sevenDaysFromNow;
+    });
+
+    // Expired items
+    const expiredItems = allMaterials.filter((item) => {
+      if (!item.expiry_date) return false;
+      return new Date(item.expiry_date) < now;
+    });
+
+    // Group by category
+    const categoryStats = {};
+    allMaterials.forEach((item) => {
+      const category = item.category || "Uncategorized";
+      if (!categoryStats[category]) {
+        categoryStats[category] = {
+          category,
+          count: 0,
+          totalQuantity: 0,
+          totalValue: 0,
+          lowStockCount: 0,
+        };
+      }
+      categoryStats[category].count++;
+      categoryStats[category].totalQuantity += item.quantity || 0;
+      categoryStats[category].totalValue +=
+        (item.quantity || 0) * (item.purchase_price || 0);
+      if (item.quantity < parseFloat(lowStockThreshold)) {
+        categoryStats[category].lowStockCount++;
+      }
+    });
+
+    // Group by type
+    const typeStats = {};
+    allMaterials.forEach((item) => {
+      const type = item.type || "raw_material";
+      if (!typeStats[type]) {
+        typeStats[type] = {
+          type,
+          count: 0,
+          totalQuantity: 0,
+          totalValue: 0,
+        };
+      }
+      typeStats[type].count++;
+      typeStats[type].totalQuantity += item.quantity || 0;
+      typeStats[type].totalValue +=
+        (item.quantity || 0) * (item.purchase_price || 0);
+    });
+
+    // Recently added items (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const recentlyAddedItems = allMaterials.filter((item) => {
+      const createdAt = new Date(item.createdAt);
+      return createdAt >= thirtyDaysAgo;
+    });
+
+    // Recently updated items (last 30 days)
+    const recentlyUpdatedItems = allMaterials.filter((item) => {
+      const updatedAt = new Date(item.updatedAt);
+      return updatedAt >= thirtyDaysAgo;
+    });
+
+    // Top items by value
+    const topItemsByValue = [...allMaterials]
+      .sort(
+        (a, b) =>
+          (b.quantity || 0) * (b.purchase_price || 0) -
+          (a.quantity || 0) * (a.purchase_price || 0)
+      )
+      .slice(0, 10)
+      .map((item) => ({
+        id: item._id,
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        unit: item.unit,
+        purchase_price: item.purchase_price,
+        total_value: (item.quantity || 0) * (item.purchase_price || 0),
+      }));
+
+    // Items by supplier
+    const supplierStats = {};
+    allMaterials.forEach((item) => {
+      const supplierName =
+        item.supplier?.company_name || item.supplier_name || "No Supplier";
+      if (!supplierStats[supplierName]) {
+        supplierStats[supplierName] = {
+          supplier: supplierName,
+          count: 0,
+          totalValue: 0,
+        };
+      }
+      supplierStats[supplierName].count++;
+      supplierStats[supplierName].totalValue +=
+        (item.quantity || 0) * (item.purchase_price || 0);
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        summary: {
+          totalItems,
+          totalQuantity,
+          totalAvailable,
+          totalValue: parseFloat(totalValue.toFixed(2)),
+          reservedQuantity: totalQuantity - totalAvailable,
+        },
+        alerts: {
+          lowStockCount: lowStockItems.length,
+          outOfStockCount: outOfStockItems.length,
+          expiringCount: expiringItems.length,
+          urgentExpiringCount: urgentExpiringItems.length,
+          expiredCount: expiredItems.length,
+        },
+        lowStockItems: lowStockItems.map((item) => ({
+          id: item._id,
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          available: item.available,
+          unit: item.unit,
+          purchase_price: item.purchase_price,
+        })),
+        outOfStockItems: outOfStockItems.map((item) => ({
+          id: item._id,
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+        })),
+        expiringItems: expiringItems
+          .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))
+          .map((item) => ({
+            id: item._id,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unit: item.unit,
+            expiry_date: item.expiry_date,
+            daysUntilExpiry: Math.ceil(
+              (new Date(item.expiry_date) - now) / (1000 * 60 * 60 * 24)
+            ),
+          })),
+        urgentExpiringItems: urgentExpiringItems
+          .sort((a, b) => new Date(a.expiry_date) - new Date(b.expiry_date))
+          .map((item) => ({
+            id: item._id,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unit: item.unit,
+            expiry_date: item.expiry_date,
+            daysUntilExpiry: Math.ceil(
+              (new Date(item.expiry_date) - now) / (1000 * 60 * 60 * 24)
+            ),
+          })),
+        expiredItems: expiredItems.map((item) => ({
+          id: item._id,
+          name: item.name,
+          category: item.category,
+          quantity: item.quantity,
+          unit: item.unit,
+          expiry_date: item.expiry_date,
+        })),
+        categoryStats: Object.values(categoryStats),
+        typeStats: Object.values(typeStats),
+        supplierStats: Object.values(supplierStats),
+        recentlyAddedItems: recentlyAddedItems
+          .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+          .slice(0, 10)
+          .map((item) => ({
+            id: item._id,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unit: item.unit,
+            createdAt: item.createdAt,
+          })),
+        recentlyUpdatedItems: recentlyUpdatedItems
+          .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
+          .slice(0, 10)
+          .map((item) => ({
+            id: item._id,
+            name: item.name,
+            category: item.category,
+            quantity: item.quantity,
+            unit: item.unit,
+            updatedAt: item.updatedAt,
+          })),
+        topItemsByValue,
+      },
+    });
+  } catch (error) {
+    console.error("Get inventory reports error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
 // GET /materials/:id/conversions - Get material with all unit conversions (Admin or Staff)
 router.get("/:id/conversions", verifyAdminOrStaff, async (req, res) => {
   try {
