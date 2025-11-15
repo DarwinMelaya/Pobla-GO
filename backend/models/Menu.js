@@ -33,9 +33,9 @@ const MenuSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
-  // Base64 encoded image from MenuMaintenance
+  // Supabase Storage URL for the image (from MenuMaintenance)
   image: {
-    type: String,
+    type: String, // Supabase Storage public URL
   },
   // Total available servings from all completed productions
   servings: {

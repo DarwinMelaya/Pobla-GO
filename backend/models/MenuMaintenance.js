@@ -21,9 +21,9 @@ const MenuMaintenanceSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  // Base64 encoded image - no size limit as requested
+  // Supabase Storage URL for the image
   image: {
-    type: String, // Will store base64 encoded image data
+    type: String, // Will store Supabase Storage public URL
   },
   // Admin who created this menu maintenance item
   created_by: {

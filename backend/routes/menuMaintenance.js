@@ -3,6 +3,12 @@ const router = express.Router();
 const MenuMaintenance = require("../models/MenuMaintenance");
 const User = require("../models/User");
 const Category = require("../models/Category");
+const {
+  uploadImageToSupabase,
+  deleteImageFromSupabase,
+  isBase64Image,
+  isUrl,
+} = require("../utils/supabaseStorage");
 
 // Middleware to verify admin role using JWT
 const verifyAdmin = async (req, res, next) => {
@@ -108,12 +114,34 @@ router.post("/", verifyAdmin, async (req, res) => {
       });
     }
 
+    // Handle image upload to Supabase if base64 image is provided
+    let imageUrl = image || "";
+    if (image && isBase64Image(image)) {
+      try {
+        const uploadResult = await uploadImageToSupabase(
+          image,
+          "menu-maintenance"
+        );
+        imageUrl = uploadResult.url;
+        console.log("✅ Image uploaded to Supabase:", imageUrl);
+      } catch (uploadError) {
+        console.error("Error uploading image to Supabase:", uploadError);
+        return res.status(500).json({
+          message: "Failed to upload image to storage",
+          error: uploadError.message,
+        });
+      }
+    } else if (image && isUrl(image)) {
+      // If it's already a URL, use it directly
+      imageUrl = image;
+    }
+
     const menuItem = new MenuMaintenance({
       name,
       category,
       critical_level,
       description,
-      image, // Base64 encoded image - no size limit
+      image: imageUrl,
       created_by: req.user._id,
     });
 
@@ -156,12 +184,50 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       }
     }
 
-    // Update fields
+    // Handle image update
+    if (image !== undefined) {
+      // If new image is provided and it's base64, upload to Supabase
+      if (image && isBase64Image(image)) {
+        try {
+          // Delete old image from Supabase if it exists
+          if (menuItem.image) {
+            await deleteImageFromSupabase(menuItem.image);
+          }
+
+          // Upload new image
+          const uploadResult = await uploadImageToSupabase(
+            image,
+            "menu-maintenance"
+          );
+          menuItem.image = uploadResult.url;
+          console.log("✅ Image updated in Supabase:", menuItem.image);
+        } catch (uploadError) {
+          console.error("Error uploading image to Supabase:", uploadError);
+          return res.status(500).json({
+            message: "Failed to upload image to storage",
+            error: uploadError.message,
+          });
+        }
+      } else if (image && isUrl(image)) {
+        // If it's already a URL, use it directly (but delete old image if different)
+        if (menuItem.image && menuItem.image !== image) {
+          await deleteImageFromSupabase(menuItem.image);
+        }
+        menuItem.image = image;
+      } else if (!image) {
+        // If image is empty/null, delete old image
+        if (menuItem.image) {
+          await deleteImageFromSupabase(menuItem.image);
+        }
+        menuItem.image = "";
+      }
+    }
+
+    // Update other fields
     if (name !== undefined) menuItem.name = name;
     if (category !== undefined) menuItem.category = category;
     if (critical_level !== undefined) menuItem.critical_level = critical_level;
     if (description !== undefined) menuItem.description = description;
-    if (image !== undefined) menuItem.image = image; // Base64 encoded image
 
     await menuItem.save();
 
@@ -184,6 +250,17 @@ router.delete("/:id", verifyAdmin, async (req, res) => {
       return res
         .status(404)
         .json({ message: "Menu maintenance item not found" });
+    }
+
+    // Delete image from Supabase if it exists
+    if (menuItem.image) {
+      try {
+        await deleteImageFromSupabase(menuItem.image);
+        console.log("✅ Image deleted from Supabase");
+      } catch (deleteError) {
+        console.error("Error deleting image from Supabase:", deleteError);
+        // Continue with deletion even if image deletion fails
+      }
     }
 
     await MenuMaintenance.findByIdAndDelete(req.params.id);
