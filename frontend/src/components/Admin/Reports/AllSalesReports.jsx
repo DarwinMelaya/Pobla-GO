@@ -49,7 +49,27 @@ const AllSalesReports = () => {
 
   // State for weekly sales
   const [weeklyData, setWeeklyData] = useState(null);
-  const [selectedWeek, setSelectedWeek] = useState("");
+  const [selectedWeek, setSelectedWeek] = useState(() => {
+    // Initialize with current week (Monday of current week)
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
+    const monday = new Date(today.getFullYear(), today.getMonth(), diff);
+    monday.setHours(0, 0, 0, 0);
+
+    // Get ISO week number
+    const date = new Date(monday);
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
+    const week1 = new Date(date.getFullYear(), 0, 4);
+    const weekNumber =
+      1 +
+      Math.round(
+        ((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+      );
+
+    return `${monday.getFullYear()}-W${String(weekNumber).padStart(2, "0")}`;
+  });
 
   // Get authentication token
   const getAuthToken = () => {
@@ -100,11 +120,24 @@ const AllSalesReports = () => {
   };
 
   // Fetch weekly sales data
-  const fetchWeeklySales = async (weekStart) => {
+  const fetchWeeklySales = async (weekString) => {
     setLoading(true);
     try {
+      // Convert week string (YYYY-Www) to date string (YYYY-MM-DD)
+      // Extract year and week number
+      const [year, weekPart] = weekString.split("-W");
+      const weekNumber = parseInt(weekPart, 10);
+
+      // Calculate the date of Monday of that week
+      const jan4 = new Date(year, 0, 4);
+      const jan4Day = jan4.getDay() || 7;
+      const daysToAdd = (weekNumber - 1) * 7 - (jan4Day - 1) + 1;
+      const monday = new Date(year, 0, 4 + daysToAdd);
+
+      const weekStartDate = monday.toISOString().split("T")[0];
+
       const data = await makeRequest(
-        `/orders/sales/weekly?week_start=${weekStart}`
+        `/orders/sales/weekly?week_start=${weekStartDate}`
       );
       setWeeklyData(data);
     } catch (error) {
@@ -281,12 +314,33 @@ const AllSalesReports = () => {
       ["Date", "Total Orders", "Total Revenue", "Average Order Value"],
       [
         dailyData.date,
-        dailyData.summary.total_orders,
-        dailyData.summary.total_revenue,
-        dailyData.summary.average_order_value,
+        dailyData.summary.total_orders || 0,
+        dailyData.summary.total_revenue || 0,
+        dailyData.summary.average_order_value || 0,
       ],
     ];
     exportToCSV(reportData, `daily-sales-${dailyData.date}.csv`);
+  };
+
+  const exportWeeklyReport = () => {
+    if (!weeklyData) return;
+    const reportData = [
+      [
+        "Week Start",
+        "Week End",
+        "Total Orders",
+        "Total Revenue",
+        "Average Order Value",
+      ],
+      [
+        weeklyData.week_start,
+        weeklyData.week_end,
+        weeklyData.summary.total_orders || 0,
+        weeklyData.summary.total_revenue || 0,
+        weeklyData.summary.average_order_value || 0,
+      ],
+    ];
+    exportToCSV(reportData, `weekly-sales-${weeklyData.week_start}.csv`);
   };
 
   return (
@@ -349,53 +403,116 @@ const AllSalesReports = () => {
             </div>
           </div>
 
-          {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Hourly Sales Breakdown
-              </h3>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-              ) : dailyData ? (
-                <Bar
-                  data={prepareHourlyChartData(dailyData.hourly_breakdown)}
-                  options={chartOptions}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">
-                    No data available for the selected date
-                  </p>
-                </div>
-              )}
+          {/* Summary Cards */}
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
-            <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Payment Methods
-              </h3>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          ) : dailyData ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Receipt className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Total Orders
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        {dailyData.summary.total_orders || 0}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              ) : dailyData ? (
-                <Pie
-                  data={preparePaymentMethodChartData(
-                    dailyData.payment_methods
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Total Revenue
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        ₱
+                        {dailyData.summary.total_revenue
+                          ? dailyData.summary.total_revenue.toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Average Order Value
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        ₱
+                        {dailyData.summary.average_order_value
+                          ? dailyData.summary.average_order_value.toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Charts */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Hourly Sales Breakdown
+                  </h3>
+                  {dailyData.hourly_breakdown &&
+                  dailyData.hourly_breakdown.length > 0 ? (
+                    <Bar
+                      data={prepareHourlyChartData(dailyData.hourly_breakdown)}
+                      options={chartOptions}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">
+                        No hourly data available for the selected date
+                      </p>
+                    </div>
                   )}
-                  options={pieChartOptions}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">
-                    No data available for the selected date
-                  </p>
                 </div>
-              )}
+                <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
+                  <h3 className="text-lg font-semibold text-white mb-4">
+                    Payment Methods
+                  </h3>
+                  {dailyData.payment_methods &&
+                  dailyData.payment_methods.length > 0 ? (
+                    <Pie
+                      data={preparePaymentMethodChartData(
+                        dailyData.payment_methods
+                      )}
+                      options={pieChartOptions}
+                    />
+                  ) : (
+                    <div className="text-center py-12">
+                      <p className="text-gray-500">
+                        No payment method data available for the selected date
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                No data available for the selected date
+              </p>
             </div>
-          </div>
+          )}
         </>
       )}
 
@@ -403,9 +520,18 @@ const AllSalesReports = () => {
       {activeSubView === "weekly" && (
         <div className="space-y-6">
           <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Filter Weekly Sales
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-white">
+                Filter Weekly Sales
+              </h3>
+              <button
+                onClick={exportWeeklyReport}
+                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Weekly Report</span>
+              </button>
+            </div>
             <div className="flex items-center space-x-4">
               <label className="text-sm font-medium text-gray-300">
                 Select Week:
