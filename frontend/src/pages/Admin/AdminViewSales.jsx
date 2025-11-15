@@ -1,20 +1,8 @@
 import Layout from "../../components/Layout/Layout";
 import { useState, useEffect } from "react";
-import {
-  BarChart3,
-  PieChart,
-  TrendingUp,
-  DollarSign,
-  Calendar,
-  Clock,
-  CreditCard,
-  Receipt,
-  Download,
-  Filter,
-  Search,
-  Eye,
-} from "lucide-react";
+import { TrendingUp, Receipt, Download, BarChart3 } from "lucide-react";
 import toast from "react-hot-toast";
+import AllSalesReports from "../../components/Admin/Reports/AllSalesReports";
 
 // Chart.js imports
 import {
@@ -25,11 +13,8 @@ import {
   Title,
   Tooltip,
   Legend,
-  ArcElement,
-  PointElement,
-  LineElement,
 } from "chart.js";
-import { Bar, Pie, Line } from "react-chartjs-2";
+import { Bar } from "react-chartjs-2";
 
 // Register Chart.js components
 ChartJS.register(
@@ -38,10 +23,7 @@ ChartJS.register(
   BarElement,
   Title,
   Tooltip,
-  Legend,
-  ArcElement,
-  PointElement,
-  LineElement
+  Legend
 );
 
 // API Base URL
@@ -49,18 +31,8 @@ const API_BASE_URL = "http://localhost:5000";
 
 const AdminViewSales = () => {
   // State for different views
-  const [activeView, setActiveView] = useState("daily");
+  const [activeView, setActiveView] = useState("allSales");
   const [loading, setLoading] = useState(false);
-
-  // State for daily sales
-  const [dailyData, setDailyData] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
-
-  // State for weekly sales
-  const [weeklyData, setWeeklyData] = useState(null);
-  const [selectedWeek, setSelectedWeek] = useState("");
 
   // State for monthly sales
   const [monthlyData, setMonthlyData] = useState(null);
@@ -115,34 +87,6 @@ const AdminViewSales = () => {
     }
   };
 
-  // Fetch daily sales data
-  const fetchDailySales = async (date) => {
-    setLoading(true);
-    try {
-      const data = await makeRequest(`/orders/sales/daily?date=${date}`);
-      setDailyData(data);
-    } catch (error) {
-      toast.error("Failed to fetch daily sales data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fetch weekly sales data
-  const fetchWeeklySales = async (weekStart) => {
-    setLoading(true);
-    try {
-      const data = await makeRequest(
-        `/orders/sales/weekly?week_start=${weekStart}`
-      );
-      setWeeklyData(data);
-    } catch (error) {
-      toast.error("Failed to fetch weekly sales data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Fetch monthly sales data
   const fetchMonthlySales = async (year, month) => {
     setLoading(true);
@@ -180,83 +124,14 @@ const AdminViewSales = () => {
 
   // Load data when component mounts or filters change
   useEffect(() => {
-    if (activeView === "daily") {
-      fetchDailySales(selectedDate);
-    } else if (activeView === "weekly") {
-      if (selectedWeek) {
-        fetchWeeklySales(selectedWeek);
-      }
-    } else if (activeView === "monthly") {
+    if (activeView === "monthly") {
       fetchMonthlySales(selectedYear, selectedMonth);
     } else if (activeView === "transactions") {
       fetchTransactions();
     }
-  }, [
-    activeView,
-    selectedDate,
-    selectedWeek,
-    selectedYear,
-    selectedMonth,
-    transactionFilters,
-  ]);
+  }, [activeView, selectedYear, selectedMonth, transactionFilters]);
 
   // Chart data preparation functions
-  const prepareHourlyChartData = (hourlyData) => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const ordersData = new Array(24).fill(0);
-    const revenueData = new Array(24).fill(0);
-
-    hourlyData.forEach((item) => {
-      ordersData[item._id] = item.orders;
-      revenueData[item._id] = item.revenue;
-    });
-
-    return {
-      labels: hours.map((h) => `${h}:00`),
-      datasets: [
-        {
-          label: "Orders",
-          data: ordersData,
-          backgroundColor: "rgba(59, 130, 246, 0.5)",
-          borderColor: "rgba(59, 130, 246, 1)",
-          borderWidth: 1,
-        },
-        {
-          label: "Revenue (₱)",
-          data: revenueData,
-          backgroundColor: "rgba(16, 185, 129, 0.5)",
-          borderColor: "rgba(16, 185, 129, 1)",
-          borderWidth: 1,
-          yAxisID: "y1",
-        },
-      ],
-    };
-  };
-
-  const preparePaymentMethodChartData = (paymentData) => {
-    return {
-      labels: paymentData.map(
-        (item) => item._id.charAt(0).toUpperCase() + item._id.slice(1)
-      ),
-      datasets: [
-        {
-          data: paymentData.map((item) => item.total_amount),
-          backgroundColor: [
-            "rgba(239, 68, 68, 0.8)",
-            "rgba(59, 130, 246, 0.8)",
-            "rgba(16, 185, 129, 0.8)",
-          ],
-          borderColor: [
-            "rgba(239, 68, 68, 1)",
-            "rgba(59, 130, 246, 1)",
-            "rgba(16, 185, 129, 1)",
-          ],
-          borderWidth: 1,
-        },
-      ],
-    };
-  };
-
   const prepareDailyBreakdownChartData = (dailyData) => {
     const days = [
       "Sunday",
@@ -342,15 +217,6 @@ const AdminViewSales = () => {
     },
   };
 
-  const pieChartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        position: "bottom",
-      },
-    },
-  };
-
   // Export functions
   const exportToCSV = (data, filename) => {
     const csvContent =
@@ -363,20 +229,6 @@ const AdminViewSales = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  };
-
-  const exportDailyReport = () => {
-    if (!dailyData) return;
-    const reportData = [
-      ["Date", "Total Orders", "Total Revenue", "Average Order Value"],
-      [
-        dailyData.date,
-        dailyData.summary.total_orders,
-        dailyData.summary.total_revenue,
-        dailyData.summary.average_order_value,
-      ],
-    ];
-    exportToCSV(reportData, `daily-sales-${dailyData.date}.csv`);
   };
 
   const exportTransactionReport = () => {
@@ -423,15 +275,6 @@ const AdminViewSales = () => {
           </div>
           {/* Page actions: updated POS button style */}
           <div className="flex space-x-2">
-            {activeView === "daily" && (
-              <button
-                onClick={exportDailyReport}
-                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export Daily Report</span>
-              </button>
-            )}
             {activeView === "transactions" && (
               <button
                 onClick={exportTransactionReport}
@@ -445,11 +288,10 @@ const AdminViewSales = () => {
         </div>
 
         {/* Tabs: dark, bold white, POS accent on selected, as in modals */}
-        <div className="border-b border-gray-200">
+        <div className="border-b border-gray-700">
           <nav className="-mb-px flex space-x-8">
             {[
-              { id: "daily", label: "Daily Sales", icon: Calendar },
-              { id: "weekly", label: "Weekly Sales", icon: BarChart3 },
+              { id: "allSales", label: "All Sales Reports", icon: BarChart3 },
               { id: "monthly", label: "Monthly Sales", icon: TrendingUp },
               {
                 id: "transactions",
@@ -462,10 +304,10 @@ const AdminViewSales = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveView(tab.id)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`flex items-center space-x-2 py-3 px-1 border-b-2 font-semibold text-sm transition-colors ${
                     activeView === tab.id
-                      ? "border-blue-500 text-blue-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                      ? "border-blue-500 text-blue-500"
+                      : "border-transparent text-gray-400 hover:text-white hover:border-gray-600"
                   }`}
                 >
                   <Icon className="w-4 h-4" />
@@ -476,168 +318,8 @@ const AdminViewSales = () => {
           </nav>
         </div>
 
-        {/* Filter/search card: dark, rounded modern fields */}
-        {activeView === "daily" && (
-          <div className="bg-[#232323] rounded-lg shadow-sm border p-6 mb-6">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              Filter Daily Sales
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-1">
-                  Select Date:
-                </label>
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#1f1f1f] text-white"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Chart/table cards: dark, rounded, POS text/buttons, chart bg dark */}
-        {activeView === "daily" && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Hourly Sales Breakdown
-              </h3>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-              ) : dailyData ? (
-                <Bar
-                  data={prepareHourlyChartData(dailyData.hourly_breakdown)}
-                  options={chartOptions}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">
-                    No data available for the selected date
-                  </p>
-                </div>
-              )}
-            </div>
-            <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold text-white mb-4">
-                Payment Methods
-              </h3>
-              {loading ? (
-                <div className="flex justify-center items-center h-64">
-                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-                </div>
-              ) : dailyData ? (
-                <Pie
-                  data={preparePaymentMethodChartData(
-                    dailyData.payment_methods
-                  )}
-                  options={pieChartOptions}
-                />
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-gray-500">
-                    No data available for the selected date
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Weekly Sales View */}
-        {activeView === "weekly" && (
-          <div className="space-y-6">
-            <div className="flex items-center space-x-4">
-              <label className="text-sm font-medium text-gray-700">
-                Select Week:
-              </label>
-              <input
-                type="week"
-                value={selectedWeek}
-                onChange={(e) => setSelectedWeek(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-              </div>
-            ) : weeklyData ? (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-blue-100 rounded-lg">
-                        <Receipt className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">
-                          Total Orders
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {weeklyData.summary.total_orders}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <DollarSign className="w-6 h-6 text-green-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">
-                          Total Revenue
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          ₱{weeklyData.summary.total_revenue.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-white p-6 rounded-lg shadow-sm border">
-                    <div className="flex items-center">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <TrendingUp className="w-6 h-6 text-purple-600" />
-                      </div>
-                      <div className="ml-4">
-                        <p className="text-sm font-medium text-gray-600">
-                          Average Order Value
-                        </p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          ₱{weeklyData.summary.average_order_value.toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                    Daily Breakdown
-                  </h3>
-                  <Bar
-                    data={prepareDailyBreakdownChartData(
-                      weeklyData.daily_breakdown
-                    )}
-                    options={chartOptions}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-500">
-                  No data available for the selected week
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* All Sales Reports View */}
+        {activeView === "allSales" && <AllSalesReports />}
 
         {/* Monthly Sales View */}
         {activeView === "monthly" && (
