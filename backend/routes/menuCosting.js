@@ -65,10 +65,18 @@ router.post("/", verifyAdmin, async (req, res) => {
   try {
     const { menu_id, yield, markup_percent, srp } = req.body;
 
-    if (!menu_id || !yield || markup_percent === undefined || !srp) {
+    if (!menu_id || !yield) {
       return res.status(400).json({
         success: false,
-        message: "Menu ID, yield, markup percent, and SRP are required",
+        message: "Menu ID and yield are required",
+      });
+    }
+
+    // Need either markup_percent or srp
+    if (markup_percent === undefined && !srp) {
+      return res.status(400).json({
+        success: false,
+        message: "Either markup percent or SRP is required",
       });
     }
 
@@ -131,13 +139,26 @@ router.post("/", verifyAdmin, async (req, res) => {
     // Calculate production cost per piece
     const production_cost_per_piece = total_production_cost / yield;
 
-    // Calculate net profit
-    const net_profit = srp - production_cost_per_piece;
+    // Calculate SRP from markup percentage if SRP is not provided
+    let finalSRP = srp;
+    let finalMarkup = markup_percent;
+    
+    if (!srp && markup_percent !== undefined && production_cost_per_piece > 0) {
+      finalSRP = production_cost_per_piece * (1 + markup_percent / 100);
+    }
+    
+    // Calculate markup percentage from SRP if markup is not provided
+    if (markup_percent === undefined && srp && production_cost_per_piece > 0) {
+      finalMarkup = ((srp - production_cost_per_piece) / production_cost_per_piece) * 100;
+    }
+
+    // Calculate net profit (markup amount / profit per piece)
+    const net_profit = finalSRP - production_cost_per_piece;
 
     // Calculate gross sales
-    const gross_sales = srp * yield;
+    const gross_sales = finalSRP * yield;
 
-    // Calculate total net income
+    // Calculate total net income (total profit from all pieces)
     const total_net_income = net_profit * yield;
 
     // Check if costing already exists for this menu
@@ -150,8 +171,8 @@ router.post("/", verifyAdmin, async (req, res) => {
         existingCosting._id,
         {
           yield,
-          markup_percent,
-          srp,
+          markup_percent: finalMarkup,
+          srp: finalSRP,
           total_production_cost,
           production_cost_per_piece,
           net_profit,
@@ -165,8 +186,8 @@ router.post("/", verifyAdmin, async (req, res) => {
       costing = new MenuCosting({
         menu_id,
         yield,
-        markup_percent,
-        srp,
+        markup_percent: finalMarkup,
+        srp: finalSRP,
         total_production_cost,
         production_cost_per_piece,
         net_profit,
@@ -196,14 +217,18 @@ router.put("/:id", verifyAdmin, async (req, res) => {
   try {
     const { yield, markup_percent, srp } = req.body;
 
-    if (
-      yield === undefined ||
-      markup_percent === undefined ||
-      srp === undefined
-    ) {
+    if (yield === undefined) {
       return res.status(400).json({
         success: false,
-        message: "Yield, markup percent, and SRP are required",
+        message: "Yield is required",
+      });
+    }
+
+    // Need either markup_percent or srp
+    if (markup_percent === undefined && !srp) {
+      return res.status(400).json({
+        success: false,
+        message: "Either markup percent or SRP is required",
       });
     }
 
@@ -276,21 +301,34 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     // Calculate production cost per piece
     const production_cost_per_piece = total_production_cost / yield;
 
-    // Calculate net profit
-    const net_profit = srp - production_cost_per_piece;
+    // Calculate SRP from markup percentage if SRP is not provided
+    let finalSRP = srp;
+    let finalMarkup = markup_percent;
+    
+    if (!srp && markup_percent !== undefined && production_cost_per_piece > 0) {
+      finalSRP = production_cost_per_piece * (1 + markup_percent / 100);
+    }
+    
+    // Calculate markup percentage from SRP if markup is not provided
+    if (markup_percent === undefined && srp && production_cost_per_piece > 0) {
+      finalMarkup = ((srp - production_cost_per_piece) / production_cost_per_piece) * 100;
+    }
+
+    // Calculate net profit (markup amount / profit per piece)
+    const net_profit = finalSRP - production_cost_per_piece;
 
     // Calculate gross sales
-    const gross_sales = srp * yield;
+    const gross_sales = finalSRP * yield;
 
-    // Calculate total net income
+    // Calculate total net income (total profit from all pieces)
     const total_net_income = net_profit * yield;
 
     const updatedCosting = await MenuCosting.findByIdAndUpdate(
       req.params.id,
       {
         yield,
-        markup_percent,
-        srp,
+        markup_percent: finalMarkup,
+        srp: finalSRP,
         total_production_cost,
         production_cost_per_piece,
         net_profit,

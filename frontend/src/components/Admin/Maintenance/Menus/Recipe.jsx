@@ -555,7 +555,49 @@ const Recipe = ({ menuItem, onBack }) => {
 
   const handleCostingChange = (e) => {
     const { name, value } = e.target;
-    setCostingForm((prev) => ({ ...prev, [name]: value }));
+    setCostingForm((prev) => {
+      const newForm = { ...prev, [name]: value };
+
+      // Calculate cost per piece using current form values
+      const totalCost = calculateTotalProductionCost();
+      const yieldCount = parseFloat(newForm.yield_count) || 1;
+      const costPerPiece = yieldCount > 0 ? totalCost / yieldCount : 0;
+
+      // Calculate SRP from markup percentage
+      if (name === "markup_percent" && value && costPerPiece > 0) {
+        const markupPercent = parseFloat(value) || 0;
+        const calculatedSRP = costPerPiece * (1 + markupPercent / 100);
+        newForm.srp = calculatedSRP.toFixed(2);
+      }
+
+      // Calculate markup percentage from SRP
+      if (name === "srp" && value && costPerPiece > 0) {
+        const srp = parseFloat(value) || 0;
+        const calculatedMarkup = ((srp - costPerPiece) / costPerPiece) * 100;
+        newForm.markup_percent =
+          calculatedMarkup >= 0 ? calculatedMarkup.toFixed(2) : "0.00";
+      }
+
+      // Recalculate when yield changes
+      if (
+        name === "yield_count" &&
+        newForm.markup_percent &&
+        costPerPiece > 0
+      ) {
+        const markupPercent = parseFloat(newForm.markup_percent) || 0;
+        const calculatedSRP = costPerPiece * (1 + markupPercent / 100);
+        newForm.srp = calculatedSRP.toFixed(2);
+      }
+
+      return newForm;
+    });
+  };
+
+  // Calculate markup amount (profit per piece / tubo per product)
+  const calculateMarkupAmount = () => {
+    const costPerPiece = calculateProductionCostPerPiece();
+    const srp = parseFloat(costingForm.srp) || 0;
+    return srp - costPerPiece;
   };
 
   const calculateTotalProductionCost = () => {
@@ -613,6 +655,26 @@ const Recipe = ({ menuItem, onBack }) => {
     return srp - costPerPiece;
   };
 
+  // Calculate SRP from markup percentage
+  const calculateSRPFromMarkup = () => {
+    const costPerPiece = calculateProductionCostPerPiece();
+    const markupPercent = parseFloat(costingForm.markup_percent) || 0;
+    if (costPerPiece > 0) {
+      return costPerPiece * (1 + markupPercent / 100);
+    }
+    return 0;
+  };
+
+  // Calculate markup percentage from SRP
+  const calculateMarkupPercent = () => {
+    const costPerPiece = calculateProductionCostPerPiece();
+    const srp = parseFloat(costingForm.srp) || 0;
+    if (costPerPiece > 0) {
+      return ((srp - costPerPiece) / costPerPiece) * 100;
+    }
+    return 0;
+  };
+
   const calculateGrossSales = () => {
     const srp = parseFloat(costingForm.srp) || 0;
     const yieldCount = parseFloat(costingForm.yield_count) || 1;
@@ -628,22 +690,42 @@ const Recipe = ({ menuItem, onBack }) => {
   const handleCostingSubmit = async (e) => {
     e.preventDefault();
 
-    if (
-      !costingForm.yield_count ||
-      !costingForm.markup_percent ||
-      !costingForm.srp
-    ) {
-      toast.error("Please fill all required fields");
+    if (!costingForm.yield_count) {
+      toast.error("Please fill yield count");
+      return;
+    }
+
+    // Need either markup_percent or srp, or both
+    const hasMarkup =
+      costingForm.markup_percent && parseFloat(costingForm.markup_percent) >= 0;
+    const hasSRP = costingForm.srp && parseFloat(costingForm.srp) > 0;
+
+    if (!hasMarkup && !hasSRP) {
+      toast.error("Please fill either Markup Percentage or SRP");
       return;
     }
 
     setIsCostingSubmitting(true);
     try {
+      let finalSRP = parseFloat(costingForm.srp) || 0;
+      let finalMarkup = parseFloat(costingForm.markup_percent) || 0;
+      const costPerPiece = calculateProductionCostPerPiece();
+
+      // Calculate SRP from markup if SRP is not provided
+      if (!hasSRP && hasMarkup && costPerPiece > 0) {
+        finalSRP = costPerPiece * (1 + finalMarkup / 100);
+      }
+
+      // Calculate markup from SRP if markup is not provided
+      if (!hasMarkup && hasSRP && costPerPiece > 0) {
+        finalMarkup = ((finalSRP - costPerPiece) / costPerPiece) * 100;
+      }
+
       const payload = {
         menu_id: menuItem._id,
         yield: parseFloat(costingForm.yield_count),
-        markup_percent: parseFloat(costingForm.markup_percent),
-        srp: parseFloat(costingForm.srp),
+        markup_percent: finalMarkup,
+        srp: finalSRP,
       };
 
       const res = await fetch(`${API_BASE}/menu-costing`, {
@@ -1013,61 +1095,78 @@ const Recipe = ({ menuItem, onBack }) => {
             </div>
 
             {menuCosting ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">
-                    Total Production Cost
+              <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Total Production Cost
+                    </div>
+                    <div className="text-lg font-bold text-[#f6b100]">
+                      ₱{menuCosting.total_production_cost?.toFixed(2) || "0.00"}
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱{menuCosting.total_production_cost?.toFixed(2) || "0.00"}
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">Yield</div>
+                    <div className="text-lg font-bold text-[#f5f5f5]">
+                      {menuCosting.yield} pieces
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">Yield</div>
-                  <div className="text-lg font-bold text-[#f5f5f5]">
-                    {menuCosting.yield} pieces
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Production Cost per Piece
+                    </div>
+                    <div className="text-lg font-bold text-[#f6b100]">
+                      ₱
+                      {menuCosting.production_cost_per_piece?.toFixed(2) ||
+                        "0.00"}
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">
-                    Production Cost per Piece
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Markup Percentage
+                    </div>
+                    <div className="text-lg font-bold text-[#f5f5f5]">
+                      {menuCosting.markup_percent?.toFixed(2)}%
+                    </div>
+                    <div className="text-xs text-[#ababab] mt-1">
+                      Tubo sa kada product
+                    </div>
                   </div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱
-                    {menuCosting.production_cost_per_piece?.toFixed(2) ||
-                      "0.00"}
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">SRP</div>
+                    <div className="text-lg font-bold text-[#f6b100]">
+                      ₱{menuCosting.srp?.toFixed(2) || "0.00"}
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">Markup (%)</div>
-                  <div className="text-lg font-bold text-[#f5f5f5]">
-                    {menuCosting.markup_percent}%
+                  <div className="p-4 bg-[#181818] rounded-lg border-2 border-[#f6b100]/50">
+                    <div className="text-sm text-[#cccccc] mb-1 font-medium">
+                      Markup Amount (Profit per Piece)
+                    </div>
+                    <div className="text-xl font-bold text-[#f6b100]">
+                      ₱{menuCosting.net_profit?.toFixed(2) || "0.00"}
+                    </div>
+                    <div className="text-xs text-[#ababab] mt-1">
+                      Tubo per product
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">SRP</div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱{menuCosting.srp?.toFixed(2) || "0.00"}
+                  <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
+                    <div className="text-sm text-[#cccccc] mb-1">
+                      Gross Sales
+                    </div>
+                    <div className="text-lg font-bold text-[#f6b100]">
+                      ₱{menuCosting.gross_sales?.toFixed(2) || "0.00"}
+                    </div>
                   </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">Net Profit</div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱{menuCosting.net_profit?.toFixed(2) || "0.00"}
-                  </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">Gross Sales</div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱{menuCosting.gross_sales?.toFixed(2) || "0.00"}
-                  </div>
-                </div>
-                <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
-                  <div className="text-sm text-[#cccccc] mb-1">
-                    Total Net Income
-                  </div>
-                  <div className="text-lg font-bold text-[#f6b100]">
-                    ₱{menuCosting.total_net_income?.toFixed(2) || "0.00"}
+                  <div className="md:col-span-2 p-4 bg-[#181818] rounded-lg border-2 border-[#f6b100]/50">
+                    <div className="text-sm text-[#cccccc] mb-1 font-medium">
+                      Total Net Income (Kabuuang Tubo)
+                    </div>
+                    <div className="text-2xl font-bold text-[#f6b100]">
+                      ₱{menuCosting.total_net_income?.toFixed(2) || "0.00"}
+                    </div>
+                    <div className="text-xs text-[#ababab] mt-1">
+                      Total profit from all {menuCosting.yield} pieces
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1510,7 +1609,10 @@ const Recipe = ({ menuItem, onBack }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-[#cccccc] mb-2">
-                        Markup (%) <span className="text-red-400">*</span>
+                        Markup Percentage (%)
+                        <span className="text-[#ababab] text-xs block mt-1">
+                          Tubo sa kada isang product (Profit per product)
+                        </span>
                       </label>
                       <input
                         type="number"
@@ -1521,14 +1623,22 @@ const Recipe = ({ menuItem, onBack }) => {
                         step="0.01"
                         placeholder="e.g., 30"
                         className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
-                        required
                       />
+                      {costingForm.markup_percent &&
+                        parseFloat(costingForm.markup_percent) > 0 && (
+                          <div className="mt-1 text-xs text-[#f6b100]">
+                            Markup Amount: ₱{calculateMarkupAmount().toFixed(2)}{" "}
+                            per piece
+                          </div>
+                        )}
                     </div>
 
-                    <div className="md:col-span-2">
+                    <div>
                       <label className="block text-sm font-medium text-[#cccccc] mb-2">
-                        SRP (Suggested Retail Price){" "}
-                        <span className="text-red-400">*</span>
+                        SRP (Suggested Retail Price)
+                        <span className="text-[#ababab] text-xs block mt-1">
+                          Selling price per piece
+                        </span>
                       </label>
                       <input
                         type="number"
@@ -1539,13 +1649,14 @@ const Recipe = ({ menuItem, onBack }) => {
                         step="0.01"
                         placeholder="0.00"
                         className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
-                        required
                       />
                     </div>
                   </div>
 
                   {/* Auto-calculated fields display */}
-                  {(costingForm.yield_count || costingForm.srp) && (
+                  {(costingForm.yield_count ||
+                    costingForm.srp ||
+                    costingForm.markup_percent) && (
                     <div className="p-4 bg-[#181818] rounded-lg border border-[#383838]">
                       <h4 className="text-sm font-medium text-[#cccccc] mb-3">
                         Auto-calculated Values
@@ -1567,8 +1678,18 @@ const Recipe = ({ menuItem, onBack }) => {
                             ₱{calculateProductionCostPerPiece().toFixed(2)}
                           </span>
                         </div>
+                        <div className="md:col-span-2 p-2 bg-[#1a1a1a] rounded border border-[#f6b100]/30">
+                          <span className="text-[#cccccc] font-medium">
+                            Markup Amount (Profit per Piece / Tubo per Product):
+                          </span>
+                          <span className="text-[#f6b100] font-bold text-lg ml-2">
+                            ₱{calculateMarkupAmount().toFixed(2)}
+                          </span>
+                        </div>
                         <div>
-                          <span className="text-[#cccccc]">Net Profit:</span>
+                          <span className="text-[#cccccc]">
+                            Net Profit per Piece:
+                          </span>
                           <span className="text-[#f6b100] font-bold ml-2">
                             ₱{calculateNetProfit().toFixed(2)}
                           </span>
@@ -1579,11 +1700,11 @@ const Recipe = ({ menuItem, onBack }) => {
                             ₱{calculateGrossSales().toFixed(2)}
                           </span>
                         </div>
-                        <div className="md:col-span-2">
-                          <span className="text-[#cccccc]">
-                            Total Net Income:
+                        <div className="md:col-span-2 p-2 bg-[#1a1a1a] rounded border border-[#f6b100]/30 mt-2">
+                          <span className="text-[#cccccc] font-medium">
+                            Total Net Income (Kabuuang Tubo):
                           </span>
-                          <span className="text-[#f6b100] font-bold ml-2">
+                          <span className="text-[#f6b100] font-bold text-lg ml-2">
                             ₱{calculateTotalNetIncome().toFixed(2)}
                           </span>
                         </div>
