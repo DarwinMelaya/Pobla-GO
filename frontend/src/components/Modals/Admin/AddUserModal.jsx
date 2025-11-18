@@ -8,6 +8,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
     name: "",
     email: "",
     phone: "",
+    address: "",
     password: "",
     confirmPassword: "",
     role: "Staff",
@@ -32,6 +33,7 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
       name: "",
       email: "",
       phone: "",
+      address: "",
       password: "",
       confirmPassword: "",
       role: "Staff",
@@ -154,6 +156,20 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
               onChange={handleChange}
               className="w-full rounded-lg border border-[#383838] bg-[#232323] px-4 py-3 text-white placeholder-[#707070] focus:border-[#f6b100] focus:outline-none"
               placeholder="Enter phone number"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-[#b5b5b5] mb-2">
+              Full Address
+            </label>
+            <textarea
+              name="address"
+              value={formData.address}
+              onChange={handleChange}
+              rows={3}
+              className="w-full rounded-lg border border-[#383838] bg-[#232323] px-4 py-3 text-white placeholder-[#707070] focus:border-[#f6b100] focus:outline-none resize-none"
+              placeholder="Enter full address"
             />
           </div>
 

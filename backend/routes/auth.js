@@ -70,6 +70,7 @@ router.post("/login", async (req, res) => {
         name: user.name,
         email: user.email,
         phone: user.phone,
+        address: user.address,
         role: user.role,
         createdAt: user.createdAt,
       },
@@ -87,14 +88,48 @@ router.post("/login", async (req, res) => {
 // Signup route
 router.post("/signup", async (req, res) => {
   try {
-    const { name, email, phone, password, role } = req.body;
+    const { name, email, phone, address, password, role } = req.body;
 
     // Validate required fields
-    if (!name || !email || !phone || !password || !role) {
+    if (!name || !email || !phone || !address || !password) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
+    }
+
+    const authHeader = req.headers.authorization;
+    let assignedRole = "Customer";
+
+    if (role && role !== "Customer") {
+      if (!authHeader) {
+        return res.status(403).json({
+          success: false,
+          message: "Admin authorization required to assign this role",
+        });
+      }
+      try {
+        const token = authHeader.split(" ")[1];
+        const decoded = jwt.verify(
+          token,
+          process.env.JWT_SECRET || "yourSecretKey"
+        );
+        const requestingUser = await User.findById(decoded.userId);
+
+        if (!requestingUser || requestingUser.role !== "Admin") {
+          return res.status(403).json({
+            success: false,
+            message: "Only admins can create staff accounts",
+          });
+        }
+
+        assignedRole = role;
+      } catch (error) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid or expired token",
+        });
+      }
     }
 
     // Check if user already exists
@@ -111,8 +146,9 @@ router.post("/signup", async (req, res) => {
       name,
       email,
       phone,
+      address,
       password,
-      role,
+      role: assignedRole,
     });
 
     await newUser.save();
@@ -125,6 +161,7 @@ router.post("/signup", async (req, res) => {
         name: newUser.name,
         email: newUser.email,
         phone: newUser.phone,
+        address: newUser.address,
         role: newUser.role,
         createdAt: newUser.createdAt,
       },

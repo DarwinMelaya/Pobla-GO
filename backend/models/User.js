@@ -11,12 +11,18 @@ const UserSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   phone: { type: String, required: true },
+  address: {
+    type: String,
+    required: function () {
+      return !this.googleId;
+    },
+  },
   password: { type: String, required: true },
   role: {
     type: String,
     required: true,
-    enum: ["Staff", "Admin"],
-    default: "Staff",
+    enum: ["Customer", "Staff", "Admin"],
+    default: "Customer",
   },
 
   // Timestamps

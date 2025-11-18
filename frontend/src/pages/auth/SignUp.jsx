@@ -11,9 +11,9 @@ const SignUp = () => {
     name: "",
     email: "",
     phone: "",
+    address: "",
     password: "",
     confirmPassword: "",
-    role: "",
   });
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -21,10 +21,6 @@ const SignUp = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleRoleSelection = (selectedRole) => {
-    setFormData({ ...formData, role: selectedRole });
   };
 
   const handleSubmit = async (e) => {
@@ -35,9 +31,9 @@ const SignUp = () => {
       !formData.name ||
       !formData.email ||
       !formData.phone ||
+      !formData.address ||
       !formData.password ||
-      !formData.confirmPassword ||
-      !formData.role
+      !formData.confirmPassword
     ) {
       toast.error("Please fill in all fields");
       return;
@@ -70,9 +66,9 @@ const SignUp = () => {
           name: "",
           email: "",
           phone: "",
+          address: "",
           password: "",
           confirmPassword: "",
-          role: "",
         });
         // Navigate to login page
         navigate("/login");
@@ -148,50 +144,66 @@ const SignUp = () => {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Employee Name */}
+              {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  Employee Name
+                  Full Name
                 </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Enter employee name"
+                  placeholder="Enter full name"
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
 
-              {/* Employee Email */}
+              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  Employee Email
+                  Email
                 </label>
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="Enter employee email"
+                  placeholder="Enter email"
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
                   required
                 />
               </div>
 
-              {/* Employee Phone */}
+              {/* Contact Number */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  Employee Phone
+                  Contact Number
                 </label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
-                  placeholder="Enter employee phone"
+                  placeholder="Enter contact number"
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
+                  required
+                />
+              </div>
+
+              {/* Full Address */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Full Address
+                </label>
+                <textarea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Enter full address"
+                  rows={3}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200 resize-none"
                   required
                 />
               </div>
@@ -311,29 +323,6 @@ const SignUp = () => {
                       </svg>
                     )}
                   </button>
-                </div>
-              </div>
-
-              {/* Role Selection */}
-              <div>
-                <label className="block text-sm font-medium text-white/90 mb-2">
-                  Choose your role
-                </label>
-                <div className="flex gap-3 mt-2">
-                  {["Staff", "Admin"].map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => handleRoleSelection(role)}
-                      className={`flex-1 py-3 px-4 rounded-lg font-medium transition-all duration-200 backdrop-blur-sm ${
-                        formData.role === role
-                          ? "bg-[#bf595a] text-white shadow-lg border border-white/30"
-                          : "bg-white/20 text-white/90 hover:bg-white/30 border border-white/30"
-                      }`}
-                    >
-                      {role}
-                    </button>
-                  ))}
                 </div>
               </div>
 
