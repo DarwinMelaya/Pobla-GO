@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import Layout from "../../components/Layout/Layout";
 import AddReservationModal from "../../components/Modals/Admin/AddReservationModal";
 import DeleteReservationModal from "../../components/Modals/Admin/DeleteReservationModal";
@@ -60,7 +61,7 @@ const AdminReservations = () => {
       setReservations(data.data || []);
     } catch (error) {
       console.error("Error fetching reservations:", error);
-      alert("Failed to fetch reservations");
+      toast.error("Failed to fetch reservations");
     } finally {
       setLoading(false);
     }
@@ -94,14 +95,14 @@ const AdminReservations = () => {
       await fetchReservations();
       setShowAddModal(false);
       setEditingReservation(null);
-      alert(
+      toast.success(
         editingReservation
           ? "Reservation updated successfully!"
           : "Reservation created successfully!"
       );
     } catch (error) {
       console.error("Error saving reservation:", error);
-      alert(error.message || "Failed to save reservation");
+      toast.error(error.message || "Failed to save reservation");
     } finally {
       setLoading(false);
     }
@@ -132,10 +133,10 @@ const AdminReservations = () => {
       await fetchReservations();
       setShowDeleteModal(false);
       setDeletingReservation(null);
-      alert("Reservation deleted successfully!");
+      toast.success("Reservation deleted successfully!");
     } catch (error) {
       console.error("Error deleting reservation:", error);
-      alert("Failed to delete reservation");
+      toast.error("Failed to delete reservation");
     } finally {
       setLoading(false);
     }
@@ -163,10 +164,10 @@ const AdminReservations = () => {
       }
 
       await fetchReservations();
-      alert("Reservation status updated successfully!");
+      toast.success("Reservation status updated successfully!");
     } catch (error) {
       console.error("Error updating reservation status:", error);
-      alert("Failed to update reservation status");
+      toast.error("Failed to update reservation status");
     } finally {
       setLoading(false);
     }

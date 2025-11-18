@@ -89,9 +89,16 @@ const Pos = () => {
         setTableStatus(status);
 
         if (!status.available) {
-          toast.error(
-            `Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`
-          );
+          if (status.type === "reservation") {
+            const reservationTime = new Date(status.reservation_date).toLocaleString();
+            toast.error(
+              `Table ${tableNumber} is reserved for ${reservationTime} by ${status.customer} (Status: ${status.status})`
+            );
+          } else {
+            toast.error(
+              `Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`
+            );
+          }
         }
       }
     } catch (error) {
@@ -303,12 +310,20 @@ const Pos = () => {
         const errorData = await response.json();
         if (
           errorData.message &&
-          errorData.message.includes("currently occupied")
+          (errorData.message.includes("currently occupied") ||
+           errorData.message.includes("reserved"))
         ) {
           toast.error(errorData.message);
           // Update table status if provided
           if (errorData.tableStatus) {
             setTableStatus(errorData.tableStatus);
+          }
+          if (errorData.reservation) {
+            setTableStatus({
+              available: false,
+              type: "reservation",
+              ...errorData.reservation,
+            });
           }
           return;
         }
@@ -653,10 +668,16 @@ const Pos = () => {
                     className={`mt-2 p-2 rounded-lg text-xs font-bold ${
                       tableStatus.available
                         ? "bg-[#222d23] text-[#4ec57a] border border-[#4ec57a]"
+                        : tableStatus.type === "reservation"
+                        ? "bg-[#3a2e1f] text-[#f6b100] border border-[#f6b100]"
                         : "bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]"
                     }`}
                   >
-                    {tableStatus.available ? "✅ Available" : "❌ Occupied"}
+                    {tableStatus.available
+                      ? "✅ Available"
+                      : tableStatus.type === "reservation"
+                      ? `⏰ Reserved (${new Date(tableStatus.reservation_date).toLocaleString()})`
+                      : "❌ Occupied"}
                   </div>
                 )}
               </div>

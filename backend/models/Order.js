@@ -73,7 +73,27 @@ OrderSchema.statics.isTableAvailable = async function (tableNumber) {
     table_number: tableNumber,
     status: { $in: ["pending", "preparing", "ready"] },
   });
-  return !activeOrder; // Table is available if no active order exists
+  
+  // Also check for active reservations within a 2-hour window
+  if (!activeOrder) {
+    const Reservation = mongoose.model("Reservation");
+    const now = new Date();
+    const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
+    
+    const activeReservation = await Reservation.findOne({
+      table_number: tableNumber,
+      reservation_date: {
+        $gte: oneHourBefore,
+        $lte: oneHourAfter,
+      },
+      status: { $in: ["pending", "confirmed"] },
+    });
+    
+    return !activeReservation; // Table is available if no active reservation exists
+  }
+  
+  return false; // Table is not available if there's an active order
 };
 
 // Static method to get table status
@@ -83,17 +103,44 @@ OrderSchema.statics.getTableStatus = async function (tableNumber) {
     status: { $in: ["pending", "preparing", "ready"] },
   }).populate("staff_member", "name");
 
-  if (!activeOrder) {
-    return { available: true, order: null };
+  if (activeOrder) {
+    return {
+      available: false,
+      order: activeOrder,
+      status: activeOrder.status,
+      customer: activeOrder.customer_name,
+      staff: activeOrder.staff_member?.name || "Unknown",
+      type: "order", // Indicate this is an order conflict
+    };
   }
 
-  return {
-    available: false,
-    order: activeOrder,
-    status: activeOrder.status,
-    customer: activeOrder.customer_name,
-    staff: activeOrder.staff_member?.name || "Unknown",
-  };
+  // Check for active reservations within a 2-hour window
+  const Reservation = mongoose.model("Reservation");
+  const now = new Date();
+  const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
+  const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
+
+  const activeReservation = await Reservation.findOne({
+    table_number: tableNumber,
+    reservation_date: {
+      $gte: oneHourBefore,
+      $lte: oneHourAfter,
+    },
+    status: { $in: ["pending", "confirmed"] },
+  });
+
+  if (activeReservation) {
+    return {
+      available: false,
+      reservation: activeReservation,
+      status: activeReservation.status,
+      customer: activeReservation.customer_name,
+      reservation_date: activeReservation.reservation_date,
+      type: "reservation", // Indicate this is a reservation conflict
+    };
+  }
+
+  return { available: true, order: null, reservation: null };
 };
 
 // Static method to get all table statuses

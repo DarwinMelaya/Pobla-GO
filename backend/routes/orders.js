@@ -4,6 +4,7 @@ const Order = require("../models/Order");
 const OrderItem = require("../models/OrderItem");
 const Menu = require("../models/Menu");
 const User = require("../models/User");
+const Reservation = require("../models/Reservation");
 
 // Middleware to verify authentication
 const verifyAuth = async (req, res, next) => {
@@ -157,13 +158,41 @@ router.post("/", verifyAuth, async (req, res) => {
       });
     }
 
-    // Check if table is available
+    // Check if table is available (check for active orders)
     const isTableAvailable = await Order.isTableAvailable(table_number);
     if (!isTableAvailable) {
       const tableStatus = await Order.getTableStatus(table_number);
       return res.status(400).json({
         message: `Table ${table_number} is currently occupied. Current order status: ${tableStatus.status}`,
         tableStatus: tableStatus,
+      });
+    }
+
+    // Check if there's an active reservation for this table at the current time
+    // Check for reservations within a 2-hour window (1 hour before to 1 hour after current time)
+    const now = new Date();
+    const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
+    const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
+
+    const activeReservation = await Reservation.findOne({
+      table_number,
+      reservation_date: {
+        $gte: oneHourBefore,
+        $lte: oneHourAfter,
+      },
+      status: { $in: ["pending", "confirmed"] },
+    });
+
+    if (activeReservation) {
+      const reservationTime = new Date(activeReservation.reservation_date).toLocaleString();
+      return res.status(400).json({
+        message: `Table ${table_number} is reserved for ${reservationTime}. Customer: ${activeReservation.customer_name}`,
+        reservation: {
+          id: activeReservation._id,
+          customer_name: activeReservation.customer_name,
+          reservation_date: activeReservation.reservation_date,
+          status: activeReservation.status,
+        },
       });
     }
 
@@ -503,6 +532,13 @@ router.get("/tables/:tableNumber/status", verifyAuth, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     const tableStatus = await Order.getTableStatus(tableNumber);
+    
+    // Enhance response with reservation details if applicable
+    if (!tableStatus.available && tableStatus.type === "reservation") {
+      const reservationTime = new Date(tableStatus.reservation_date).toLocaleString();
+      tableStatus.message = `Table ${tableNumber} is reserved for ${reservationTime}. Customer: ${tableStatus.customer}`;
+    }
+    
     res.json(tableStatus);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

@@ -1,5 +1,6 @@
 const express = require("express");
 const Reservation = require("../models/Reservation");
+const Order = require("../models/Order");
 const router = express.Router();
 
 // Middleware to verify JWT token
@@ -106,6 +107,27 @@ router.post("/", authenticateToken, async (req, res) => {
       });
     }
 
+    // Check if there's an active order at this table
+    // Only block if reservation is for now or within the next 2 hours
+    const reservationDateTime = new Date(reservation_date);
+    const now = new Date();
+    const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+    
+    // If reservation is within the next 2 hours, check for active orders
+    if (reservationDateTime <= twoHoursFromNow) {
+      const activeOrder = await Order.findOne({
+        table_number,
+        status: { $in: ["pending", "preparing", "ready"] },
+      });
+
+      if (activeOrder) {
+        return res.status(400).json({
+          success: false,
+          message: `Table ${table_number} is currently occupied by an active order (Status: ${activeOrder.status})`,
+        });
+      }
+    }
+
     const newReservation = new Reservation({
       customer_name,
       contact_number,
@@ -165,6 +187,27 @@ router.put("/:id", authenticateToken, async (req, res) => {
           message: "Table is already reserved for this date and time",
         });
       }
+
+      // Check if there's an active order at this table
+      // Only block if reservation is for now or within the next 2 hours
+      const reservationDateTime = new Date(reservation_date);
+      const now = new Date();
+      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      
+      // If reservation is within the next 2 hours, check for active orders
+      if (reservationDateTime <= twoHoursFromNow) {
+        const activeOrder = await Order.findOne({
+          table_number,
+          status: { $in: ["pending", "preparing", "ready"] },
+        });
+
+        if (activeOrder) {
+          return res.status(400).json({
+            success: false,
+            message: `Table ${table_number} is currently occupied by an active order (Status: ${activeOrder.status})`,
+          });
+        }
+      }
     }
 
     // Update fields
@@ -211,6 +254,108 @@ router.delete("/:id", authenticateToken, async (req, res) => {
     });
   } catch (error) {
     console.error("Delete reservation error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// GET /reservations/tables/available - Get available tables for a specific date/time
+router.get("/tables/available", authenticateToken, async (req, res) => {
+  try {
+    const { reservation_date } = req.query;
+
+    // Default table numbers (1-20) - adjust based on your restaurant's tables
+    const allTables = Array.from({ length: 20 }, (_, i) => (i + 1).toString());
+    
+    // If reservation_date is provided, check for conflicts at that time
+    if (reservation_date) {
+      const reservationDateTime = new Date(reservation_date);
+      
+      // Check for active orders
+      const activeOrders = await Order.find({
+        status: { $in: ["pending", "preparing", "ready"] },
+      });
+      const occupiedByOrders = new Set(
+        activeOrders.map((order) => order.table_number)
+      );
+
+      // Check for reservations at the same date/time
+      const conflictingReservations = await Reservation.find({
+        reservation_date: reservationDateTime,
+        status: { $in: ["pending", "confirmed"] },
+      });
+      const occupiedByReservations = new Set(
+        conflictingReservations.map((res) => res.table_number)
+      );
+
+      // Also check if reservation is within 2 hours - check for active orders
+      const now = new Date();
+      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      
+      if (reservationDateTime <= twoHoursFromNow) {
+        // Reservation is soon, so consider active orders as conflicts
+        const availableTables = allTables.filter(
+          (table) =>
+            !occupiedByOrders.has(table) && !occupiedByReservations.has(table)
+        );
+        
+        return res.status(200).json({
+          success: true,
+          data: availableTables,
+          total: availableTables.length,
+        });
+      } else {
+        // Reservation is in the future, only check for reservations at that exact time
+        const availableTables = allTables.filter(
+          (table) => !occupiedByReservations.has(table)
+        );
+        
+        return res.status(200).json({
+          success: true,
+          data: availableTables,
+          total: availableTables.length,
+        });
+      }
+    } else {
+      // No reservation_date provided, check for current availability
+      const activeOrders = await Order.find({
+        status: { $in: ["pending", "preparing", "ready"] },
+      });
+      const occupiedByOrders = new Set(
+        activeOrders.map((order) => order.table_number)
+      );
+
+      // Check for reservations within next 2 hours
+      const now = new Date();
+      const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      
+      const upcomingReservations = await Reservation.find({
+        reservation_date: {
+          $gte: now,
+          $lte: twoHoursFromNow,
+        },
+        status: { $in: ["pending", "confirmed"] },
+      });
+      const occupiedByReservations = new Set(
+        upcomingReservations.map((res) => res.table_number)
+      );
+
+      const availableTables = allTables.filter(
+        (table) =>
+          !occupiedByOrders.has(table) && !occupiedByReservations.has(table)
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: availableTables,
+        total: availableTables.length,
+      });
+    }
+  } catch (error) {
+    console.error("Get available tables error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",
