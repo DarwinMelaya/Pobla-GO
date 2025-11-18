@@ -1,5 +1,10 @@
+import CustomerLayout from "../../components/Layout/CustomerLayout";
 const Carts = () => {
-  return <div>Carts</div>;
+  return (
+    <CustomerLayout>
+      <div>Carts</div>
+    </CustomerLayout>
+  );
 };
 
 export default Carts;

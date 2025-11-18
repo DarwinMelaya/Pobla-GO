@@ -52,6 +52,8 @@ const Login = () => {
             navigate("/admin-dashboard", { replace: true });
           } else if (response.data.user.role === "Staff") {
             navigate("/staff-dashboard", { replace: true });
+          } else if (response.data.user.role === "Customer") {
+            navigate("/foods", { replace: true });
           } else {
             navigate("/dashboard", { replace: true });
           }
