@@ -2,12 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import Layout from "../../components/Layout/Layout";
 import toast from "react-hot-toast";
 import { Users } from "lucide-react";
+import AddUserModal from "../../components/Modals/Admin/AddUserModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   const authHeaders = useMemo(() => {
     const token = localStorage.getItem("token");
@@ -59,14 +61,23 @@ const AdminUsers = () => {
     <Layout>
       <div className="bg-[#1f1f1f] min-h-screen p-8 rounded-r-2xl">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
-            <Users className="w-8 h-8 text-[#f6b100]" />
-            Users Management
-          </h1>
-          <p className="text-[#b5b5b5] mt-2">
-            View and manage all system users
-          </p>
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
+              <Users className="w-8 h-8 text-[#f6b100]" />
+              Users Management
+            </h1>
+            <p className="text-[#b5b5b5] mt-2">
+              View and manage all system users
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsAddModalOpen(true)}
+            className="inline-flex items-center justify-center rounded-xl border border-[#f6b100]/60 bg-[#f6b100] px-6 py-3 text-sm font-semibold uppercase tracking-wide text-[#1f1f1f] transition-all hover:bg-[#d79a00]"
+          >
+            Add Staff User
+          </button>
         </div>
 
         {/* Users Table */}
@@ -140,6 +151,12 @@ const AdminUsers = () => {
             </div>
           </div>
         )}
+
+        <AddUserModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onUserAdded={fetchUsers}
+        />
       </div>
     </Layout>
   );
