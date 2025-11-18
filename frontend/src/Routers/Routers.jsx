@@ -22,6 +22,10 @@ import {
   StaffProductions,
   AdminUsers,
   StaffInventoryMaterials,
+  Foods,
+  Search,
+  Carts,
+  Accounts,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -186,6 +190,40 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole={["Admin", "Staff"]}>
               <Pos />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Customer Pages */}
+        <Route
+          path="/foods"
+          element={
+            <ProtectedRoute requiredRole="Customer">
+              <Foods />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/search"
+          element={
+            <ProtectedRoute requiredRole="Customer">
+              <Search />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/carts"
+          element={
+            <ProtectedRoute requiredRole="Customer">
+              <Carts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounts"
+          element={
+            <ProtectedRoute requiredRole="Customer">
+              <Accounts />
             </ProtectedRoute>
           }
         />

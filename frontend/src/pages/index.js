@@ -27,3 +27,9 @@ export { default as StaffInventoryMaterials } from "./Staff/StaffInventoryMateri
 
 // POS
 export { default as Pos } from "./pos/Pos";
+
+// Customer
+export { default as Foods } from "./Customer/Foods";
+export { default as Search } from "./Customer/Search";
+export { default as Carts } from "./Customer/Carts";
+export { default as Accounts } from "./Customer/Accounts";
