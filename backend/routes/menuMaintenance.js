@@ -10,6 +10,19 @@ const {
   isUrl,
 } = require("../utils/supabaseStorage");
 
+const MIN_CRITICAL_LEVEL = 0;
+
+const normalizeCriticalLevel = (value) => {
+  if (value === undefined || value === null || value === "") {
+    return { provided: false, value: undefined };
+  }
+  const parsed = Number(value);
+  return {
+    provided: true,
+    value: Number.isNaN(parsed) ? undefined : parsed,
+  };
+};
+
 // Middleware to verify admin role using JWT
 const verifyAdmin = async (req, res, next) => {
   try {
@@ -55,8 +68,9 @@ router.get("/", async (req, res) => {
       filter.category = category;
     }
 
-    if (critical_level) {
-      filter.critical_level = critical_level;
+    const { provided, value } = normalizeCriticalLevel(critical_level);
+    if (provided && value !== undefined) {
+      filter.critical_level = value;
     }
 
     const menuItems = await MenuMaintenance.find(filter)
@@ -96,9 +110,26 @@ router.post("/", verifyAdmin, async (req, res) => {
     const { name, category, critical_level, description, image } = req.body;
 
     // Validate required fields
-    if (!name || !category || !critical_level) {
+    const {
+      provided: criticalProvided,
+      value: normalizedCriticalLevel,
+    } = normalizeCriticalLevel(critical_level);
+
+    if (!name || !category || !criticalProvided) {
       return res.status(400).json({
         message: "Missing required fields: name, category, and critical_level",
+      });
+    }
+
+    if (normalizedCriticalLevel === undefined) {
+      return res.status(400).json({
+        message: "Critical level must be a valid number",
+      });
+    }
+
+    if (normalizedCriticalLevel < MIN_CRITICAL_LEVEL) {
+      return res.status(400).json({
+        message: `Critical level must be greater than or equal to ${MIN_CRITICAL_LEVEL}`,
       });
     }
 
@@ -139,7 +170,7 @@ router.post("/", verifyAdmin, async (req, res) => {
     const menuItem = new MenuMaintenance({
       name,
       category,
-      critical_level,
+      critical_level: normalizedCriticalLevel,
       description,
       image: imageUrl,
       created_by: req.user._id,
@@ -226,7 +257,32 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     // Update other fields
     if (name !== undefined) menuItem.name = name;
     if (category !== undefined) menuItem.category = category;
-    if (critical_level !== undefined) menuItem.critical_level = critical_level;
+    if (critical_level !== undefined) {
+      const {
+        provided: criticalProvided,
+        value: normalizedCriticalLevel,
+      } = normalizeCriticalLevel(critical_level);
+
+      if (!criticalProvided) {
+        return res.status(400).json({
+          message: "Critical level cannot be empty",
+        });
+      }
+
+      if (normalizedCriticalLevel === undefined) {
+        return res.status(400).json({
+          message: "Critical level must be a valid number",
+        });
+      }
+
+      if (normalizedCriticalLevel < MIN_CRITICAL_LEVEL) {
+        return res.status(400).json({
+          message: `Critical level must be greater than or equal to ${MIN_CRITICAL_LEVEL}`,
+        });
+      }
+
+      menuItem.critical_level = normalizedCriticalLevel;
+    }
     if (description !== undefined) menuItem.description = description;
 
     await menuItem.save();

@@ -14,8 +14,12 @@ const MenuMaintenanceSchema = new mongoose.Schema({
   critical_level: {
     type: Number,
     required: true,
-    min: 1,
-    max: 4,
+    min: 0,
+    default: 5,
+    validate: {
+      validator: Number.isFinite,
+      message: "Critical level must be a valid number",
+    },
   },
   description: {
     type: String,

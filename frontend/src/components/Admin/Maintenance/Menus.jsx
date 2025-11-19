@@ -34,12 +34,7 @@ const Menus = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
 
-  const criticalLevels = [
-    { value: 1, label: "Low" },
-    { value: 2, label: "Medium" },
-    { value: 3, label: "High" },
-    { value: 4, label: "Critical" },
-  ];
+  const CRITICAL_THRESHOLD = 5;
 
   const fetchCategories = async () => {
     try {
@@ -166,7 +161,7 @@ const Menus = () => {
     if (name === "critical_level") {
       setFormData((prev) => ({
         ...prev,
-        [name]: value ? Number(value) : null,
+        [name]: value === "" ? null : Number(value),
       }));
     } else {
       setFormData((prev) => ({ ...prev, [name]: value }));
@@ -187,7 +182,9 @@ const Menus = () => {
     if (
       !formData.name.trim() ||
       !formData.category.trim() ||
-      !formData.critical_level
+      formData.critical_level === null ||
+      formData.critical_level === undefined ||
+      Number.isNaN(formData.critical_level)
     ) {
       toast.error("Please fill all required fields");
       return;
@@ -261,23 +258,23 @@ const Menus = () => {
   };
 
   const getCriticalLevelColor = (level) => {
-    switch (level) {
-      case 1:
-        return "bg-red-600 text-white";
-      case 2:
-        return "bg-orange-600 text-white";
-      case 3:
-        return "bg-yellow-600 text-white";
-      case 4:
-        return "bg-green-600 text-white";
-      default:
-        return "bg-gray-600 text-white";
+    if (typeof level !== "number") {
+      return "bg-gray-600 text-white";
     }
+    if (level <= CRITICAL_THRESHOLD) {
+      return "bg-red-600 text-white";
+    }
+    if (level <= CRITICAL_THRESHOLD + 5) {
+      return "bg-orange-600 text-white";
+    }
+    return "bg-green-600 text-white";
   };
 
   const getCriticalLevelLabel = (level) => {
-    const levelObj = criticalLevels.find((l) => l.value === level);
-    return levelObj ? levelObj.label : "Unknown";
+    if (typeof level !== "number") {
+      return "Not set";
+    }
+    return level <= CRITICAL_THRESHOLD ? "Critical" : "Safe";
   };
 
   if (showRecipe && selectedMenuItem) {
@@ -376,7 +373,8 @@ const Menus = () => {
                                 item.critical_level
                               )}`}
                             >
-                              Level: {item.critical_level}
+                              {getCriticalLevelLabel(item.critical_level)} (
+                              {item.critical_level ?? "-"})
                             </span>
                             {item.description && (
                               <span className="text-xs text-[#bababa]">
@@ -395,7 +393,8 @@ const Menus = () => {
                             item.critical_level
                           )}`}
                         >
-                          {item.critical_level}
+                          {getCriticalLevelLabel(item.critical_level)} (
+                          {item.critical_level ?? "-"})
                         </span>
                       </td>
                       <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] hidden lg:table-cell">
@@ -500,26 +499,26 @@ const Menus = () => {
 
               <div>
                 <label className="block text-sm font-medium text-[#cccccc] mb-1">
-                  Critical Level *
+                  Critical Level Threshold *
                 </label>
-                <select
+                <input
+                  type="number"
                   name="critical_level"
                   value={
-                    formData.critical_level
-                      ? String(formData.critical_level)
-                      : ""
+                    typeof formData.critical_level === "number"
+                      ? formData.critical_level
+                      : formData.critical_level || ""
                   }
+                  min={0}
+                  placeholder="Enter a number (≤ 5 is critical)"
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
                   required
-                >
-                  <option value="">Select Critical Level</option>
-                  {criticalLevels.map((level) => (
-                    <option key={level.value} value={String(level.value)}>
-                      {level.value}
-                    </option>
-                  ))}
-                </select>
+                />
+                <p className="text-xs text-[#b5b5b5] mt-1">
+                  Stocks at {CRITICAL_THRESHOLD} or below are automatically
+                  treated as critical.
+                </p>
               </div>
 
               <div className="md:col-span-2">
