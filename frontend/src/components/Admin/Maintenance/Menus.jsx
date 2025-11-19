@@ -263,13 +263,13 @@ const Menus = () => {
   const getCriticalLevelColor = (level) => {
     switch (level) {
       case 1:
-        return "bg-green-600 text-white";
-      case 2:
-        return "bg-yellow-600 text-white";
-      case 3:
-        return "bg-orange-600 text-white";
-      case 4:
         return "bg-red-600 text-white";
+      case 2:
+        return "bg-orange-600 text-white";
+      case 3:
+        return "bg-yellow-600 text-white";
+      case 4:
+        return "bg-green-600 text-white";
       default:
         return "bg-gray-600 text-white";
     }
@@ -358,7 +358,9 @@ const Menus = () => {
                           </div>
                         ) : (
                           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-lg bg-[#181818] flex items-center justify-center">
-                            <span className="text-[#666] text-xs">No Image</span>
+                            <span className="text-[#666] text-xs">
+                              No Image
+                            </span>
                           </div>
                         )}
                       </td>
@@ -366,10 +368,14 @@ const Menus = () => {
                         <div className="flex flex-col sm:block">
                           <span className="font-medium">{item.name}</span>
                           <div className="flex flex-col gap-1 md:hidden mt-1">
-                            <span className="text-xs text-[#bababa]">Cat: {item.category}</span>
-                            <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium w-fit ${getCriticalLevelColor(
-                              item.critical_level
-                            )}`}>
+                            <span className="text-xs text-[#bababa]">
+                              Cat: {item.category}
+                            </span>
+                            <span
+                              className={`inline-flex px-2 py-1 rounded-full text-xs font-medium w-fit ${getCriticalLevelColor(
+                                item.critical_level
+                              )}`}
+                            >
                               Level: {item.critical_level}
                             </span>
                             {item.description && (
@@ -401,13 +407,15 @@ const Menus = () => {
                             onClick={() => handleRecipe(item)}
                             className="px-2 sm:px-3 py-1 bg-blue-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-blue-500 transition-colors flex items-center gap-1"
                           >
-                            <ChefHat className="w-3 h-3" /> <span className="hidden sm:inline">Recipe</span>
+                            <ChefHat className="w-3 h-3" />{" "}
+                            <span className="hidden sm:inline">Recipe</span>
                           </button>
                           <button
                             onClick={() => startEdit(item)}
                             className="px-2 sm:px-3 py-1 bg-yellow-600 text-white rounded text-xs sm:text-sm font-bold hover:bg-yellow-500 transition-colors flex items-center gap-1"
                           >
-                            <Edit className="w-3 h-3" /> <span className="hidden sm:inline">Edit</span>
+                            <Edit className="w-3 h-3" />{" "}
+                            <span className="hidden sm:inline">Edit</span>
                           </button>
                           <button
                             onClick={() => confirmDelete(item)}
