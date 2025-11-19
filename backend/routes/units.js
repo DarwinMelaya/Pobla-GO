@@ -3,6 +3,20 @@ const router = express.Router();
 const Unit = require("../models/Unit");
 const User = require("../models/User");
 
+const normalizeEquivalentUnits = (input) => {
+  if (!Array.isArray(input)) return [];
+  const seen = new Set();
+  return input
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter((value) => {
+      if (!value) return false;
+      const lower = value.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+};
+
 // Middleware to verify admin role using JWT (same as other routes)
 const verifyAdmin = async (req, res, next) => {
   try {
@@ -48,7 +62,7 @@ router.get("/", async (req, res) => {
 // Create unit
 router.post("/", verifyAdmin, async (req, res) => {
   try {
-    const { unit, symbol } = req.body;
+    const { unit, symbol, equivalent_units } = req.body;
     if (!unit || !symbol) {
       return res.status(400).json({ success: false, message: "unit and symbol are required" });
     }
@@ -58,7 +72,12 @@ router.post("/", verifyAdmin, async (req, res) => {
       return res.status(409).json({ success: false, message: "Unit already exists" });
     }
 
-    const newUnit = new Unit({ unit, symbol, created_by: req.user?._id });
+    const newUnit = new Unit({
+      unit,
+      symbol,
+      equivalent_units: normalizeEquivalentUnits(equivalent_units),
+      created_by: req.user?._id,
+    });
     await newUnit.save();
     res.status(201).json({ success: true, data: newUnit });
   } catch (error) {
@@ -69,12 +88,15 @@ router.post("/", verifyAdmin, async (req, res) => {
 // Update unit
 router.put("/:id", verifyAdmin, async (req, res) => {
   try {
-    const { unit, symbol } = req.body;
+    const { unit, symbol, equivalent_units } = req.body;
     const doc = await Unit.findById(req.params.id);
     if (!doc) return res.status(404).json({ success: false, message: "Unit not found" });
 
     if (unit !== undefined) doc.unit = unit;
     if (symbol !== undefined) doc.symbol = symbol;
+    if (equivalent_units !== undefined) {
+      doc.equivalent_units = normalizeEquivalentUnits(equivalent_units);
+    }
     await doc.save();
     res.json({ success: true, data: doc });
   } catch (error) {

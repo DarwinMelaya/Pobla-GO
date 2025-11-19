@@ -10,6 +10,14 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
+const FALLBACK_EQUIVALENT_UNITS = {
+  kilogram: ["gram", "g", "milligram", "mg"],
+  gram: ["kilogram", "kg", "milligram", "mg"],
+  liter: ["milliliter", "ml"],
+  milliliter: ["liter", "l"],
+  piece: ["pack", "box"],
+};
+
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
 
 const UnitConversion = ({ material, onBack }) => {
@@ -37,6 +45,48 @@ const UnitConversion = ({ material, onBack }) => {
     const token = localStorage.getItem("token");
     return token ? { Authorization: `Bearer ${token}` } : {};
   }, []);
+
+  const baseUnitConfig = useMemo(() => {
+    if (!form.base_unit) return null;
+    const target = form.base_unit.toLowerCase();
+    return (
+      units.find(
+        (unit) =>
+          typeof unit?.unit === "string" &&
+          unit.unit.trim().toLowerCase() === target
+      ) || null
+    );
+  }, [units, form.base_unit]);
+
+  const fallbackEquivalentNames = useMemo(() => {
+    if (baseUnitConfig?.equivalent_units?.length) return [];
+    const baseKey = form.base_unit?.trim().toLowerCase();
+    return baseKey && FALLBACK_EQUIVALENT_UNITS[baseKey]
+      ? FALLBACK_EQUIVALENT_UNITS[baseKey]
+      : [];
+  }, [baseUnitConfig, form.base_unit]);
+
+  const allowedEquivalentNames = useMemo(() => {
+    const primary =
+      baseUnitConfig?.equivalent_units?.map((value) =>
+        typeof value === "string" ? value.trim().toLowerCase() : ""
+      ) || [];
+    const merged = [...primary, ...fallbackEquivalentNames].filter(Boolean);
+    return Array.from(new Set(merged));
+  }, [baseUnitConfig, fallbackEquivalentNames]);
+
+  const equivalentUnitOptions = useMemo(() => {
+    if (!allowedEquivalentNames.length) return units;
+
+    const currentSelection = form.equivalent_unit?.toLowerCase();
+    return units.filter((unit) => {
+      const unitName = unit?.unit?.trim().toLowerCase();
+      if (!unitName) return false;
+      if (allowedEquivalentNames.includes(unitName)) return true;
+      if (currentSelection && unitName === currentSelection) return true;
+      return false;
+    });
+  }, [units, allowedEquivalentNames, form.equivalent_unit]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -490,7 +540,7 @@ const UnitConversion = ({ material, onBack }) => {
                         required
                       >
                         <option value="">Select equivalent unit</option>
-                        {units.map((unit) => (
+                        {equivalentUnitOptions.map((unit) => (
                           <option key={unit._id} value={unit.unit}>
                             {unit.unit} {unit.symbol ? `(${unit.symbol})` : ""}
                           </option>

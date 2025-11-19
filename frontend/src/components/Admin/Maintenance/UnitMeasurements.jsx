@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { Plus, Edit, Trash2, Save, X } from "lucide-react";
 
@@ -7,7 +7,7 @@ const API_BASE = "http://localhost:5000";
 const UnitMeasurements = () => {
   const [units, setUnits] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [form, setForm] = useState({ unit: "", symbol: "" });
+  const [form, setForm] = useState({ unit: "", symbol: "", equivalent_units: [] });
   const [editingId, setEditingId] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -30,10 +30,37 @@ const UnitMeasurements = () => {
     fetchUnits();
   }, []);
 
+  const equivalentUnitOptions = useMemo(() => {
+    const seen = new Set();
+    return units
+      .map((item) => (typeof item?.unit === "string" ? item.unit.trim() : ""))
+      .filter((value) => {
+        if (!value || value.toLowerCase() === form.unit.trim().toLowerCase()) return false;
+        const lower = value.toLowerCase();
+        if (seen.has(lower)) return false;
+        seen.add(lower);
+        return true;
+      })
+      .sort((a, b) => a.localeCompare(b));
+  }, [units, form.unit]);
+
   const resetForm = () => {
-    setForm({ unit: "", symbol: "" });
+    setForm({ unit: "", symbol: "", equivalent_units: [] });
     setEditingId(null);
     setIsModalOpen(false);
+  };
+
+  const toggleEquivalentUnit = (value) => {
+    if (!value) return;
+    setForm((prev) => {
+      const exists = prev.equivalent_units.includes(value);
+      return {
+        ...prev,
+        equivalent_units: exists
+          ? prev.equivalent_units.filter((item) => item !== value)
+          : [...prev.equivalent_units, value],
+      };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -55,7 +82,11 @@ const UnitMeasurements = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          unit: form.unit,
+          symbol: form.symbol,
+          equivalent_units: form.equivalent_units,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Save failed");
@@ -71,7 +102,11 @@ const UnitMeasurements = () => {
 
   const startEdit = (item) => {
     setEditingId(item._id);
-    setForm({ unit: item.unit, symbol: item.symbol });
+    setForm({
+      unit: item.unit,
+      symbol: item.symbol,
+      equivalent_units: Array.isArray(item.equivalent_units) ? item.equivalent_units : [],
+    });
     setIsModalOpen(true);
   };
 
@@ -143,6 +178,48 @@ const UnitMeasurements = () => {
                   placeholder="e.g., g"
                   className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
                 />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-[#cccccc] mb-1">
+                  Equivalent Units (optional)
+                </label>
+                {equivalentUnitOptions.length ? (
+                  <div className="max-h-48 overflow-y-auto border border-[#383838] rounded-md bg-[#181818] p-3 space-y-2">
+                    {equivalentUnitOptions.map((option) => (
+                      <label
+                        key={option}
+                        className="flex items-center gap-2 text-sm text-[#f5f5f5]"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.equivalent_units.includes(option)}
+                          onChange={() => toggleEquivalentUnit(option)}
+                          className="w-4 h-4 text-[#f6b100] bg-[#1a1a1a] border-[#4a4a4a] rounded focus:ring-[#f6b100]"
+                        />
+                        <span>{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-[#8d8d8d] border border-dashed border-[#444] rounded-md p-3">
+                    Add more units first to make them available as equivalents.
+                  </p>
+                )}
+                {form.equivalent_units.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {form.equivalent_units.map((value) => (
+                      <span
+                        key={value}
+                        className="px-2 py-0.5 rounded-full bg-[#323232] text-[#f5f5f5] text-xs"
+                      >
+                        {value}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-[#8d8d8d] mt-2">
+                  Choose from the existing units defined in the Units list. These selections will be offered as allowed equivalent units when converting from this base unit.
+                </p>
               </div>
               <div className="md:col-span-2 flex justify-end gap-2 pt-2">
                 <button
@@ -225,7 +302,7 @@ const UnitMeasurements = () => {
           <h2 className="text-xl font-bold text-[#f5f5f5]">Units</h2>
           <button
             onClick={() => {
-              setForm({ unit: "", symbol: "" });
+              setForm({ unit: "", symbol: "", equivalent_units: [] });
               setEditingId(null);
               setIsModalOpen(true);
             }}
@@ -250,6 +327,9 @@ const UnitMeasurements = () => {
                       <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                         Symbol
                       </th>
+                      <th className="px-2 sm:px-4 py-2 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                        Equivalent Units
+                      </th>
                       <th className="px-2 sm:px-4 py-2 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                         Actions
                       </th>
@@ -263,6 +343,22 @@ const UnitMeasurements = () => {
                         </td>
                         <td className="px-2 sm:px-4 py-2 text-[#f5f5f5] text-sm sm:text-base">
                           {u.symbol}
+                        </td>
+                        <td className="px-2 sm:px-4 py-2 text-[#dcdcdc] text-xs sm:text-sm">
+                          {u.equivalent_units?.length ? (
+                            <div className="flex flex-wrap gap-1">
+                              {u.equivalent_units.map((eq) => (
+                                <span
+                                  key={eq}
+                                  className="px-2 py-0.5 rounded-full bg-[#323232] text-[#f5f5f5]"
+                                >
+                                  {eq}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-[#666]">—</span>
+                          )}
                         </td>
                         <td className="px-2 sm:px-4 py-2">
                           <div className="flex justify-end gap-1 sm:gap-2 flex-wrap">
