@@ -17,10 +17,30 @@ const OrderSchema = new mongoose.Schema({
     enum: ["pending", "preparing", "ready", "completed", "cancelled"],
     default: "pending",
   },
+  subtotal_amount: {
+    type: Number,
+    required: true,
+    min: 0,
+  },
   total_amount: {
     type: Number,
     required: true,
     min: 0,
+  },
+  discount_type: {
+    type: String,
+    enum: ["none", "pwd", "senior"],
+    default: "none",
+  },
+  discount_rate: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  discount_amount: {
+    type: Number,
+    min: 0,
+    default: 0,
   },
   // Staff member who took the order
   staff_member: {

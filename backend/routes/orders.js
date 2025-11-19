@@ -6,6 +6,12 @@ const Menu = require("../models/Menu");
 const User = require("../models/User");
 const Reservation = require("../models/Reservation");
 
+const DISCOUNT_RATES = {
+  none: 0,
+  pwd: 0.2,
+  senior: 0.2,
+};
+
 // Middleware to verify authentication
 const verifyAuth = async (req, res, next) => {
   try {
@@ -141,8 +147,14 @@ router.get("/:id", verifyAuth, async (req, res) => {
 // POST /orders - Create new order
 router.post("/", verifyAuth, async (req, res) => {
   try {
-    const { customer_name, table_number, order_items, notes, payment_method } =
-      req.body;
+    const {
+      customer_name,
+      table_number,
+      order_items,
+      notes,
+      payment_method,
+      discount_type,
+    } = req.body;
 
     // Validate required fields
     if (
@@ -184,7 +196,9 @@ router.post("/", verifyAuth, async (req, res) => {
     });
 
     if (activeReservation) {
-      const reservationTime = new Date(activeReservation.reservation_date).toLocaleString();
+      const reservationTime = new Date(
+        activeReservation.reservation_date
+      ).toLocaleString();
       return res.status(400).json({
         message: `Table ${table_number} is reserved for ${reservationTime}. Customer: ${activeReservation.customer_name}`,
         reservation: {
@@ -197,7 +211,7 @@ router.post("/", verifyAuth, async (req, res) => {
     }
 
     // Calculate total amount
-    let total_amount = 0;
+    let subtotal_amount = 0;
     const validated_items = [];
 
     for (const item of order_items) {
@@ -208,7 +222,7 @@ router.post("/", verifyAuth, async (req, res) => {
       }
 
       const item_total = item.quantity * item.price;
-      total_amount += item_total;
+      subtotal_amount += item_total;
 
       validated_items.push({
         item_name: item.item_name,
@@ -220,14 +234,30 @@ router.post("/", verifyAuth, async (req, res) => {
       });
     }
 
+    const normalizedDiscountType = Object.prototype.hasOwnProperty.call(
+      DISCOUNT_RATES,
+      discount_type
+    )
+      ? discount_type
+      : "none";
+    const discount_rate = DISCOUNT_RATES[normalizedDiscountType] || 0;
+    const discount_amount = Number(
+      (subtotal_amount * discount_rate).toFixed(2)
+    );
+    const total_amount = Math.max(0, subtotal_amount - discount_amount);
+
     // Create the order
     const order = new Order({
       customer_name,
       table_number,
+      subtotal_amount,
       total_amount,
       staff_member: req.user._id,
       notes: notes || "",
       payment_method: payment_method || "cash",
+      discount_type: normalizedDiscountType,
+      discount_rate,
+      discount_amount,
     });
 
     await order.save();
@@ -532,13 +562,15 @@ router.get("/tables/:tableNumber/status", verifyAuth, async (req, res) => {
   try {
     const { tableNumber } = req.params;
     const tableStatus = await Order.getTableStatus(tableNumber);
-    
+
     // Enhance response with reservation details if applicable
     if (!tableStatus.available && tableStatus.type === "reservation") {
-      const reservationTime = new Date(tableStatus.reservation_date).toLocaleString();
+      const reservationTime = new Date(
+        tableStatus.reservation_date
+      ).toLocaleString();
       tableStatus.message = `Table ${tableNumber} is reserved for ${reservationTime}. Customer: ${tableStatus.customer}`;
     }
-    
+
     res.json(tableStatus);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });

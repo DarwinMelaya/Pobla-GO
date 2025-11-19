@@ -18,6 +18,7 @@ const Pos = () => {
     table_number: "",
     notes: "",
     payment_method: "cash",
+    discount_type: "none",
     order_items: [],
   });
   const [cashAmount, setCashAmount] = useState("");
@@ -32,6 +33,11 @@ const Pos = () => {
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const discountOptions = [
+    { label: "No Discount", value: "none", helper: "Regular price" },
+    { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
+    { label: "Senior 20%", value: "senior", helper: "Requires valid ID" },
+  ];
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -217,12 +223,39 @@ const Pos = () => {
     }));
   };
 
-  // Calculate total amount
-  const calculateTotal = () => {
+  // Calculate totals and discounts
+  const calculateSubtotal = () => {
     return orderForm.order_items.reduce(
       (total, item) => total + item.total_price,
       0
     );
+  };
+
+  const getDiscountRate = () => {
+    if (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") {
+      return 0.2;
+    }
+    return 0;
+  };
+
+  const calculateDiscountAmount = () => {
+    return calculateSubtotal() * getDiscountRate();
+  };
+
+  const getDiscountLabel = () => {
+    if (orderForm.discount_type === "pwd") {
+      return "PWD 20%";
+    }
+    if (orderForm.discount_type === "senior") {
+      return "Senior 20%";
+    }
+    return "";
+  };
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const discount = subtotal * getDiscountRate();
+    return Math.max(0, subtotal - discount);
   };
 
   // Calculate change for cash payment
@@ -348,6 +381,7 @@ const Pos = () => {
       table_number: "",
       notes: "",
       payment_method: "cash",
+      discount_type: "none",
       order_items: [],
     });
     setCashAmount("");
@@ -365,6 +399,10 @@ const Pos = () => {
     setIsPrintingReceipt(true);
 
     try {
+      const subtotal = calculateSubtotal();
+      const discountAmount = calculateDiscountAmount();
+      const totalAmount = calculateTotal();
+      const discountLabel = getDiscountLabel();
       const printWindow = window.open("", "_blank");
       const currentDate = new Date().toLocaleString("en-US", {
         year: "numeric",
@@ -534,15 +572,25 @@ const Pos = () => {
           <div class="total-section">
             <div class="total-line">
               <span>Subtotal:</span>
-              <span>${formatCurrency(calculateTotal())}</span>
+            <span>${formatCurrency(subtotal)}</span>
             </div>
+          ${
+            discountAmount > 0
+              ? `
+            <div class="total-line">
+              <span>Discount (${discountLabel}):</span>
+              <span>- ${formatCurrency(discountAmount)}</span>
+            </div>
+          `
+              : ""
+          }
             <div class="total-line">
               <span>Tax (0%):</span>
               <span>${formatCurrency(0)}</span>
             </div>
             <div class="total-amount">
               <span>TOTAL:</span>
-              <span>${formatCurrency(calculateTotal())}</span>
+            <span>${formatCurrency(totalAmount)}</span>
             </div>
           </div>
 
@@ -1069,6 +1117,22 @@ const Pos = () => {
                     </div>
                   ))}
                 </div>
+              <div className="mt-4 space-y-2 text-sm">
+                <div className="flex items-center justify-between text-[#ababab]">
+                  <span>Subtotal</span>
+                  <span className="font-semibold">
+                    {formatCurrency(calculateSubtotal())}
+                  </span>
+                </div>
+                {calculateDiscountAmount() > 0 && (
+                  <div className="flex items-center justify-between text-[#f6b100]">
+                    <span>Discount ({getDiscountLabel()})</span>
+                    <span className="font-semibold">
+                      - {formatCurrency(calculateDiscountAmount())}
+                    </span>
+                  </div>
+                )}
+              </div>
                 <div className="border-t-2 border-[#383838] mt-4 pt-4 flex justify-between items-center">
                   <span className="text-xl font-bold text-[#ababab]">
                     Total:
@@ -1104,6 +1168,38 @@ const Pos = () => {
                   <option value="card">Card</option>
                   <option value="digital">Digital</option>
                 </select>
+              </div>
+
+              {/* Discount Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-[#ababab] mb-2">
+                  Discount (Optional)
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  {discountOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() =>
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          discount_type: option.value,
+                        }))
+                      }
+                      className={`p-3 rounded-xl border-2 text-left transition-all duration-200 touch-manipulation ${
+                        orderForm.discount_type === option.value
+                          ? "bg-[#f6b100] text-[#1f1f1f] border-[#f6b100]"
+                          : "bg-[#181818] text-[#f5f5f5] border-[#353535] hover:border-[#f6b100]"
+                      }`}
+                    >
+                      <div className="font-bold text-base">{option.label}</div>
+                      <div className="text-xs text-[#ababab]">{option.helper}</div>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-[#ababab] mt-2">
+                  Apply 20% discount for qualified PWD or Senior customers upon presenting a valid ID.
+                </p>
               </div>
 
               {/* Cash Payment Inputs */}
