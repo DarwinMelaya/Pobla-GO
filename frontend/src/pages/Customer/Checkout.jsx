@@ -36,6 +36,9 @@ const Checkout = () => {
   const [paymentMethod, setPaymentMethod] = useState("gcash"); // "gcash" or "cash"
   const [isSavingAddress, setIsSavingAddress] = useState(false);
   const [hasAddressChanged, setHasAddressChanged] = useState(false);
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState("");
+  const [showManualAddress, setShowManualAddress] = useState(false);
 
   // Address state
   const [regionCode, setRegionCode] = useState("");
@@ -47,6 +50,46 @@ const Checkout = () => {
   const [barangayList, setBarangayList] = useState([]);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
   const [isParsingAddress, setIsParsingAddress] = useState(false);
+
+  // Fetch saved addresses
+  const fetchSavedAddresses = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("http://localhost:5000/auth/profile", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const addresses = data.user?.addresses || [];
+        setSavedAddresses(addresses);
+        
+        // Set default address if available
+        const defaultAddress = addresses.find((addr) => addr.isDefault);
+        if (defaultAddress) {
+          setSelectedAddressId(defaultAddress._id);
+          setDeliveryAddress(defaultAddress.address);
+        } else if (addresses.length > 0) {
+          // Use first address if no default
+          setSelectedAddressId(addresses[0]._id);
+          setDeliveryAddress(addresses[0].address);
+        } else if (userAddress) {
+          // Fall back to user's main address
+          setDeliveryAddress(userAddress);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching saved addresses:", error);
+    }
+  };
+
+  // Load saved addresses on mount
+  useEffect(() => {
+    fetchSavedAddresses();
+  }, []);
 
   // Load Marinduque province data on mount
   useEffect(() => {
@@ -385,6 +428,8 @@ const Checkout = () => {
         localStorage.setItem("user", JSON.stringify(updatedUser));
         setHasAddressChanged(false);
         toast.success("Address saved to your profile!");
+        // Refresh saved addresses list
+        await fetchSavedAddresses();
       }
     } catch (error) {
       console.error("Error saving address:", error);
@@ -422,12 +467,35 @@ const Checkout = () => {
     setBarangayCode(e.target.value);
   };
 
+  // Handle saved address selection
+  const handleAddressSelect = (addressId) => {
+    const selectedAddress = savedAddresses.find((addr) => addr._id === addressId);
+    if (selectedAddress) {
+      setSelectedAddressId(addressId);
+      setDeliveryAddress(selectedAddress.address);
+      setShowManualAddress(false);
+      setHasAddressChanged(false);
+      // Reset manual address fields
+      setStreetAddress("");
+      setCityCode("");
+      setBarangayCode("");
+    }
+  };
+
   const handlePlaceOrder = async () => {
     // Validation
     if (orderType === "delivery") {
-      if (!streetAddress.trim() || !cityCode || !barangayCode) {
-        toast.error("Please fill in all address fields (Street Address, City/Municipality, and Barangay)");
+      if (!deliveryAddress.trim()) {
+        toast.error("Please select or enter a delivery address");
         return;
+      }
+      
+      // If manual address is shown, validate fields
+      if (showManualAddress || savedAddresses.length === 0) {
+        if (!streetAddress.trim() || !cityCode || !barangayCode) {
+          toast.error("Please fill in all address fields (Street Address, City/Municipality, and Barangay)");
+          return;
+        }
       }
     }
 
@@ -559,30 +627,94 @@ const Checkout = () => {
               {/* Delivery Address */}
               {orderType === "delivery" && (
                 <section className="bg-[#232323] border border-[#383838] rounded-2xl p-6 space-y-4">
-                  <div className="flex items-center gap-3 mb-4">
-                    <MapPin className="w-5 h-5 text-[#C05050]" />
-                    <h2 className="text-xl font-semibold text-white">
-                      Delivery Address
-                    </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <MapPin className="w-5 h-5 text-[#C05050]" />
+                      <h2 className="text-xl font-semibold text-white">
+                        Delivery Address
+                      </h2>
+                    </div>
+                    <button
+                      onClick={() => navigate("/accounts")}
+                      className="text-xs text-[#C05050] hover:text-[#a63e3e] transition"
+                    >
+                      Manage Addresses
+                    </button>
                   </div>
 
-                  {/* Address Input */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-sm text-[#ababab]">
-                        Address (Marinduque Province)
+                  {/* Saved Addresses Selection */}
+                  {savedAddresses.length > 0 && !showManualAddress && (
+                    <div className="space-y-3 mb-4">
+                      <label className="block text-sm font-medium text-[#ababab] mb-2">
+                        Select Saved Address
                       </label>
-                      {hasAddressChanged && (
-                        <button
-                          onClick={handleSaveAddress}
-                          disabled={isSavingAddress}
-                          className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#C05050] hover:text-[#a63e3e] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          <Save className="w-3.5 h-3.5" />
-                          {isSavingAddress ? "Saving..." : "Save to Profile"}
-                        </button>
-                      )}
+                      <div className="space-y-2">
+                        {savedAddresses.map((address) => (
+                          <button
+                            key={address._id}
+                            onClick={() => handleAddressSelect(address._id)}
+                            className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+                              selectedAddressId === address._id
+                                ? "border-[#C05050] bg-[#C05050]/10"
+                                : "border-[#383838] bg-[#1f1f1f] hover:border-[#2f2f2f]"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold text-white">
+                                    {address.label}
+                                  </span>
+                                  {address.isDefault && (
+                                    <span className="px-2 py-0.5 rounded-full bg-[#C05050]/20 text-[#C05050] text-xs font-semibold">
+                                      Default
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-[#ababab]">
+                                  {address.address}
+                                </p>
+                              </div>
+                              {selectedAddressId === address._id && (
+                                <CheckCircle className="w-5 h-5 text-[#C05050] flex-shrink-0 ml-2" />
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => setShowManualAddress(true)}
+                        className="w-full px-4 py-2 rounded-xl border border-[#383838] bg-[#1f1f1f] text-white hover:bg-[#2f2f2f] transition text-sm"
+                      >
+                        + Add New Address
+                      </button>
                     </div>
+                  )}
+
+                  {/* Manual Address Input (shown when no saved addresses or when adding new) */}
+                  {(showManualAddress || savedAddresses.length === 0) && (
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="block text-sm text-[#ababab]">
+                          {savedAddresses.length > 0 ? "New Address" : "Address (Marinduque Province)"}
+                        </label>
+                        {savedAddresses.length > 0 && (
+                          <button
+                            onClick={() => {
+                              setShowManualAddress(false);
+                              if (savedAddresses.length > 0) {
+                                const defaultAddr = savedAddresses.find((a) => a.isDefault) || savedAddresses[0];
+                                if (defaultAddr) {
+                                  handleAddressSelect(defaultAddr._id);
+                                }
+                              }
+                            }}
+                            className="text-xs text-[#ababab] hover:text-white transition"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
 
                     {/* Street Address */}
                     <div>
@@ -675,13 +807,38 @@ const Checkout = () => {
                       />
                     </div>
 
-                    {hasAddressChanged && (
-                      <p className="text-xs text-[#ababab] mt-2">
-                        Address has been modified. Click "Save to Profile" to
-                        update your account.
+                      {hasAddressChanged && (
+                        <div className="flex items-center justify-between p-3 bg-[#1f1f1f] border border-[#383838] rounded-xl">
+                          <p className="text-xs text-[#ababab]">
+                            Address has been modified.
+                          </p>
+                          <button
+                            onClick={handleSaveAddress}
+                            disabled={isSavingAddress}
+                            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-[#C05050] hover:text-[#a63e3e] transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            <Save className="w-3.5 h-3.5" />
+                            {isSavingAddress ? "Saving..." : "Save to Profile"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* No saved addresses message */}
+                  {savedAddresses.length === 0 && !showManualAddress && (
+                    <div className="bg-[#1f1f1f] border border-[#383838] rounded-xl p-6 text-center">
+                      <p className="text-sm text-[#ababab] mb-4">
+                        No saved addresses. Please add an address to continue.
                       </p>
-                    )}
-                  </div>
+                      <button
+                        onClick={() => navigate("/accounts")}
+                        className="px-4 py-2 rounded-xl bg-[#C05050] text-white font-semibold hover:bg-[#a63e3e] transition"
+                      >
+                        Go to Accounts to Add Address
+                      </button>
+                    </div>
+                  )}
 
                   {/* Mobile Number Display */}
                   {userPhone && (
