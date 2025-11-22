@@ -1,9 +1,12 @@
 import { Utensils, Search, ShoppingCart, User } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useCart } from "../../contexts/CartContext";
 
 const CustomerSidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { getCartItemCount } = useCart();
+  const cartItemCount = getCartItemCount();
 
   const navItems = [
     { icon: Utensils, label: "Foods", path: "/foods" },
@@ -30,14 +33,21 @@ const CustomerSidebar = () => {
                 : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
             }`}
           >
-            <item.icon
-              size={20}
-              className={`transition-colors ${
-                item.isActive
-                  ? "text-[#C05050]"
-                  : "text-[#ababab] group-hover:text-[#f5f5f5]"
-              }`}
-            />
+            <div className="relative">
+              <item.icon
+                size={20}
+                className={`transition-colors ${
+                  item.isActive
+                    ? "text-[#C05050]"
+                    : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                }`}
+              />
+              {item.path === "/carts" && cartItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#C05050] text-white text-[10px] font-bold flex items-center justify-center">
+                  {cartItemCount > 99 ? "99+" : cartItemCount}
+                </span>
+              )}
+            </div>
             <span>{item.label}</span>
             {item.isActive && (
               <span className="absolute inset-x-5 -top-2 h-1 rounded-full bg-[#C05050]" />

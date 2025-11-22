@@ -8,7 +8,9 @@ import {
   CheckCircle,
   Flame,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import CustomerLayout from "../../components/Layout/CustomerLayout";
+import { useCart } from "../../contexts/CartContext";
 
 const resolveApiBaseUrl = () => {
   if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
@@ -46,6 +48,7 @@ const stockStyles = {
 };
 
 const Foods = () => {
+  const { addToCart, cartItems } = useCart();
   const [menuItems, setMenuItems] = useState([]);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -156,6 +159,27 @@ const Foods = () => {
     setFetchNonce((prev) => prev + 1);
   };
 
+  const handleAddToCart = (item) => {
+    if (!item.is_available) {
+      toast.error("This item is currently unavailable");
+      return;
+    }
+
+    const cartItem = cartItems.find((cartItem) => cartItem._id === item._id);
+    const currentQuantity = cartItem ? cartItem.quantity : 0;
+    const maxQuantity = item.servings || 0;
+
+    if (currentQuantity >= maxQuantity) {
+      toast.error(
+        `Only ${maxQuantity} serving${maxQuantity !== 1 ? "s" : ""} available for ${item.name}`
+      );
+      return;
+    }
+
+    addToCart(item);
+    toast.success(`${item.name} added to cart!`);
+  };
+
   const renderMenuCard = (item) => {
     const stock = stockStyles[item.stock_status] || stockStyles.in_stock;
     const StatusIcon = stock.icon;
@@ -215,6 +239,7 @@ const Foods = () => {
             </div>
 
             <button
+              onClick={() => handleAddToCart(item)}
               disabled={!item.is_available}
               className={`px-4 py-2 rounded-full text-sm font-semibold transition-colors ${
                 item.is_available
