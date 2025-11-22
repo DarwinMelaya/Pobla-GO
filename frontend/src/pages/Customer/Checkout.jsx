@@ -1,31 +1,453 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   MapPin,
   CreditCard,
   Wallet,
   ArrowLeft,
   CheckCircle,
+  Navigation,
+  Loader2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import CustomerLayout from "../../components/Layout/CustomerLayout";
 import { useCart } from "../../contexts/CartContext";
 import { useNavigate, useLocation } from "react-router-dom";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix for default marker icons in Leaflet with React
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+  iconUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+});
 
 const Checkout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    cartItems,
-    getCartTotal,
-    getCartItemCount,
-    clearCart,
-  } = useCart();
+  const { cartItems, getCartTotal, getCartItemCount, clearCart } = useCart();
 
   // Get orderType from location state, default to "delivery"
   const orderType = location.state?.orderType || "delivery";
-  
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+
+  // Get user data from localStorage
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+  const userAddress = user?.address || "";
+
+  const [deliveryAddress, setDeliveryAddress] = useState(userAddress);
   const [paymentMethod, setPaymentMethod] = useState("gcash"); // "gcash" or "cash"
+  // Default to center of Philippines (not specific to any province)
+  const [mapCenter, setMapCenter] = useState([12.8797, 121.774]); // Center of Philippines
+  const [mapKey, setMapKey] = useState(0); // Key to force map re-render
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
+
+  // Update delivery address when user data is available
+  useEffect(() => {
+    if (userAddress && !deliveryAddress) {
+      setDeliveryAddress(userAddress);
+    }
+  }, [userAddress, deliveryAddress]);
+
+  // Geocode address to get coordinates with fallback strategies
+  useEffect(() => {
+    const geocodeAddress = async () => {
+      if (!deliveryAddress || deliveryAddress.trim() === "") return;
+
+      try {
+        // Clean address - don't force append Philippines if it's already there or if it's coordinates
+        let searchQuery = deliveryAddress.trim();
+
+        // If it's already coordinates, skip geocoding
+        const coordPattern = /^-?\d+\.?\d*,\s*-?\d+\.?\d*$/;
+        if (coordPattern.test(searchQuery)) {
+          const [lat, lon] = searchQuery
+            .split(",")
+            .map((coord) => parseFloat(coord.trim()));
+          if (
+            !isNaN(lat) &&
+            !isNaN(lon) &&
+            lat >= -90 &&
+            lat <= 90 &&
+            lon >= -180 &&
+            lon <= 180
+          ) {
+            setMapCenter([lat, lon]);
+            setMapKey((prev) => prev + 1);
+            return;
+          }
+        }
+
+        // Try multiple geocoding strategies
+        const geocodeAttempt = async (query, withCountry = true) => {
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+                query
+              )}&limit=5&addressdetails=1${
+                withCountry ? "&countrycodes=ph" : ""
+              }`,
+              {
+                headers: {
+                  "User-Agent": "PoblaGO-App/1.0",
+                },
+              }
+            );
+            const data = await response.json();
+            return data && data.length > 0 ? data : null;
+          } catch (error) {
+            console.error("Geocoding attempt failed:", error);
+            return null;
+          }
+        };
+
+        let results = null;
+        const originalQuery = searchQuery;
+
+        // Strategy 1: Try with Philippines suffix
+        if (
+          !searchQuery.toLowerCase().includes("philippines") &&
+          !searchQuery.toLowerCase().includes("ph")
+        ) {
+          results = await geocodeAttempt(`${searchQuery}, Philippines`, true);
+        } else {
+          results = await geocodeAttempt(searchQuery, true);
+        }
+
+        // Strategy 2: If no results, try without country code restriction
+        if (!results || results.length === 0) {
+          console.log("Trying without country code restriction...");
+          results = await geocodeAttempt(originalQuery, false);
+        }
+
+        // Strategy 3: If still no results, try extracting just city/province
+        if (!results || results.length === 0) {
+          console.log("Trying with extracted location parts...");
+          // Try to extract province/city from address
+          const parts = originalQuery.split(",").map((p) => p.trim());
+          if (parts.length > 1) {
+            // Try last 2 parts (usually city, province)
+            const locationQuery = parts.slice(-2).join(", ");
+            if (locationQuery !== originalQuery) {
+              results = await geocodeAttempt(
+                `${locationQuery}, Philippines`,
+                true
+              );
+            }
+          }
+        }
+
+        // Strategy 4: Try just the province name
+        if (!results || results.length === 0) {
+          console.log("Trying with province only...");
+          const parts = originalQuery.split(",").map((p) => p.trim());
+          if (parts.length > 0) {
+            const lastPart = parts[parts.length - 1];
+            // Check if last part looks like a province
+            if (lastPart && lastPart.length > 3) {
+              results = await geocodeAttempt(`${lastPart}, Philippines`, true);
+            }
+          }
+        }
+
+        if (results && results.length > 0) {
+          // Use the first result (most relevant)
+          const { lat, lon, importance, display_name } = results[0];
+          const parsedLat = parseFloat(lat);
+          const parsedLon = parseFloat(lon);
+
+          console.log("Geocoding result:", {
+            lat: parsedLat,
+            lon: parsedLon,
+            importance,
+            display_name,
+            query: originalQuery,
+          });
+
+          // Validate coordinates before setting
+          if (
+            !isNaN(parsedLat) &&
+            !isNaN(parsedLon) &&
+            parsedLat >= -90 &&
+            parsedLat <= 90 &&
+            parsedLon >= -180 &&
+            parsedLon <= 180
+          ) {
+            const newCenter = [parsedLat, parsedLon];
+            console.log("Setting map center to:", newCenter);
+            setMapCenter(newCenter);
+            setMapKey((prev) => prev + 1); // Force map to re-render with new center
+          } else {
+            console.error(
+              "Invalid coordinates from geocoding:",
+              parsedLat,
+              parsedLon
+            );
+          }
+        } else {
+          console.warn("No geocoding results found for:", originalQuery);
+          // Don't change map center if geocoding fails - keep current location
+        }
+      } catch (error) {
+        console.error("Error geocoding address:", error);
+        // Keep current center if geocoding fails
+      }
+    };
+
+    // Debounce geocoding
+    const timeoutId = setTimeout(() => {
+      geocodeAddress();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [deliveryAddress]);
+
+  // Component to update map view when center changes
+  const MapUpdater = ({ center }) => {
+    const map = useMap();
+    useEffect(() => {
+      if (center && Array.isArray(center) && center.length === 2) {
+        const [lat, lng] = center;
+        // Validate coordinates
+        if (
+          !isNaN(lat) &&
+          !isNaN(lng) &&
+          lat >= -90 &&
+          lat <= 90 &&
+          lng >= -180 &&
+          lng <= 180
+        ) {
+          // Force map to update with new center and zoom
+          map.setView([lat, lng], 18, { animate: true });
+          console.log("Map center updated to:", [lat, lng]);
+        }
+      }
+    }, [map, center]);
+    return null;
+  };
+
+  // Component to handle map clicks
+  const MapClickHandler = () => {
+    useMapEvents({
+      click: handleMapClick,
+    });
+    return null;
+  };
+
+  // Reverse geocode coordinates to get address with better accuracy
+  const reverseGeocode = async (lat, lon) => {
+    try {
+      // Validate coordinates first
+      if (
+        isNaN(lat) ||
+        isNaN(lon) ||
+        lat < -90 ||
+        lat > 90 ||
+        lon < -180 ||
+        lon > 180
+      ) {
+        console.error("Invalid coordinates:", lat, lon);
+        return null;
+      }
+
+      // Use higher zoom level and more detailed address
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&namedetails=1`,
+        {
+          headers: {
+            "User-Agent": "PoblaGO-App/1.0",
+          },
+        }
+      );
+      const data = await response.json();
+
+      console.log("Reverse geocoding result:", data);
+
+      if (data && data.address) {
+        // Build a more accurate address from address components
+        const addr = data.address;
+        const addressParts = [];
+
+        // Build address in order of specificity
+        if (addr.house_number || addr.house_name) {
+          addressParts.push(addr.house_number || addr.house_name);
+        }
+        if (addr.road || addr.street || addr.pedestrian) {
+          addressParts.push(addr.road || addr.street || addr.pedestrian);
+        }
+        if (addr.suburb || addr.neighbourhood || addr.village) {
+          addressParts.push(addr.suburb || addr.neighbourhood || addr.village);
+        }
+        if (addr.city || addr.town || addr.municipality) {
+          addressParts.push(addr.city || addr.town || addr.municipality);
+        }
+        if (addr.state || addr.province) {
+          addressParts.push(addr.state || addr.province);
+        }
+        if (addr.postcode) {
+          addressParts.push(addr.postcode);
+        }
+        if (addr.country) {
+          addressParts.push(addr.country);
+        }
+
+        // If we have a good address, use it; otherwise fall back to display_name
+        if (addressParts.length > 0) {
+          return addressParts.join(", ");
+        } else if (data.display_name) {
+          return data.display_name;
+        }
+      } else if (data && data.display_name) {
+        return data.display_name;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error reverse geocoding:", error);
+      return null;
+    }
+  };
+
+  // Get current location with improved accuracy
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setIsGettingLocation(true);
+    toast.loading("Getting your precise location...", { id: "location" });
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude, accuracy } = position.coords;
+
+        // Log accuracy for debugging
+        console.log(`Location accuracy: ${accuracy} meters`);
+
+        // Validate and update map center with exact coordinates
+        if (
+          !isNaN(latitude) &&
+          !isNaN(longitude) &&
+          latitude >= -90 &&
+          latitude <= 90 &&
+          longitude >= -180 &&
+          longitude <= 180
+        ) {
+          console.log("Setting map center from GPS:", [latitude, longitude]);
+          setMapCenter([latitude, longitude]);
+          setMapKey((prev) => prev + 1);
+
+          // Reverse geocode to get address
+          const address = await reverseGeocode(latitude, longitude);
+
+          if (address) {
+            setDeliveryAddress(address);
+            toast.success(
+              `Location found! Accuracy: ${Math.round(accuracy)}m`,
+              {
+                id: "location",
+              }
+            );
+          } else {
+            // If reverse geocoding fails, use coordinates with better format
+            setDeliveryAddress(
+              `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+            );
+            toast.success(
+              `Location found! Accuracy: ${Math.round(
+                accuracy
+              )}m. Please verify the address.`,
+              { id: "location" }
+            );
+          }
+        } else {
+          toast.error("Invalid GPS coordinates received", { id: "location" });
+        }
+
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        setIsGettingLocation(false);
+
+        let errorMessage = "Failed to get your location";
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage =
+              "Location access denied. Please enable location permissions in your browser settings.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage =
+              "Location information unavailable. Please check your GPS/WiFi settings.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out. Please try again.";
+            break;
+        }
+        toast.error(errorMessage, { id: "location" });
+      },
+      {
+        enableHighAccuracy: true, // Use GPS if available for better accuracy
+        timeout: 15000, // Increased timeout for better accuracy
+        maximumAge: 0, // Don't use cached position
+      }
+    );
+  };
+
+  // Handle marker drag to update address
+  const handleMarkerDragEnd = async (e) => {
+    const { lat, lng } = e.target.getLatLng();
+    const newLat = lat;
+    const newLng = lng;
+
+    console.log("Marker dragged to:", [newLat, newLng]);
+
+    // Update map center to match marker position
+    setMapCenter([newLat, newLng]);
+    setMapKey((prev) => prev + 1);
+
+    // Reverse geocode new position
+    const address = await reverseGeocode(newLat, newLng);
+    if (address) {
+      setDeliveryAddress(address);
+      toast.success("Location updated!");
+    } else {
+      // If reverse geocoding fails, use coordinates
+      setDeliveryAddress(`${newLat.toFixed(6)}, ${newLng.toFixed(6)}`);
+      toast.success("Location updated! Please verify the address.");
+    }
+  };
+
+  // Handle map click to set location
+  const handleMapClick = async (e) => {
+    const { lat, lng } = e.latlng;
+    console.log("Map clicked at:", [lat, lng]);
+
+    // Update map center
+    setMapCenter([lat, lng]);
+    setMapKey((prev) => prev + 1);
+
+    // Reverse geocode clicked position
+    const address = await reverseGeocode(lat, lng);
+    if (address) {
+      setDeliveryAddress(address);
+      toast.success("Location set!");
+    } else {
+      setDeliveryAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+      toast.success("Location set! Please verify the address.");
+    }
+  };
 
   const currencyFormatter = useMemo(
     () =>
@@ -61,7 +483,7 @@ const Checkout = () => {
     // TODO: Implement actual order submission to backend
     // For now, just show success message
     toast.success("Order placed successfully!");
-    
+
     // Clear cart and navigate back to foods
     clearCart();
     setTimeout(() => {
@@ -124,20 +546,112 @@ const Checkout = () => {
             <div className="lg:col-span-2 space-y-6">
               {/* Delivery Address */}
               {orderType === "delivery" && (
-                <section className="bg-[#232323] border border-[#383838] rounded-2xl p-6">
+                <section className="bg-[#232323] border border-[#383838] rounded-2xl p-6 space-y-4">
                   <div className="flex items-center gap-3 mb-4">
                     <MapPin className="w-5 h-5 text-[#C05050]" />
                     <h2 className="text-xl font-semibold text-white">
                       Delivery Address
                     </h2>
                   </div>
-                  <textarea
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="Enter your complete delivery address..."
-                    className="w-full bg-[#1f1f1f] border border-[#383838] rounded-xl p-4 text-white placeholder:text-[#6b6b6b] focus:outline-none focus:border-[#C05050] focus:ring-2 focus:ring-[#C05050]/30 min-h-[120px] resize-none"
-                    rows={4}
-                  />
+
+                  {/* Address Input */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-sm text-[#ababab]">
+                        Your Address
+                      </label>
+                      <button
+                        onClick={handleGetCurrentLocation}
+                        disabled={isGettingLocation}
+                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#C05050] hover:bg-[#a63e3e] text-white text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {isGettingLocation ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Getting location...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Navigation className="w-4 h-4" />
+                            <span>Use Current Location</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <textarea
+                      value={deliveryAddress}
+                      onChange={(e) => setDeliveryAddress(e.target.value)}
+                      placeholder="Enter your complete delivery address..."
+                      className="w-full bg-[#1f1f1f] border border-[#383838] rounded-xl p-4 text-white placeholder:text-[#6b6b6b] focus:outline-none focus:border-[#C05050] focus:ring-2 focus:ring-[#C05050]/30 min-h-[120px] resize-none"
+                      rows={4}
+                    />
+                  </div>
+
+                  {/* Map Display */}
+                  {deliveryAddress && (
+                    <div className="mt-4">
+                      <label className="block text-sm text-[#ababab] mb-2">
+                        Location Map
+                      </label>
+                      <div className="w-full h-64 rounded-xl overflow-hidden border border-[#383838] bg-[#1f1f1f]">
+                        <MapContainer
+                          key={mapKey}
+                          center={mapCenter}
+                          zoom={
+                            mapCenter[0] === 12.8797 && mapCenter[1] === 121.774
+                              ? 6
+                              : 18
+                          }
+                          style={{ height: "100%", width: "100%", zIndex: 0 }}
+                          scrollWheelZoom={true}
+                          whenCreated={(mapInstance) => {
+                            // Ensure map updates when created
+                            if (
+                              mapCenter &&
+                              Array.isArray(mapCenter) &&
+                              mapCenter.length === 2
+                            ) {
+                              const [lat, lng] = mapCenter;
+                              if (!isNaN(lat) && !isNaN(lng)) {
+                                mapInstance.setView([lat, lng], 18);
+                              }
+                            }
+                          }}
+                        >
+                          <TileLayer
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                          />
+                          <MapUpdater center={mapCenter} />
+                          <MapClickHandler />
+                          <Marker
+                            key={`marker-${mapCenter[0]}-${mapCenter[1]}`}
+                            position={mapCenter}
+                            draggable={true}
+                            eventHandlers={{
+                              dragend: handleMarkerDragEnd,
+                            }}
+                          >
+                            <Popup>
+                              <div className="text-sm">
+                                <strong>Delivery Location</strong>
+                                <br />
+                                {deliveryAddress}
+                                <br />
+                                <span className="text-xs text-gray-500">
+                                  Drag marker to adjust
+                                </span>
+                              </div>
+                            </Popup>
+                          </Marker>
+                        </MapContainer>
+                      </div>
+                      <p className="text-xs text-[#ababab] mt-2">
+                        Map showing your delivery address location. Click on the
+                        map or drag the marker to set your exact location.
+                      </p>
+                    </div>
+                  )}
                 </section>
               )}
 
@@ -307,4 +821,3 @@ const Checkout = () => {
 };
 
 export default Checkout;
-
