@@ -26,6 +26,7 @@ import {
   Search,
   Carts,
   Accounts,
+  AdminOnlineOrders,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -132,6 +133,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Admin">
               <AdminUsers />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin-online-orders"
+          element={
+            <ProtectedRoute requiredRole="Admin">
+              <AdminOnlineOrders />
             </ProtectedRoute>
           }
         />

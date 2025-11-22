@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Box,
   Boxes,
+  Globe,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
@@ -59,6 +60,12 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       text: "Manage Orders",
       path: "/admin-orders",
       isActive: location.pathname === "/admin-orders",
+    },
+    {
+      icon: Globe,
+      text: "Online Orders",
+      path: "/admin-online-orders",
+      isActive: location.pathname === "/admin-online-orders",
     },
     {
       icon: Calendar,
