@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Search,
   ArrowLeft,
+  Utensils,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -869,7 +870,7 @@ const Pos = () => {
                     <button
                       key={item._id || index}
                       disabled={isOutOfStock}
-                      className={`relative rounded-xl p-3 sm:p-4 md:p-5 min-h-[140px] sm:min-h-[160px] md:min-h-[180px] shadow-lg transition-all flex flex-col justify-between border-2 touch-manipulation active:scale-95 w-full ${
+                      className={`relative rounded-xl overflow-hidden shadow-lg transition-all flex flex-col border-2 touch-manipulation active:scale-95 w-full ${
                         isOutOfStock
                           ? "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed"
                           : isLowStock
@@ -878,49 +879,74 @@ const Pos = () => {
                       }`}
                       onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
-                      {/* Quantity badge */}
-                      {itemQuantity > 0 && (
-                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-[#f6b100] text-[#232323] rounded-full w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 flex items-center justify-center text-base sm:text-lg md:text-xl font-bold shadow-lg border-2 border-[#383838]">
-                          {itemQuantity}
-                        </div>
-                      )}
-                      <div className="text-center w-full">
-                        <h5 className="font-bold text-base sm:text-lg text-[#f5f5f5] mb-1 sm:mb-2 line-clamp-2">
-                          {item.name || "No name"}
-                        </h5>
-                        <p className="text-xs sm:text-sm text-[#ababab] mb-1 sm:mb-2">
-                          {item.category}
-                        </p>
-                        <p className="text-lg sm:text-xl text-[#f6b100] font-bold mb-2 sm:mb-3">
-                          {formatCurrency(item.price || 0)}
-                        </p>
-                        <div className="mt-1 sm:mt-2">
-                          <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1 sm:mb-2">
-                            <span className="text-xs sm:text-sm text-[#ababab]">
-                              Stock:
-                            </span>
-                            <span
-                              className={`font-bold text-base sm:text-lg ${
-                                isOutOfStock
-                                  ? "text-red-400"
-                                  : isLowStock
-                                  ? "text-[#f6b100]"
-                                  : "text-green-400"
-                              }`}
-                            >
-                              {availableServings}
-                            </span>
+                      {/* Image Section */}
+                      <div className="relative h-32 sm:h-40 md:h-48 w-full overflow-hidden">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full bg-[#2f2f2f] flex flex-col items-center justify-center text-[#ababab] gap-2">
+                            <Utensils className="w-8 h-8 text-[#383838]" />
+                            <span className="text-xs">No image</span>
                           </div>
-                          {isOutOfStock && (
-                            <span className="inline-block px-2 sm:px-3 py-1 bg-[#313131] text-red-400 text-xs sm:text-sm font-bold rounded-lg">
-                              OUT OF STOCK
-                            </span>
-                          )}
-                          {isLowStock && !isOutOfStock && (
-                            <span className="inline-block px-2 sm:px-3 py-1 bg-[#50440a] text-[#f6b100] text-xs sm:text-sm font-bold rounded-lg">
-                              LOW STOCK
-                            </span>
-                          )}
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#1f1f1f] via-transparent to-transparent pointer-events-none" />
+                        
+                        {/* Category Badge */}
+                        <div className="absolute top-2 left-2 bg-[#1f1f1f]/70 backdrop-blur-md rounded-full px-2 sm:px-3 py-1 text-xs font-medium text-white uppercase tracking-wide">
+                          {item.category || "Misc"}
+                        </div>
+
+                        {/* Price Badge */}
+                        <div className="absolute top-2 right-2 text-white text-sm sm:text-base font-semibold bg-[#C05050]/80 rounded-full px-2 sm:px-3 py-1">
+                          {formatCurrency(item.price || 0)}
+                        </div>
+
+                        {/* Quantity badge */}
+                        {itemQuantity > 0 && (
+                          <div className="absolute bottom-2 right-2 bg-[#f6b100] text-[#232323] rounded-full w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 flex items-center justify-center text-sm sm:text-base md:text-lg font-bold shadow-lg border-2 border-[#383838] z-10">
+                            {itemQuantity}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Content Section */}
+                      <div className="p-3 sm:p-4 flex flex-col justify-between flex-1">
+                        <div className="text-center w-full">
+                          <h5 className="font-bold text-base sm:text-lg text-[#f5f5f5] mb-1 sm:mb-2 line-clamp-2">
+                            {item.name || "No name"}
+                          </h5>
+                          <div className="mt-1 sm:mt-2">
+                            <div className="flex items-center justify-center gap-1 sm:gap-2 mb-1 sm:mb-2">
+                              <span className="text-xs sm:text-sm text-[#ababab]">
+                                Stock:
+                              </span>
+                              <span
+                                className={`font-bold text-sm sm:text-base ${
+                                  isOutOfStock
+                                    ? "text-red-400"
+                                    : isLowStock
+                                    ? "text-[#f6b100]"
+                                    : "text-green-400"
+                                }`}
+                              >
+                                {availableServings}
+                              </span>
+                            </div>
+                            {isOutOfStock && (
+                              <span className="inline-block px-2 sm:px-3 py-1 bg-[#313131] text-red-400 text-xs sm:text-sm font-bold rounded-lg">
+                                OUT OF STOCK
+                              </span>
+                            )}
+                            {isLowStock && !isOutOfStock && (
+                              <span className="inline-block px-2 sm:px-3 py-1 bg-[#50440a] text-[#f6b100] text-xs sm:text-sm font-bold rounded-lg">
+                                LOW STOCK
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </button>
