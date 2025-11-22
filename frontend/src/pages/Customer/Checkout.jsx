@@ -5,6 +5,7 @@ import {
   Wallet,
   ArrowLeft,
   CheckCircle,
+  Phone,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import CustomerLayout from "../../components/Layout/CustomerLayout";
@@ -22,6 +23,7 @@ const Checkout = () => {
   // Get user data from localStorage
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const userAddress = user?.address || "";
+  const userPhone = user?.phone || "";
 
   const [deliveryAddress, setDeliveryAddress] = useState(userAddress);
   const [paymentMethod, setPaymentMethod] = useState("gcash"); // "gcash" or "cash"
@@ -151,6 +153,21 @@ const Checkout = () => {
                       rows={4}
                     />
                   </div>
+
+                  {/* Mobile Number Display */}
+                  {userPhone && (
+                    <div className="bg-[#1f1f1f] border border-[#383838] rounded-xl p-4">
+                      <div className="flex items-center gap-3">
+                        <Phone className="w-5 h-5 text-[#C05050]" />
+                        <div>
+                          <label className="block text-xs text-[#ababab] mb-1">
+                            Mobile Number
+                          </label>
+                          <p className="text-white font-medium">{userPhone}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </section>
               )}
 
