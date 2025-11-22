@@ -323,7 +323,7 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
     const oldStatus = order.status;
 
     // If order is being completed/delivered, deduct servings from menu items
-    if (status === "completed" && oldStatus !== "completed" && !order.servings_deducted) {
+    if (status === "Completed" && oldStatus !== "Completed" && !order.servings_deducted) {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
       
       for (const item of orderItems) {
@@ -363,7 +363,7 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
     }
 
     // If order is being cancelled, restore servings (only if they were deducted)
-    if (status === "cancelled" && oldStatus !== "cancelled" && order.servings_deducted) {
+    if (status === "Cancelled" && oldStatus !== "Cancelled" && order.servings_deducted) {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
       
       for (const item of orderItems) {
@@ -430,7 +430,7 @@ router.delete("/:id", verifyAuth, async (req, res) => {
     }
 
     // Restore servings for menu items if they were deducted (only if not completed)
-    if (order.servings_deducted && order.status !== "completed") {
+    if (order.servings_deducted && order.status !== "Completed") {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
       
       for (const item of orderItems) {

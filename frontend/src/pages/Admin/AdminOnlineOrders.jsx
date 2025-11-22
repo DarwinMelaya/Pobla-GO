@@ -121,8 +121,8 @@ const AdminOnlineOrders = () => {
         total_revenue: allOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
         delivery_orders: allOrders.filter((o) => o.order_type === "delivery").length,
         pickup_orders: allOrders.filter((o) => o.order_type === "pickup").length,
-        pending_orders: allOrders.filter((o) => o.status === "pending").length,
-        completed_orders: allOrders.filter((o) => o.status === "completed").length,
+        pending_orders: allOrders.filter((o) => o.status === "Pending").length,
+        completed_orders: allOrders.filter((o) => o.status === "Completed").length,
       };
 
       setStats(stats);
@@ -198,37 +198,37 @@ const AdminOnlineOrders = () => {
     setOrderToDelete(null);
   };
 
-  // Get status color
+  // Get status color (matching OnlineOrder model enum: Pending, Cancelled, Ready, OnTheWay, Completed)
   const getStatusColor = (status) => {
     switch (status) {
-      case "pending":
-        return "bg-yellow-700 text-white";
-      case "preparing":
-        return "bg-blue-700 text-white";
-      case "ready":
-        return "bg-green-700 text-white";
-      case "completed":
-        return "bg-gray-700 text-white";
-      case "cancelled":
-        return "bg-red-700 text-white";
+      case "Pending":
+        return "bg-yellow-400/10 border-yellow-400/30 text-yellow-400";
+      case "Cancelled":
+        return "bg-red-400/10 border-red-400/30 text-red-400";
+      case "Ready":
+        return "bg-purple-400/10 border-purple-400/30 text-purple-400";
+      case "OnTheWay":
+        return "bg-blue-400/10 border-blue-400/30 text-blue-400";
+      case "Completed":
+        return "bg-green-400/10 border-green-400/30 text-green-400";
       default:
-        return "bg-[#383838] text-[#f5f5f5]";
+        return "bg-[#383838]/10 border-[#383838]/30 text-[#ababab]";
     }
   };
 
   // Get status icon
   const getStatusIcon = (status) => {
     switch (status) {
-      case "pending":
+      case "Pending":
         return <Clock size={16} />;
-      case "preparing":
-        return <RefreshCw size={16} />;
-      case "ready":
-        return <CheckCircle size={16} />;
-      case "completed":
-        return <CheckCircle size={16} />;
-      case "cancelled":
+      case "Cancelled":
         return <XCircle size={16} />;
+      case "Ready":
+        return <CheckCircle size={16} />;
+      case "OnTheWay":
+        return <Truck size={16} />;
+      case "Completed":
+        return <CheckCircle size={16} />;
       default:
         return <Clock size={16} />;
     }
@@ -336,7 +336,7 @@ const AdminOnlineOrders = () => {
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-8">
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Total Orders</p>
@@ -344,27 +344,27 @@ const AdminOnlineOrders = () => {
                   {stats.total_orders}
                 </p>
               </div>
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Calendar size={20} className="text-blue-600" />
+              <div className="p-2 bg-blue-400/10 rounded-lg border border-blue-400/30">
+                <Calendar size={20} className="text-blue-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Total Revenue</p>
-                <p className="text-2xl font-bold text-[#f5f5f5]">
+                <p className="text-2xl font-bold text-[#f6b100]">
                   {formatCurrency(stats.total_revenue)}
                 </p>
               </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <DollarSign size={20} className="text-green-600" />
+              <div className="p-2 bg-[#f6b100]/10 rounded-lg border border-[#f6b100]/30">
+                <DollarSign size={20} className="text-[#f6b100]" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Delivery</p>
@@ -372,13 +372,13 @@ const AdminOnlineOrders = () => {
                   {stats.delivery_orders}
                 </p>
               </div>
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <Truck size={20} className="text-purple-600" />
+              <div className="p-2 bg-purple-400/10 rounded-lg border border-purple-400/30">
+                <Truck size={20} className="text-purple-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Pickup</p>
@@ -386,36 +386,36 @@ const AdminOnlineOrders = () => {
                   {stats.pickup_orders}
                 </p>
               </div>
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <Store size={20} className="text-orange-600" />
+              <div className="p-2 bg-orange-400/10 rounded-lg border border-orange-400/30">
+                <Store size={20} className="text-orange-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Pending</p>
-                <p className="text-2xl font-bold text-yellow-600">
+                <p className="text-2xl font-bold text-yellow-400">
                   {stats.pending_orders}
                 </p>
               </div>
-              <div className="p-2 bg-yellow-100 rounded-lg">
-                <Clock size={20} className="text-yellow-600" />
+              <div className="p-2 bg-yellow-400/10 rounded-lg border border-yellow-400/30">
+                <Clock size={20} className="text-yellow-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border">
+          <div className="bg-[#232323] p-4 rounded-lg shadow-sm border border-[#383838]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-[#cccccc]">Completed</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className="text-2xl font-bold text-green-400">
                   {stats.completed_orders}
                 </p>
               </div>
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle size={20} className="text-green-600" />
+              <div className="p-2 bg-green-400/10 rounded-lg border border-green-400/30">
+                <CheckCircle size={20} className="text-green-400" />
               </div>
             </div>
           </div>
@@ -453,11 +453,11 @@ const AdminOnlineOrders = () => {
                 className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
               >
                 <option value="">All Status</option>
-                <option value="pending">Pending</option>
-                <option value="preparing">Preparing</option>
-                <option value="ready">Ready</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
+                <option value="Pending">Pending</option>
+                <option value="Cancelled">Cancelled</option>
+                <option value="Ready">Ready</option>
+                <option value="OnTheWay">On the Way</option>
+                <option value="Completed">Completed</option>
               </select>
             </div>
 
@@ -589,13 +589,13 @@ const AdminOnlineOrders = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(
+                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
                               order.status
                             )}`}
                           >
                             {getStatusIcon(order.status)}
-                            <span className="ml-1 capitalize">
-                              {order.status}
+                            <span className="ml-1">
+                              {order.status === "OnTheWay" ? "On the Way" : order.status}
                             </span>
                           </span>
                         </td>
@@ -621,11 +621,11 @@ const AdminOnlineOrders = () => {
                               }
                               className="text-xs border border-[#383838] rounded px-2 py-1 focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
                             >
-                              <option value="pending">Pending</option>
-                              <option value="preparing">Preparing</option>
-                              <option value="ready">Ready</option>
-                              <option value="completed">Completed</option>
-                              <option value="cancelled">Cancelled</option>
+                              <option value="Pending">Pending</option>
+                              <option value="Cancelled">Cancelled</option>
+                              <option value="Ready">Ready</option>
+                              <option value="OnTheWay">On the Way</option>
+                              <option value="Completed">Completed</option>
                             </select>
                             <button
                               onClick={() => openDeleteConfirmModal(order)}
@@ -703,13 +703,13 @@ const AdminOnlineOrders = () => {
                       Status
                     </label>
                     <span
-                      className={`inline-flex items-center mt-1 px-2.5 py-0.5 rounded-full text-xs font-bold ${getStatusColor(
+                      className={`inline-flex items-center mt-1 px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
                         selectedOrder.status
                       )}`}
                     >
                       {getStatusIcon(selectedOrder.status)}
-                      <span className="ml-1 capitalize">
-                        {selectedOrder.status}
+                      <span className="ml-1">
+                        {selectedOrder.status === "OnTheWay" ? "On the Way" : selectedOrder.status}
                       </span>
                     </span>
                   </div>
@@ -907,13 +907,13 @@ const AdminOnlineOrders = () => {
                     <div className="flex justify-between">
                       <span className="text-sm text-[#cccccc]">Status:</span>
                       <span
-                        className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
                           orderToDelete.status
                         )}`}
                       >
                         {getStatusIcon(orderToDelete.status)}
-                        <span className="ml-1 capitalize">
-                          {orderToDelete.status}
+                        <span className="ml-1">
+                          {orderToDelete.status === "OnTheWay" ? "On the Way" : orderToDelete.status}
                         </span>
                       </span>
                     </div>

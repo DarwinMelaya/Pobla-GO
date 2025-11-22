@@ -300,6 +300,336 @@ router.get("/users", verifyAdmin, async (req, res) => {
   }
 });
 
+// Get current user profile
+router.get("/profile", verifyAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        addresses: user.addresses || [],
+        favorites: user.favorites || [],
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Add address
+router.post("/addresses", verifyAuth, async (req, res) => {
+  try {
+    const { label, address, isDefault } = req.body;
+
+    if (!label || !address) {
+      return res.status(400).json({
+        success: false,
+        message: "Label and address are required",
+      });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // If this is set as default, unset other defaults
+    if (isDefault) {
+      user.addresses.forEach((addr) => {
+        addr.isDefault = false;
+      });
+    }
+
+    // If no addresses exist and this is the first one, make it default
+    if (user.addresses.length === 0) {
+      user.addresses.push({
+        label,
+        address,
+        isDefault: true,
+      });
+    } else {
+      user.addresses.push({
+        label,
+        address,
+        isDefault: isDefault || false,
+      });
+    }
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      message: "Address added successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Add address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Update address
+router.put("/addresses/:addressId", verifyAuth, async (req, res) => {
+  try {
+    const { label, address, isDefault } = req.body;
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const addressIndex = user.addresses.findIndex(
+      (addr) => addr._id.toString() === addressId
+    );
+
+    if (addressIndex === -1) {
+      return res.status(404).json({
+        success: false,
+        message: "Address not found",
+      });
+    }
+
+    // If setting as default, unset other defaults
+    if (isDefault) {
+      user.addresses.forEach((addr, index) => {
+        if (index !== addressIndex) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    // Update the address
+    if (label !== undefined) user.addresses[addressIndex].label = label;
+    if (address !== undefined) user.addresses[addressIndex].address = address;
+    if (isDefault !== undefined)
+      user.addresses[addressIndex].isDefault = isDefault;
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address updated successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Update address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Delete address
+router.delete("/addresses/:addressId", verifyAuth, async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.addresses = user.addresses.filter(
+      (addr) => addr._id.toString() !== addressId
+    );
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Address deleted successfully",
+      addresses: user.addresses,
+    });
+  } catch (error) {
+    console.error("Delete address error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Get customer orders
+router.get("/orders", verifyAuth, async (req, res) => {
+  try {
+    // Only customers can access their own orders
+    if (req.user.role !== "Customer") {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Customer role required.",
+      });
+    }
+
+    const OnlineOrder = require("../models/OnlineOrder");
+    const OnlineOrderItem = require("../models/OnlineOrderItem");
+    
+    const orders = await OnlineOrder.find({ customer_id: req.user._id })
+      .sort({ created_at: -1 });
+
+    // Manually populate order items for each order
+    const ordersWithItems = await Promise.all(
+      orders.map(async (order) => {
+        const orderObj = order.toObject();
+        const items = await OnlineOrderItem.find({ order_id: order._id })
+          .populate("menu_item_id", "name category image");
+        orderObj.order_items = items;
+        return orderObj;
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      orders: ordersWithItems,
+      total: ordersWithItems.length,
+    });
+  } catch (error) {
+    console.error("Get customer orders error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Add to favorites
+router.post("/favorites/:menuId", verifyAuth, async (req, res) => {
+  try {
+    const { menuId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Check if already in favorites
+    if (user.favorites.includes(menuId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Item already in favorites",
+      });
+    }
+
+    user.favorites.push(menuId);
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Added to favorites",
+      favorites: user.favorites,
+    });
+  } catch (error) {
+    console.error("Add to favorites error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Remove from favorites
+router.delete("/favorites/:menuId", verifyAuth, async (req, res) => {
+  try {
+    const { menuId } = req.params;
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    user.favorites = user.favorites.filter(
+      (fav) => fav.toString() !== menuId
+    );
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Removed from favorites",
+      favorites: user.favorites,
+    });
+  } catch (error) {
+    console.error("Remove from favorites error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+// Get favorites
+router.get("/favorites", verifyAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).populate({
+      path: "favorites",
+      select: "name category price image description servings is_available",
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      favorites: user.favorites || [],
+    });
+  } catch (error) {
+    console.error("Get favorites error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
 // Logout
 router.get("/logout", (req, res) => {
   req.logout((err) => {

@@ -37,8 +37,8 @@ const OnlineOrderSchema = new mongoose.Schema({
   status: {
     type: String,
     required: true,
-    enum: ["pending", "preparing", "ready", "completed", "cancelled"],
-    default: "pending",
+    enum: ["Pending", "Cancelled", "Ready", "OnTheWay", "Completed"],
+    default: "Pending",
   },
   subtotal_amount: {
     type: Number,

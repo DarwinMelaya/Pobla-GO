@@ -17,6 +17,22 @@ const UserSchema = new mongoose.Schema({
       return !this.googleId;
     },
   },
+  // Multiple addresses for customers (like Foodpanda)
+  addresses: [
+    {
+      label: { type: String, required: true }, // e.g., "Home", "Work", "Office"
+      address: { type: String, required: true },
+      isDefault: { type: Boolean, default: false },
+      createdAt: { type: Date, default: Date.now },
+    },
+  ],
+  // Favorites/wishlist items
+  favorites: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Menu",
+    },
+  ],
   password: { type: String, required: true },
   role: {
     type: String,
