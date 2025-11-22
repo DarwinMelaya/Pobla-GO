@@ -176,6 +176,34 @@ router.post("/signup", async (req, res) => {
   }
 });
 
+// Middleware to verify JWT token (for authenticated users)
+const verifyAuth = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({
+        success: false,
+        message: "Access denied. No token provided.",
+      });
+    }
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "yourSecretKey"
+    );
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+    req.user = user;
+    next();
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid token." });
+  }
+};
+
 // Middleware to verify admin role using JWT
 const verifyAdmin = async (req, res, next) => {
   try {
@@ -203,6 +231,52 @@ const verifyAdmin = async (req, res, next) => {
     return res.status(401).json({ success: false, message: "Invalid token." });
   }
 };
+
+// Update user profile (authenticated users can update their own profile)
+router.put("/profile", verifyAuth, async (req, res) => {
+  try {
+    const { address, phone, name } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Update fields if provided
+    if (address !== undefined) user.address = address;
+    if (phone !== undefined) user.phone = phone;
+    if (name !== undefined) user.name = name;
+    user.updatedAt = Date.now();
+
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        address: user.address,
+        role: user.role,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
 
 // Get all users (Admin only)
 router.get("/users", verifyAdmin, async (req, res) => {

@@ -141,16 +141,35 @@ const SignUp = () => {
     const addressParts = [];
     if (streetAddress) addressParts.push(streetAddress);
     if (barangayCode) {
+      // Try multiple ways to find the barangay
       const barangay = barangayList.find(
-        (b) => b.code === barangayCode || b.barangay_code === barangayCode
+        (b) => 
+          b.code === barangayCode || 
+          b.barangay_code === barangayCode ||
+          b.brgy_code === barangayCode ||
+          String(b.code) === String(barangayCode) ||
+          String(b.barangay_code) === String(barangayCode) ||
+          String(b.brgy_code) === String(barangayCode)
       );
       if (barangay) {
-        addressParts.push(barangay.name || barangay.barangay_name);
+        addressParts.push(barangay.name || barangay.barangay_name || barangay.brgy_name || "Barangay");
+      } else if (barangayList.length > 0) {
+        // If barangay code exists but not found, log for debugging
+        console.warn("Barangay not found in list:", {
+          barangayCode,
+          barangayListLength: barangayList.length,
+          firstBarangay: barangayList[0]
+        });
       }
     }
     if (cityCode) {
       const city = cityList.find(
-        (c) => c.code === cityCode || c.city_code === cityCode
+        (c) => 
+          c.code === cityCode || 
+          c.city_code === cityCode ||
+          c.municipality_code === cityCode ||
+          String(c.code) === String(cityCode) ||
+          String(c.city_code) === String(cityCode)
       );
       if (city) {
         addressParts.push(city.name || city.city_name || city.municipality_name);
@@ -213,12 +232,96 @@ const SignUp = () => {
       return;
     }
 
+    // Rebuild address right before submission to ensure it's up-to-date
+    const addressParts = [];
+    if (streetAddress) addressParts.push(streetAddress);
+    
+    // Find and add barangay name
+    if (barangayCode) {
+      const barangay = barangayList.find(
+        (b) => {
+          const bCode = b.code || b.barangay_code || b.brgy_code;
+          return (
+            bCode === barangayCode ||
+            String(bCode) === String(barangayCode) ||
+            b.code === barangayCode ||
+            b.barangay_code === barangayCode ||
+            b.brgy_code === barangayCode
+          );
+        }
+      );
+      if (barangay) {
+        const barangayName = barangay.name || barangay.barangay_name || barangay.brgy_name || "Barangay";
+        addressParts.push(barangayName);
+        console.log("Barangay found and added to address:", barangayName);
+      } else {
+        // If barangay not found, try to find by index (if code is like "brgy_0")
+        if (barangayCode.startsWith("brgy_")) {
+          const index = parseInt(barangayCode.replace("brgy_", ""));
+          if (!isNaN(index) && barangayList[index]) {
+            const barangay = barangayList[index];
+            const barangayName = barangay.name || barangay.barangay_name || barangay.brgy_name || "Barangay";
+            addressParts.push(barangayName);
+            console.log("Barangay found by index and added to address:", barangayName);
+          } else {
+            console.warn("Barangay not found by index:", barangayCode);
+            addressParts.push("Barangay");
+          }
+        } else {
+          // If barangay not found, still include a placeholder to ensure address is saved
+          console.warn("Barangay not found in list, but code exists:", {
+            barangayCode,
+            barangayListLength: barangayList.length,
+            firstBarangay: barangayList[0]
+          });
+          addressParts.push("Barangay");
+        }
+      }
+    }
+    
+    // Find and add city name
+    if (cityCode) {
+      const city = cityList.find(
+        (c) => 
+          c.code === cityCode || 
+          c.city_code === cityCode ||
+          c.municipality_code === cityCode ||
+          String(c.code) === String(cityCode) ||
+          String(c.city_code) === String(cityCode)
+      );
+      if (city) {
+        addressParts.push(city.name || city.city_name || city.municipality_name);
+      }
+    }
+    
+    if (provinceCode) {
+      addressParts.push("Marinduque");
+    }
+    if (regionCode) {
+      addressParts.push("MIMAROPA");
+    }
+
+    // Update formData with the freshly built address
+    const finalAddress = addressParts.join(", ");
+    
+    // Validate that address was built correctly
+    if (!finalAddress || finalAddress.trim() === "") {
+      toast.error("Failed to build address. Please check all address fields.");
+      return;
+    }
+
     setIsLoading(true);
 
     try {
+      // Create submission data with the fresh address
+      const submissionData = {
+        ...formData,
+        address: finalAddress,
+      };
+
       const response = await axios.post(
         "http://localhost:5000/auth/signup",
-        formData
+        submissionData
       );
 
       if (response.data.success) {
@@ -421,11 +524,17 @@ const SignUp = () => {
                         : "Select Barangay"}
                     </option>
                     {barangayList.map((barangay, index) => {
-                      // Handle various property name formats
-                      const barangayCodeValue = barangay.code || barangay.barangay_code || barangay.brgy_code || index;
-                      const barangayName = barangay.name || barangay.barangay_name || barangay.brgy_name || `Barangay ${index + 1}`;
+                      // Handle various property name formats - prioritize code over index
+                      const barangayCodeValue = barangay.code || 
+                                               barangay.barangay_code || 
+                                               barangay.brgy_code || 
+                                               `brgy_${index}`;
+                      const barangayName = barangay.name || 
+                                          barangay.barangay_name || 
+                                          barangay.brgy_name || 
+                                          `Barangay ${index + 1}`;
                       return (
-                        <option key={barangayCodeValue || index} value={barangayCodeValue} className="bg-[#1f1f1f]">
+                        <option key={barangayCodeValue || `brgy_${index}`} value={barangayCodeValue} className="bg-[#1f1f1f]">
                           {barangayName}
                         </option>
                       );
