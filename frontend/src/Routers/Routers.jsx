@@ -27,6 +27,7 @@ import {
   Carts,
   Accounts,
   AdminOnlineOrders,
+  Checkout,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
 
@@ -225,6 +226,14 @@ export const Routers = () => {
           element={
             <ProtectedRoute requiredRole="Customer">
               <Carts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <ProtectedRoute requiredRole="Customer">
+              <Checkout />
             </ProtectedRoute>
           }
         />

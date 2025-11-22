@@ -33,3 +33,4 @@ export { default as Foods } from "./Customer/Foods";
 export { default as Search } from "./Customer/Search";
 export { default as Carts } from "./Customer/Carts";
 export { default as Accounts } from "./Customer/Accounts";
+export { default as Checkout } from "./Customer/Checkout";

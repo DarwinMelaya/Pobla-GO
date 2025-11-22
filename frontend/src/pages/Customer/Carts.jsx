@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ShoppingCart,
   Plus,
@@ -6,6 +6,8 @@ import {
   Trash2,
   Utensils,
   ArrowRight,
+  Truck,
+  Store,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import CustomerLayout from "../../components/Layout/CustomerLayout";
@@ -22,6 +24,7 @@ const Carts = () => {
     getCartTotal,
     getCartItemCount,
   } = useCart();
+  const [orderType, setOrderType] = useState("delivery"); // "delivery" or "pickup"
 
   const currencyFormatter = useMemo(
     () =>
@@ -34,7 +37,7 @@ const Carts = () => {
   );
 
   const subtotal = getCartTotal();
-  const deliveryFee = 0; // You can add delivery fee logic later
+  const deliveryFee = orderType === "delivery" ? 50 : 0; // Delivery fee only for delivery
   const total = subtotal + deliveryFee;
 
   const handleIncreaseQuantity = (item) => {
@@ -67,9 +70,8 @@ const Carts = () => {
       toast.error("Your cart is empty");
       return;
     }
-    // TODO: Navigate to checkout page or show checkout modal
-    toast.success("Proceeding to checkout...");
-    // navigate("/checkout");
+    // Navigate to checkout page with orderType
+    navigate("/checkout", { state: { orderType } });
   };
 
   return (
@@ -86,7 +88,9 @@ const Carts = () => {
                 </p>
                 <h1 className="text-3xl md:text-4xl font-bold text-white">
                   {getCartItemCount() > 0
-                    ? `${getCartItemCount()} item${getCartItemCount() !== 1 ? "s" : ""} in your cart`
+                    ? `${getCartItemCount()} item${
+                        getCartItemCount() !== 1 ? "s" : ""
+                      } in your cart`
                     : "Your cart is empty"}
                 </h1>
               </div>
@@ -117,6 +121,96 @@ const Carts = () => {
             </section>
           ) : (
             <>
+              {/* Delivery/Pickup Selection */}
+              <section className="bg-[#232323] border border-[#383838] rounded-2xl p-6">
+                <h2 className="text-lg font-semibold text-white mb-4">
+                  Choose your order type
+                </h2>
+                <div className="grid grid-cols-2 gap-4">
+                  <button
+                    onClick={() => setOrderType("delivery")}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      orderType === "delivery"
+                        ? "border-[#C05050] bg-[#C05050]/10"
+                        : "border-[#383838] bg-[#1f1f1f] hover:border-[#2f2f2f]"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div
+                        className={`p-3 rounded-full ${
+                          orderType === "delivery"
+                            ? "bg-[#C05050]"
+                            : "bg-[#2f2f2f]"
+                        }`}
+                      >
+                        <Truck
+                          className={`w-6 h-6 ${
+                            orderType === "delivery"
+                              ? "text-white"
+                              : "text-[#ababab]"
+                          }`}
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p
+                          className={`font-semibold ${
+                            orderType === "delivery"
+                              ? "text-white"
+                              : "text-[#ababab]"
+                          }`}
+                        >
+                          Delivery
+                        </p>
+                        <p className="text-xs text-[#ababab] mt-1">
+                          {currencyFormatter.format(50)} delivery fee
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setOrderType("pickup")}
+                    className={`p-4 rounded-xl border-2 transition-all ${
+                      orderType === "pickup"
+                        ? "border-[#C05050] bg-[#C05050]/10"
+                        : "border-[#383838] bg-[#1f1f1f] hover:border-[#2f2f2f]"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-3">
+                      <div
+                        className={`p-3 rounded-full ${
+                          orderType === "pickup"
+                            ? "bg-[#C05050]"
+                            : "bg-[#2f2f2f]"
+                        }`}
+                      >
+                        <Store
+                          className={`w-6 h-6 ${
+                            orderType === "pickup"
+                              ? "text-white"
+                              : "text-[#ababab]"
+                          }`}
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p
+                          className={`font-semibold ${
+                            orderType === "pickup"
+                              ? "text-white"
+                              : "text-[#ababab]"
+                          }`}
+                        >
+                          Pickup
+                        </p>
+                        <p className="text-xs text-[#ababab] mt-1">
+                          No delivery fee
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              </section>
+
               {/* Cart Items */}
               <section className="space-y-4">
                 {cartItems.map((item) => (
@@ -176,7 +270,9 @@ const Carts = () => {
                         {/* Quantity Controls and Price */}
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-[#2f2f2f]">
                           <div className="flex items-center gap-3">
-                            <span className="text-sm text-[#ababab]">Quantity:</span>
+                            <span className="text-sm text-[#ababab]">
+                              Quantity:
+                            </span>
                             <div className="flex items-center gap-2">
                               <button
                                 onClick={() => handleDecreaseQuantity(item)}
@@ -190,9 +286,7 @@ const Carts = () => {
                               </span>
                               <button
                                 onClick={() => handleIncreaseQuantity(item)}
-                                disabled={
-                                  item.quantity >= (item.servings || 0)
-                                }
+                                disabled={item.quantity >= (item.servings || 0)}
                                 className="w-8 h-8 rounded-lg bg-[#1f1f1f] border border-[#2f2f2f] flex items-center justify-center hover:bg-[#2f2f2f] transition text-white disabled:opacity-50 disabled:cursor-not-allowed"
                                 aria-label="Increase quantity"
                               >
@@ -225,9 +319,13 @@ const Carts = () => {
                   Order Summary
                 </h2>
                 <div className="space-y-3 mb-6">
-                  <div className="flex justify-between text-[#ababab]">
-                    <span>Subtotal</span>
-                    <span>{currencyFormatter.format(subtotal)}</span>
+                  <div className="bg-[#1f1f1f] rounded-xl p-4 border border-[#2f2f2f]">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[#ababab] text-sm">Subtotal</span>
+                      <span className="text-xl font-bold text-white">
+                        {currencyFormatter.format(subtotal)}
+                      </span>
+                    </div>
                   </div>
                   {deliveryFee > 0 && (
                     <div className="flex justify-between text-[#ababab]">
@@ -254,7 +352,7 @@ const Carts = () => {
                     onClick={handleCheckout}
                     className="flex-1 px-6 py-3 rounded-full bg-[#C05050] text-white font-semibold hover:bg-[#a63e3e] transition flex items-center justify-center gap-2"
                   >
-                    Proceed to Checkout
+                    Review payment and address
                     <ArrowRight className="w-5 h-5" />
                   </button>
                 </div>
