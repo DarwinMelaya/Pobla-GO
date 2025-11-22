@@ -66,6 +66,7 @@ router.get("/", verifyAuth, async (req, res) => {
       table_number,
       date_from,
       date_to,
+      order_type,
       page = 1,
       limit = 10,
     } = req.query;
@@ -80,6 +81,10 @@ router.get("/", verifyAuth, async (req, res) => {
       filter.table_number = table_number;
     }
 
+    if (order_type) {
+      filter.order_type = order_type;
+    }
+
     if (date_from || date_to) {
       filter.created_at = {};
       if (date_from) {
@@ -92,6 +97,7 @@ router.get("/", verifyAuth, async (req, res) => {
 
     const orders = await Order.find(filter)
       .populate("staff_member", "name")
+      .populate("customer_id", "name email")
       .populate({
         path: "order_items",
         populate: {
@@ -113,6 +119,77 @@ router.get("/", verifyAuth, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// GET /orders/online - Get online orders (delivery and pickup)
+router.get("/online", verifyAuth, async (req, res) => {
+  try {
+    const {
+      status,
+      order_type,
+      date_from,
+      date_to,
+      search,
+      page = 1,
+      limit = 10,
+    } = req.query;
+
+    let filter = {
+      order_type: { $in: ["delivery", "pickup"] },
+    };
+
+    if (status) {
+      filter.status = status;
+    }
+
+    if (order_type) {
+      filter.order_type = order_type;
+    }
+
+    // Search by customer name
+    if (search) {
+      filter.customer_name = { $regex: search, $options: "i" };
+    }
+
+    if (date_from || date_to) {
+      filter.created_at = {};
+      if (date_from) {
+        filter.created_at.$gte = new Date(date_from);
+      }
+      if (date_to) {
+        filter.created_at.$lte = new Date(date_to);
+      }
+    }
+
+    const orders = await Order.find(filter)
+      .populate("customer_id", "name email phone")
+      .populate({
+        path: "order_items",
+        populate: {
+          path: "menu_item_id",
+          select: "name category",
+        },
+      })
+      .sort({ created_at: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const total = await Order.countDocuments(filter);
+
+    res.json({
+      success: true,
+      orders,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+      total,
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: "Server error", 
+      error: error.message 
+    });
   }
 });
 
@@ -318,6 +395,167 @@ router.post("/", verifyAuth, async (req, res) => {
     res.status(201).json(order);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
+// POST /orders/online - Create online order (delivery or pickup)
+router.post("/online", verifyAuth, async (req, res) => {
+  try {
+    const {
+      customer_name,
+      order_type, // "delivery" or "pickup"
+      order_items,
+      delivery_address,
+      customer_phone,
+      payment_method,
+      notes,
+    } = req.body;
+
+    // Validate required fields
+    if (!customer_name || !order_items || !Array.isArray(order_items) || order_items.length === 0) {
+      return res.status(400).json({
+        message: "Missing required fields: customer_name and order_items array",
+      });
+    }
+
+    // Validate order_type
+    if (!order_type || !["delivery", "pickup"].includes(order_type)) {
+      return res.status(400).json({
+        message: "order_type must be 'delivery' or 'pickup'",
+      });
+    }
+
+    // Validate delivery-specific fields
+    if (order_type === "delivery") {
+      if (!delivery_address || !delivery_address.trim()) {
+        return res.status(400).json({
+          message: "delivery_address is required for delivery orders",
+        });
+      }
+      if (!customer_phone || !customer_phone.trim()) {
+        return res.status(400).json({
+          message: "customer_phone is required for delivery orders",
+        });
+      }
+    }
+
+    // Calculate subtotal
+    let subtotal_amount = 0;
+    const validated_items = [];
+
+    for (const item of order_items) {
+      if (!item.item_name || !item.quantity || !item.price) {
+        return res.status(400).json({
+          message: "Each order item must have item_name, quantity, and price",
+        });
+      }
+
+      const item_total = item.quantity * item.price;
+      subtotal_amount += item_total;
+
+      validated_items.push({
+        item_name: item.item_name,
+        quantity: item.quantity,
+        price: item.price,
+        total_price: item_total,
+        menu_item_id: item.menu_item_id || null,
+        special_instructions: item.special_instructions || "",
+      });
+    }
+
+    // Calculate delivery fee (50 PHP for delivery)
+    const delivery_fee = order_type === "delivery" ? 50 : 0;
+    const total_amount = subtotal_amount + delivery_fee;
+
+    // Get customer_id from user if logged in
+    const customer_id = req.user && req.user.role === "Customer" ? req.user._id : null;
+
+    // Create the order
+    const order = new Order({
+      customer_name,
+      order_type,
+      customer_id,
+      customer_phone: customer_phone || null,
+      delivery_address: delivery_address || null,
+      delivery_fee,
+      subtotal_amount,
+      total_amount,
+      notes: notes || "",
+      payment_method: payment_method || "cash",
+      payment_status: payment_method === "gcash" ? "paid" : "pending",
+      discount_type: "none",
+      discount_rate: 0,
+      discount_amount: 0,
+    });
+
+    await order.save();
+
+    // Create order items
+    const orderItems = validated_items.map((item) => ({
+      ...item,
+      order_id: order._id,
+    }));
+
+    await OrderItem.insertMany(orderItems);
+
+    // Check availability and update servings for menu items
+    for (const item of order_items) {
+      if (item.menu_item_id) {
+        try {
+          const menuItem = await Menu.findById(item.menu_item_id);
+          if (!menuItem) {
+            return res.status(400).json({
+              message: `Menu item not found: ${item.item_name}`,
+            });
+          }
+
+          // Check if sufficient servings are available
+          if (!menuItem.hasSufficientServings(item.quantity)) {
+            return res.status(400).json({
+              message: `Insufficient servings for ${menuItem.name}. Available: ${menuItem.servings}, Required: ${item.quantity}`,
+            });
+          }
+
+          // Update inventory (ingredients) - for tracking purposes
+          await menuItem.updateInventoryOnOrder(item.quantity);
+
+          // Reduce servings using the model method
+          await menuItem.deductServings(item.quantity);
+        } catch (error) {
+          console.error(
+            `Failed to update inventory/servings for menu item ${item.menu_item_id}:`,
+            error
+          );
+          return res.status(400).json({
+            message: error.message || "Failed to process menu item",
+          });
+        }
+      }
+    }
+
+    // Populate the response
+    if (order.customer_id) {
+      await order.populate("customer_id", "name email");
+    }
+    await order.populate({
+      path: "order_items",
+      populate: {
+        path: "menu_item_id",
+        select: "name category",
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: "Server error", 
+      error: error.message 
+    });
   }
 });
 

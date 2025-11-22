@@ -44,6 +44,7 @@ app.use("/menu", require("./routes/menu"));
 app.use("/units", require("./routes/units"));
 app.use("/categories", require("./routes/categories"));
 app.use("/orders", require("./routes/orders"));
+app.use("/online-orders", require("./routes/onlineOrders"));
 app.use("/reservations", require("./routes/reservations"));
 app.use("/suppliers", require("./routes/suppliers"));
 app.use("/raw-materials", require("./routes/rawMaterials"));

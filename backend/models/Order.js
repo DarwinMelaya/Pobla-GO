@@ -6,10 +6,40 @@ const OrderSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  // Order type: "dine_in", "delivery", or "pickup"
+  order_type: {
+    type: String,
+    enum: ["dine_in", "delivery", "pickup"],
+    default: "dine_in",
+  },
+  // Table number (required for dine_in, optional for online orders)
   table_number: {
     type: String,
-    required: true,
     trim: true,
+    required: function() {
+      return this.order_type === "dine_in";
+    },
+  },
+  // Customer reference (for online orders from logged-in users)
+  customer_id: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  // Customer phone number (for delivery/pickup)
+  customer_phone: {
+    type: String,
+    trim: true,
+  },
+  // Delivery address (for delivery orders)
+  delivery_address: {
+    type: String,
+    trim: true,
+  },
+  // Delivery fee (for delivery orders)
+  delivery_fee: {
+    type: Number,
+    min: 0,
+    default: 0,
   },
   status: {
     type: String,
@@ -42,11 +72,13 @@ const OrderSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
-  // Staff member who took the order
+  // Staff member who took the order (required for dine_in, optional for online)
   staff_member: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true,
+    required: function() {
+      return this.order_type === "dine_in";
+    },
   },
   // Additional order details
   notes: {
@@ -61,7 +93,7 @@ const OrderSchema = new mongoose.Schema({
   },
   payment_method: {
     type: String,
-    enum: ["cash", "card", "digital"],
+    enum: ["cash", "card", "digital", "gcash"],
   },
   // Timestamps
   created_at: {

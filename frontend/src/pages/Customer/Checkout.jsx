@@ -422,7 +422,7 @@ const Checkout = () => {
     setBarangayCode(e.target.value);
   };
 
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = async () => {
     // Validation
     if (orderType === "delivery") {
       if (!streetAddress.trim() || !cityCode || !barangayCode) {
@@ -441,15 +441,66 @@ const Checkout = () => {
       return;
     }
 
-    // TODO: Implement actual order submission to backend
-    // For now, just show success message
-    toast.success("Order placed successfully!");
+    try {
+      const token = localStorage.getItem("token");
+      
+      // Prepare order items
+      const orderItems = cartItems.map((item) => ({
+        item_name: item.name,
+        quantity: item.quantity,
+        price: item.price,
+        menu_item_id: item._id,
+        special_instructions: "",
+      }));
 
-    // Clear cart and navigate back to foods
-    clearCart();
-    setTimeout(() => {
-      navigate("/foods");
-    }, 1500);
+      // Prepare order data
+      const orderData = {
+        customer_name: user?.name || "Guest",
+        order_type: orderType, // "delivery" or "pickup"
+        order_items: orderItems,
+        payment_method: paymentMethod === "gcash" ? "gcash" : "cash",
+        notes: "",
+      };
+
+      // Add delivery-specific fields
+      if (orderType === "delivery") {
+        orderData.delivery_address = deliveryAddress;
+        orderData.customer_phone = userPhone;
+      }
+
+      // Create order
+      const response = await axios.post(
+        "http://localhost:5000/online-orders",
+        orderData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Order placed successfully!");
+        
+        // Clear cart
+        clearCart();
+        
+        // Navigate to order confirmation or foods page
+        setTimeout(() => {
+          navigate("/foods");
+        }, 1500);
+      } else {
+        toast.error(response.data.message || "Failed to place order");
+      }
+    } catch (error) {
+      console.error("Error placing order:", error);
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to place order. Please try again.");
+      }
+    }
   };
 
   // Redirect if cart is empty
