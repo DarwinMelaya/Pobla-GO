@@ -27,13 +27,14 @@ const Pos = () => {
   const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [tableStatus, setTableStatus] = useState(null);
-  const [checkingTable, setCheckingTable] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [availableTables, setAvailableTables] = useState([]);
+  const [loadingTables, setLoadingTables] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
@@ -74,44 +75,29 @@ const Pos = () => {
     }
   };
 
-  // Check table availability
-  const checkTableAvailability = async (tableNumber) => {
-    if (!tableNumber) return;
-
-    setCheckingTable(true);
+  // Fetch available tables
+  const fetchAvailableTables = async () => {
+    setLoadingTables(true);
     try {
       const token = getAuthToken();
-      const response = await fetch(
-        `${API_BASE}/orders/tables/${tableNumber}/status`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`${API_BASE}/reservations/tables/available`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
-      if (response.ok) {
-        const status = await response.json();
-        setTableStatus(status);
-
-        if (!status.available) {
-          if (status.type === "reservation") {
-            const reservationTime = new Date(status.reservation_date).toLocaleString();
-            toast.error(
-              `Table ${tableNumber} is reserved for ${reservationTime} by ${status.customer} (Status: ${status.status})`
-            );
-          } else {
-            toast.error(
-              `Table ${tableNumber} is occupied by ${status.customer} (Status: ${status.status})`
-            );
-          }
-        }
+      if (!response.ok) {
+        throw new Error("Failed to fetch available tables");
       }
+
+      const data = await response.json();
+      setAvailableTables(data.data || []);
     } catch (error) {
-      console.error("Error checking table status:", error);
+      console.error("Error fetching available tables:", error);
+      toast.error("Failed to fetch available tables");
     } finally {
-      setCheckingTable(false);
+      setLoadingTables(false);
     }
   };
 
@@ -367,6 +353,7 @@ const Pos = () => {
       toast.success("Order created successfully");
       handleReset();
       fetchMenuItems(); // Refresh menu items after order creation
+      fetchAvailableTables(); // Refresh available tables after order creation
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order");
@@ -645,9 +632,10 @@ const Pos = () => {
     setShowCashPayment(orderForm.payment_method === "cash");
   }, [orderForm.payment_method]);
 
-  // Fetch menu items on component mount
+  // Fetch menu items and available tables on component mount
   useEffect(() => {
     fetchMenuItems();
+    fetchAvailableTables();
   }, []);
 
   return (
@@ -692,15 +680,14 @@ const Pos = () => {
             />
           </div>
 
-          {/* Table Number - Large Touch Input */}
+          {/* Table Number - Dropdown */}
           <div className="w-full lg:w-48 flex-shrink-0">
             <label className="block text-xs font-semibold text-[#ababab] mb-1">
               Table Number *
             </label>
             <div className="flex gap-2 items-start">
               <div className="flex-1 min-w-0">
-                <input
-                  type="text"
+                <select
                   value={orderForm.table_number}
                   onChange={(e) => {
                     setOrderForm((prev) => ({
@@ -709,34 +696,43 @@ const Pos = () => {
                     }));
                     setTableStatus(null);
                   }}
-                  className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
-                  placeholder="Table #"
-                />
-                {tableStatus && (
-                  <div
-                    className={`mt-2 p-2 rounded-lg text-xs font-bold ${
-                      tableStatus.available
-                        ? "bg-[#222d23] text-[#4ec57a] border border-[#4ec57a]"
-                        : tableStatus.type === "reservation"
-                        ? "bg-[#3a2e1f] text-[#f6b100] border border-[#f6b100]"
-                        : "bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]"
-                    }`}
-                  >
-                    {tableStatus.available
-                      ? "✅ Available"
-                      : tableStatus.type === "reservation"
-                      ? `⏰ Reserved (${new Date(tableStatus.reservation_date).toLocaleString()})`
-                      : "❌ Occupied"}
+                  disabled={loadingTables || availableTables.length === 0}
+                  className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-xl md:text-2xl font-bold text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation ${
+                    loadingTables || availableTables.length === 0
+                      ? "opacity-50 cursor-not-allowed"
+                      : ""
+                  }`}
+                >
+                  <option value="" className="text-lg font-bold">Select Table</option>
+                  {availableTables.map((table) => (
+                    <option key={table} value={table} className="text-xl font-bold">
+                      {table}
+                    </option>
+                  ))}
+                </select>
+                {loadingTables && (
+                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#3a2e1f] text-[#f6b100] border border-[#f6b100]">
+                    Loading tables...
+                  </div>
+                )}
+                {!loadingTables && availableTables.length === 0 && (
+                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]">
+                    No tables available
                   </div>
                 )}
               </div>
               <button
                 type="button"
-                onClick={() => checkTableAvailability(orderForm.table_number)}
-                disabled={!orderForm.table_number || checkingTable}
+                onClick={fetchAvailableTables}
+                disabled={loadingTables}
                 className="px-3 md:px-4 py-2 md:py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow touch-manipulation min-w-[70px] md:min-w-[80px] flex-shrink-0"
+                title="Refresh available tables"
               >
-                {checkingTable ? "..." : "Check"}
+                {loadingTables ? (
+                  <RefreshCw size={18} className="animate-spin" />
+                ) : (
+                  <RefreshCw size={18} />
+                )}
               </button>
             </div>
           </div>
