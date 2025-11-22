@@ -1,7 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
+import {
+  regions,
+  provinces,
+  cities,
+  barangays,
+  regionByCode,
+  provincesByCode,
+  provinceByName,
+} from "select-philippines-address";
 import logoClear from "/logoClear.png";
 import bgPobla from "/bgPobla.jpg";
 
@@ -19,8 +28,159 @@ const SignUp = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Address state
+  const [regionCode, setRegionCode] = useState("");
+  const [provinceCode, setProvinceCode] = useState("");
+  const [cityCode, setCityCode] = useState("");
+  const [barangayCode, setBarangayCode] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [cityList, setCityList] = useState([]);
+  const [barangayList, setBarangayList] = useState([]);
+  const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+
+  // Load Marinduque province data on mount
+  useEffect(() => {
+    const loadMarinduqueData = async () => {
+      try {
+        setIsLoadingAddress(true);
+        // Get Marinduque province code
+        const marinduqueProvince = await provinceByName("Marinduque");
+        if (marinduqueProvince) {
+          const provinceCodeValue = marinduqueProvince.province_code;
+          setProvinceCode(provinceCodeValue);
+          
+          // Get region code for Marinduque (Region IV-B - MIMAROPA)
+          // Marinduque is in region code "17" (MIMAROPA)
+          // Try to get from province data, otherwise use known value
+          const regionCodeValue = marinduqueProvince.region_code || "17";
+          setRegionCode(regionCodeValue);
+          
+          // Load cities/municipalities for Marinduque
+          const citiesData = await cities(provinceCodeValue);
+          setCityList(citiesData || []);
+        } else {
+          toast.error("Marinduque province not found");
+        }
+      } catch (error) {
+        toast.error("Failed to load address data");
+      } finally {
+        setIsLoadingAddress(false);
+      }
+    };
+
+    loadMarinduqueData();
+  }, []);
+
+  // Load barangays when city is selected
+  useEffect(() => {
+    const loadBarangays = async () => {
+      if (!cityCode) {
+        setBarangayList([]);
+        setBarangayCode("");
+        return;
+      }
+
+      try {
+        setIsLoadingAddress(true);
+        
+        // Find the selected city to get its full code
+        const selectedCity = cityList.find(
+          (c) => (c.code || c.city_code || c.municipality_code) === cityCode
+        );
+        
+        // Try different code formats that the library might expect
+        const codeToUse = selectedCity?.code || 
+                         selectedCity?.city_code || 
+                         selectedCity?.municipality_code || 
+                         cityCode;
+        
+        // Try the code as-is first
+        let barangaysData;
+        try {
+          barangaysData = await barangays(codeToUse);
+        } catch (firstError) {
+          // If that fails, try with different code formats
+          // Try with province code + city code if available
+          if (selectedCity && provinceCode) {
+            const combinedCode = provinceCode + codeToUse;
+            try {
+              barangaysData = await barangays(combinedCode);
+            } catch (secondError) {
+              // Try just the city code from the object
+              const altCode = selectedCity.city_code || selectedCity.municipality_code || selectedCity.code;
+              barangaysData = await barangays(altCode);
+            }
+          } else {
+            throw firstError;
+          }
+        }
+        
+        // Handle different data structures
+        let formattedBarangays = [];
+        if (Array.isArray(barangaysData)) {
+          formattedBarangays = barangaysData;
+        } else if (barangaysData && typeof barangaysData === 'object') {
+          // If it's an object, try to extract array from common properties
+          formattedBarangays = barangaysData.data || barangaysData.barangays || Object.values(barangaysData).filter(Array.isArray)[0] || [];
+        }
+        
+        setBarangayList(formattedBarangays);
+      } catch (error) {
+        // Don't show toast for every error, just silently fail
+        setBarangayList([]);
+      } finally {
+        setIsLoadingAddress(false);
+      }
+    };
+
+    loadBarangays();
+  }, [cityCode, cityList, provinceCode]);
+
+  // Update address string when address components change
+  useEffect(() => {
+    const addressParts = [];
+    if (streetAddress) addressParts.push(streetAddress);
+    if (barangayCode) {
+      const barangay = barangayList.find(
+        (b) => b.code === barangayCode || b.barangay_code === barangayCode
+      );
+      if (barangay) {
+        addressParts.push(barangay.name || barangay.barangay_name);
+      }
+    }
+    if (cityCode) {
+      const city = cityList.find(
+        (c) => c.code === cityCode || c.city_code === cityCode
+      );
+      if (city) {
+        addressParts.push(city.name || city.city_name || city.municipality_name);
+      }
+    }
+    if (provinceCode) {
+      addressParts.push("Marinduque");
+    }
+    if (regionCode) {
+      addressParts.push("MIMAROPA");
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      address: addressParts.join(", "),
+    }));
+  }, [streetAddress, barangayCode, cityCode, provinceCode, regionCode, cityList, barangayList]);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleCityChange = (e) => {
+    const selectedCityCode = e.target.value;
+    setCityCode(selectedCityCode);
+    setBarangayCode(""); // Reset barangay when city changes
+  };
+
+  const handleBarangayChange = (e) => {
+    setBarangayCode(e.target.value);
   };
 
   const handleSubmit = async (e) => {
@@ -31,11 +191,13 @@ const SignUp = () => {
       !formData.name ||
       !formData.email ||
       !formData.phone ||
-      !formData.address ||
+      !streetAddress ||
+      !cityCode ||
+      !barangayCode ||
       !formData.password ||
       !formData.confirmPassword
     ) {
-      toast.error("Please fill in all fields");
+      toast.error("Please fill in all fields including complete address");
       return;
     }
 
@@ -70,11 +232,13 @@ const SignUp = () => {
           password: "",
           confirmPassword: "",
         });
+        setStreetAddress("");
+        setCityCode("");
+        setBarangayCode("");
         // Navigate to login page
         navigate("/login");
       }
     } catch (error) {
-      console.error("Signup error:", error);
       if (error.response?.data?.message) {
         toast.error(error.response.data.message);
       } else {
@@ -92,9 +256,7 @@ const SignUp = () => {
         src={bgPobla}
         alt="Background"
         className="absolute inset-0 w-full h-full object-cover z-0"
-        onLoad={() => console.log("Background image loaded successfully")}
         onError={(e) => {
-          console.error("Background image failed to load:", e);
           // Try direct path if import fails
           e.target.src = "/bgPobla.jpg";
         }}
@@ -192,20 +354,102 @@ const SignUp = () => {
                 />
               </div>
 
-              {/* Full Address */}
-              <div>
+              {/* Address Section - Marinduque Only */}
+              <div className="space-y-4">
                 <label className="block text-sm font-medium text-white/90 mb-2">
-                  Full Address
+                  Address (Marinduque Province)
                 </label>
-                <textarea
-                  name="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                  placeholder="Enter full address"
-                  rows={3}
-                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200 resize-none"
-                  required
-                />
+
+                {/* Street Address */}
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">
+                    Street Address / House Number
+                  </label>
+                  <input
+                    type="text"
+                    value={streetAddress}
+                    onChange={(e) => setStreetAddress(e.target.value)}
+                    placeholder="Enter street address or house number"
+                    className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
+                  />
+                </div>
+
+                {/* City/Municipality */}
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">
+                    City / Municipality
+                  </label>
+                  <select
+                    value={cityCode}
+                    onChange={handleCityChange}
+                    disabled={isLoadingAddress || cityList.length === 0}
+                    className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    required
+                  >
+                    <option value="">Select City/Municipality</option>
+                    {cityList.map((city) => {
+                      const cityCodeValue = city.code || city.city_code || city.municipality_code;
+                      const cityName = city.name || city.city_name || city.municipality_name;
+                      return (
+                        <option key={cityCodeValue} value={cityCodeValue} className="bg-[#1f1f1f]">
+                          {cityName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Barangay */}
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">
+                    Barangay
+                  </label>
+                  <select
+                    value={barangayCode}
+                    onChange={handleBarangayChange}
+                    disabled={isLoadingAddress || !cityCode}
+                    className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    required
+                  >
+                    <option value="">
+                      {isLoadingAddress 
+                        ? "Loading barangays..." 
+                        : !cityCode 
+                        ? "Select city first" 
+                        : barangayList.length === 0 
+                        ? "No barangays available" 
+                        : "Select Barangay"}
+                    </option>
+                    {barangayList.map((barangay, index) => {
+                      // Handle various property name formats
+                      const barangayCodeValue = barangay.code || barangay.barangay_code || barangay.brgy_code || index;
+                      const barangayName = barangay.name || barangay.barangay_name || barangay.brgy_name || `Barangay ${index + 1}`;
+                      return (
+                        <option key={barangayCodeValue || index} value={barangayCodeValue} className="bg-[#1f1f1f]">
+                          {barangayName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {cityCode && barangayList.length === 0 && !isLoadingAddress && (
+                    <p className="text-xs text-yellow-400 mt-1">
+                      No barangays found for this city. Please check the city selection.
+                    </p>
+                  )}
+                </div>
+
+                {/* Province (Read-only, Marinduque) */}
+                <div>
+                  <label className="block text-xs text-white/70 mb-1">
+                    Province
+                  </label>
+                  <input
+                    type="text"
+                    value="Marinduque"
+                    disabled
+                    className="w-full px-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-lg text-white/70 cursor-not-allowed"
+                  />
+                </div>
               </div>
 
               {/* Password */}
