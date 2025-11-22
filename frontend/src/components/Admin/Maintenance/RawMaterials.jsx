@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
-import { Plus, Save, X, Edit, Trash2, ArrowRight } from "lucide-react";
+import { Plus, Save, X, Edit, Trash2, ArrowRight, Filter, RotateCcw } from "lucide-react";
 import UnitConversion from "./Unitconversion/UnitConversion";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -19,6 +19,12 @@ const RawMaterials = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showUnitConversion, setShowUnitConversion] = useState(false);
   const [selectedMaterial, setSelectedMaterial] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    supplier: "",
+    category: "",
+    unit: "",
+  });
 
   const [form, setForm] = useState({
     name: "",
@@ -60,7 +66,13 @@ const RawMaterials = () => {
   const fetchMaterials = async () => {
     try {
       setLoading(true);
-      const query = search ? `?search=${encodeURIComponent(search)}` : "";
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (filters.supplier) params.append("supplier", filters.supplier);
+      if (filters.category) params.append("category", filters.category);
+      if (filters.unit) params.append("unit", filters.unit);
+      
+      const query = params.toString() ? `?${params.toString()}` : "";
       const res = await fetch(`${API_BASE}/raw-materials${query}`);
       if (!res.ok) throw new Error("Failed to fetch raw materials");
       const data = await res.json();
@@ -81,7 +93,7 @@ const RawMaterials = () => {
       fetchMaterials();
     }, 400);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search, filters]);
 
   const resetForm = () => {
     setForm({
@@ -130,6 +142,27 @@ const RawMaterials = () => {
   const handleEquivalent = (item) => {
     setSelectedMaterial(item);
     setShowUnitConversion(true);
+  };
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const resetFilters = () => {
+    setFilters({
+      supplier: "",
+      category: "",
+      unit: "",
+    });
+  };
+
+  const getUniqueCategories = () => {
+    const categories = new Set();
+    materials.forEach((m) => {
+      if (m.category) categories.add(m.category);
+    });
+    return Array.from(categories).sort();
   };
 
   const handleDelete = async () => {
@@ -251,6 +284,16 @@ const RawMaterials = () => {
             className="flex-1 md:w-80 px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5] placeholder-[#bababa]"
           />
           <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`flex items-center gap-2 border border-[#383838] px-3 py-2 rounded-md font-bold transition-colors ${
+              showFilters || filters.supplier || filters.category || filters.unit
+                ? "bg-[#f6b100] text-[#232323] hover:bg-[#dab000]"
+                : "bg-[#181818] text-[#b5b5b5] hover:bg-[#262626]"
+            }`}
+          >
+            <Filter className="w-4 h-4" /> Filters
+          </button>
+          <button
             onClick={() => setIsModalOpen(true)}
             className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-3 py-2 rounded-md font-bold hover:bg-[#262626]"
           >
@@ -258,6 +301,77 @@ const RawMaterials = () => {
           </button>
         </div>
       </div>
+
+      {showFilters && (
+        <div className="mb-4 p-4 bg-[#181818] border border-[#383838] rounded-lg">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[#f5f5f5]">Filter Options</h3>
+            <button
+              onClick={resetFilters}
+              className="flex items-center gap-1 text-xs text-[#b5b5b5] hover:text-[#f5f5f5] transition-colors"
+            >
+              <RotateCcw className="w-3 h-3" /> Reset
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#cccccc] mb-1">
+                Supplier
+              </label>
+              <select
+                name="supplier"
+                value={filters.supplier}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5] text-sm"
+              >
+                <option value="">All Suppliers</option>
+                {suppliers.map((s) => (
+                  <option key={s._id || s.company_name} value={s.company_name}>
+                    {s.company_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#cccccc] mb-1">
+                Category
+              </label>
+              <select
+                name="category"
+                value={filters.category}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5] text-sm"
+              >
+                <option value="">All Categories</option>
+                {getUniqueCategories().map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#cccccc] mb-1">
+                Unit
+              </label>
+              <select
+                name="unit"
+                value={filters.unit}
+                onChange={handleFilterChange}
+                className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5] text-sm"
+              >
+                <option value="">All Units</option>
+                {units.map((u) => (
+                  <option key={u._id || u.unit} value={u.unit}>
+                    {u.unit}
+                    {u.symbol ? ` (${u.symbol})` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="text-[#ababab]">Loading...</div>
