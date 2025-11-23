@@ -40,7 +40,7 @@ const OnlineOrderItemSchema = new mongoose.Schema({
   // Item status within the order
   item_status: {
     type: String,
-    enum: ["pending", "preparing", "ready", "served"],
+    enum: ["pending", "preparing", "ready", "served", "received"],
     default: "pending",
   },
   // Timestamps

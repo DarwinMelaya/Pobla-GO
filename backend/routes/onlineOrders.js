@@ -702,6 +702,76 @@ router.post("/:id/cancel", verifyAuth, async (req, res) => {
   }
 });
 
+// POST /online-orders/:orderId/items/:itemId/received - Mark order item as received
+router.post("/:orderId/items/:itemId/received", verifyAuth, async (req, res) => {
+  try {
+    const { orderId, itemId } = req.params;
+
+    // Find the order
+    const order = await OnlineOrder.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Verify that the user owns this order (if customer_id exists) OR is an admin/staff
+    const isAdminOrStaff =
+      req.user.role === "Admin" || req.user.role === "Staff";
+    if (
+      !isAdminOrStaff &&
+      order.customer_id &&
+      order.customer_id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only mark items as received for your own orders",
+      });
+    }
+
+    // Find the order item
+    const orderItem = await OnlineOrderItem.findOne({
+      _id: itemId,
+      order_id: orderId,
+    });
+
+    if (!orderItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Order item not found",
+      });
+    }
+
+    // Only allow marking as received if order is Completed or OnTheWay
+    if (order.status !== "Completed" && order.status !== "OnTheWay") {
+      return res.status(400).json({
+        success: false,
+        message: "Items can only be marked as received for completed or on-the-way orders",
+      });
+    }
+
+    // Update item status to received
+    orderItem.item_status = "received";
+    await orderItem.save();
+
+    // Populate response
+    await orderItem.populate("menu_item_id", "name category");
+
+    res.json({
+      success: true,
+      message: "Item marked as received successfully",
+      orderItem,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 // DELETE /online-orders/:id - Delete online order
 router.delete("/:id", verifyAuth, async (req, res) => {
   try {

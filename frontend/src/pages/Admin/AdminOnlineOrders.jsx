@@ -17,6 +17,7 @@ import {
   Store,
   MapPin,
   Phone,
+  CheckCircle2,
 } from "lucide-react";
 
 const AdminOnlineOrders = () => {
@@ -194,6 +195,37 @@ const AdminOnlineOrders = () => {
     }
   };
 
+  // Mark item as received (admin)
+  const handleMarkItemAsReceived = async (orderId, itemId) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE}/online-orders/${orderId}/items/${itemId}/received`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to mark item as received");
+      }
+
+      toast.success("Item marked as received");
+      if (selectedOrder && selectedOrder._id === orderId) {
+        viewOrderDetails(orderId); // Refresh order details
+      }
+      fetchOrders();
+    } catch (error) {
+      console.error("Error marking item as received:", error);
+      toast.error(error.message || "Failed to mark item as received");
+    }
+  };
+
   // Cancel delete
   const cancelDelete = () => {
     setShowDeleteConfirmModal(false);
@@ -253,6 +285,18 @@ const AdminOnlineOrders = () => {
       style: "currency",
       currency: "PHP",
     }).format(amount);
+  };
+
+  // Calculate received items count
+  const getReceivedItemsCount = (order) => {
+    if (!order.order_items || !Array.isArray(order.order_items)) {
+      return { received: 0, total: 0 };
+    }
+    const total = order.order_items.length;
+    const received = order.order_items.filter(
+      (item) => item.item_status === "received"
+    ).length;
+    return { received, total };
   };
 
   // Handle search
@@ -544,6 +588,9 @@ const AdminOnlineOrders = () => {
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Received
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Total
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
@@ -558,88 +605,115 @@ const AdminOnlineOrders = () => {
                   {orders.length === 0 ? (
                     <tr>
                       <td
-                        colSpan="7"
+                        colSpan="8"
                         className="px-6 py-4 text-center text-[#ababab]"
                       >
                         No online orders found
                       </td>
                     </tr>
                   ) : (
-                    orders.map((order) => (
-                      <tr key={order._id} className="hover:bg-[#262626]">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-[#f5f5f5]">
-                          #{order._id.slice(-8)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
-                          {order.customer_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                              order.order_type === "delivery"
-                                ? "bg-purple-700 text-white"
-                                : "bg-orange-700 text-white"
-                            }`}
-                          >
-                            {order.order_type === "delivery" ? (
-                              <Truck size={12} className="mr-1" />
-                            ) : (
-                              <Store size={12} className="mr-1" />
-                            )}
-                            {order.order_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span
-                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
-                              order.status
-                            )}`}
-                          >
-                            {getStatusIcon(order.status)}
-                            <span className="ml-1">
-                              {order.status === "OnTheWay" ? "On the Way" : order.status}
+                    orders.map((order) => {
+                      const { received, total } = getReceivedItemsCount(order);
+                      const allReceived = total > 0 && received === total;
+                      return (
+                        <tr key={order._id} className="hover:bg-[#262626]">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-[#f5f5f5]">
+                            #{order._id.slice(-8)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
+                            {order.customer_name}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                                order.order_type === "delivery"
+                                  ? "bg-purple-700 text-white"
+                                  : "bg-orange-700 text-white"
+                              }`}
+                            >
+                              {order.order_type === "delivery" ? (
+                                <Truck size={12} className="mr-1" />
+                              ) : (
+                                <Store size={12} className="mr-1" />
+                              )}
+                              {order.order_type}
                             </span>
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f6b100] font-bold">
-                          {formatCurrency(order.total_amount)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">
-                          {formatDate(order.created_at)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => viewOrderDetails(order._id)}
-                              className="text-[#f6b100] hover:text-[#dab000] font-bold transition-colors"
-                              title="View Details"
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span
+                              className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${getStatusColor(
+                                order.status
+                              )}`}
                             >
-                              <Eye size={16} />
-                            </button>
-                            <select
-                              value={order.status}
-                              onChange={(e) =>
-                                updateOrderStatus(order._id, e.target.value)
-                              }
-                              className="text-xs border border-[#383838] rounded px-2 py-1 focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
-                            >
-                              <option value="Pending">Pending</option>
-                              <option value="Cancelled">Cancelled</option>
-                              <option value="Ready">Ready</option>
-                              <option value="OnTheWay">On the Way</option>
-                              <option value="Completed">Completed</option>
-                            </select>
-                            <button
-                              onClick={() => openDeleteConfirmModal(order)}
-                              className="text-red-500 hover:text-red-700 font-bold transition-colors"
-                              title="Delete Order"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                              {getStatusIcon(order.status)}
+                              <span className="ml-1">
+                                {order.status === "OnTheWay" ? "On the Way" : order.status}
+                              </span>
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {total > 0 ? (
+                              <span
+                                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${
+                                  allReceived
+                                    ? "bg-green-400/10 border-green-400/30 text-green-400"
+                                    : received > 0
+                                    ? "bg-yellow-400/10 border-yellow-400/30 text-yellow-400"
+                                    : "bg-gray-400/10 border-gray-400/30 text-gray-400"
+                                }`}
+                              >
+                                <CheckCircle2
+                                  size={12}
+                                  className={`mr-1 ${allReceived ? "text-green-400" : received > 0 ? "text-yellow-400" : "text-gray-400"}`}
+                                />
+                                <span>
+                                  {received}/{total}
+                                </span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-[#ababab]">-</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f6b100] font-bold">
+                            {formatCurrency(order.total_amount)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">
+                            {formatDate(order.created_at)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => viewOrderDetails(order._id)}
+                                className="text-[#f6b100] hover:text-[#dab000] font-bold transition-colors"
+                                title="View Details"
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <select
+                                value={order.status}
+                                onChange={(e) =>
+                                  updateOrderStatus(order._id, e.target.value)
+                                }
+                                className="text-xs border border-[#383838] rounded px-2 py-1 focus:ring-2 focus:ring-[#f6b100] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
+                              >
+                                <option value="Pending">Pending</option>
+                                <option value="Cancelled">Cancelled</option>
+                                <option value="Ready">Ready</option>
+                                <option value="OnTheWay">On the Way</option>
+                                <option value="Completed">Completed</option>
+                              </select>
+                              <button
+                                onClick={() => openDeleteConfirmModal(order)}
+                                className="text-red-500 hover:text-red-700 font-bold transition-colors"
+                                title="Delete Order"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -815,29 +889,66 @@ const AdminOnlineOrders = () => {
                     Order Items
                   </label>
                   <div className="space-y-2">
-                    {selectedOrder.order_items?.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center p-3 bg-[#141414] border border-[#1f1f1f] rounded-lg"
-                      >
-                        <div>
-                          <p className="text-sm font-medium text-[#f5f5f5]">
-                            {item.item_name}
-                          </p>
-                          <p className="text-xs text-[#cfcfcf]">
-                            Qty: {item.quantity} × {formatCurrency(item.price)}
-                          </p>
-                          {item.special_instructions && (
+                    {selectedOrder.order_items?.map((item, index) => {
+                      const isReceived = item.item_status === "received";
+                      const canMarkReceived =
+                        (selectedOrder.status === "Completed" ||
+                          selectedOrder.status === "OnTheWay") &&
+                        !isReceived;
+                      return (
+                        <div
+                          key={item._id || index}
+                          className="flex justify-between items-center p-3 bg-[#141414] border border-[#1f1f1f] rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-medium text-[#f5f5f5]">
+                                {item.item_name}
+                              </p>
+                              {isReceived && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-400/10 border border-green-400/30 text-green-400 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Received
+                                </span>
+                              )}
+                              {!isReceived && item.item_status && (
+                                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-400/10 border border-blue-400/30 text-blue-400 capitalize">
+                                  {item.item_status}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-xs text-[#cfcfcf]">
-                              Note: {item.special_instructions}
+                              Qty: {item.quantity} × {formatCurrency(item.price)}
                             </p>
-                          )}
+                            {item.special_instructions && (
+                              <p className="text-xs text-[#cfcfcf]">
+                                Note: {item.special_instructions}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <p className="text-sm font-semibold text-[#f5f5f5]">
+                              {formatCurrency(item.total_price)}
+                            </p>
+                            {canMarkReceived && (
+                              <button
+                                onClick={() =>
+                                  handleMarkItemAsReceived(
+                                    selectedOrder._id,
+                                    item._id
+                                  )
+                                }
+                                className="px-3 py-1 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition flex items-center gap-1"
+                                title="Mark as Received"
+                              >
+                                <CheckCircle2 className="w-3 h-3" />
+                                Mark Received
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-sm font-semibold text-[#f5f5f5]">
-                          {formatCurrency(item.total_price)}
-                        </p>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

@@ -10,6 +10,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -309,6 +310,34 @@ const Orders = ({
     }
   };
 
+  // Mark item as received
+  const handleMarkItemAsReceived = async (orderId, itemId) => {
+    try {
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE_URL}/online-orders/${orderId}/items/${itemId}/received`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to mark item as received");
+      }
+
+      toast.success("Item marked as received");
+      fetchOrders(); // Refresh orders list
+    } catch (error) {
+      console.error("Error marking item as received:", error);
+      toast.error(error.message || "Failed to mark item as received");
+    }
+  };
+
   // Save edited order
   const handleSaveEditedOrder = async () => {
     if (editOrderForm.order_items.length === 0) {
@@ -436,16 +465,48 @@ const Orders = ({
                   Order Items:
                 </h4>
                 <div className="space-y-2">
-                  {order.order_items?.map((item, index) => (
-                    <div key={index} className="flex justify-between text-sm">
-                      <span className="text-[#ababab]">
-                        {item.item_name} x {item.quantity}
-                      </span>
-                      <span className="text-white">
-                        {currencyFormatter.format(item.total_price)}
-                      </span>
-                    </div>
-                  ))}
+                  {order.order_items?.map((item, index) => {
+                    const isReceived = item.item_status === "received";
+                    const canMarkReceived =
+                      (order.status === "Completed" ||
+                        order.status === "OnTheWay") &&
+                      !isReceived;
+
+                    return (
+                      <div
+                        key={item._id || index}
+                        className="flex items-center justify-between text-sm p-2 rounded-lg bg-[#1f1f1f] border border-[#2f2f2f]"
+                      >
+                        <div className="flex items-center gap-2 flex-1">
+                          <span className="text-[#ababab]">
+                            {item.item_name} x {item.quantity}
+                          </span>
+                          {isReceived && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-green-400/10 border border-green-400/30 text-green-400 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Received
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-white">
+                            {currencyFormatter.format(item.total_price)}
+                          </span>
+                          {canMarkReceived && (
+                            <button
+                              onClick={() =>
+                                handleMarkItemAsReceived(order._id, item._id)
+                              }
+                              className="px-3 py-1 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-xs font-semibold hover:bg-green-500/20 transition flex items-center gap-1"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Mark as Received
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
