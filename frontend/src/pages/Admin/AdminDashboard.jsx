@@ -340,13 +340,13 @@ const AdminDashboard = () => {
                 backgroundColor: [
                   "rgba(34, 197, 94, 0.8)", // Green for completed
                   "rgba(251, 191, 36, 0.8)", // Yellow for pending
-                  "rgba(59, 130, 246, 0.8)", // Blue for preparing
+                  "rgba(147, 51, 234, 0.8)", // Purple for preparing
                   "rgba(239, 68, 68, 0.8)", // Red for cancelled
                 ],
                 borderColor: [
                   "rgba(34, 197, 94, 1)",
                   "rgba(251, 191, 36, 1)",
-                  "rgba(59, 130, 246, 1)",
+                  "rgba(147, 51, 234, 1)",
                   "rgba(239, 68, 68, 1)",
                 ],
                 borderWidth: 2,
@@ -395,15 +395,15 @@ const AdminDashboard = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case "completed":
-        return "text-green-600 bg-green-100";
+        return "text-green-400 bg-green-400/10 border border-green-400/30";
       case "pending":
-        return "text-yellow-600 bg-yellow-100";
+        return "text-yellow-400 bg-yellow-400/10 border border-yellow-400/30";
       case "preparing":
-        return "text-blue-600 bg-blue-100";
+        return "text-purple-400 bg-purple-400/10 border border-purple-400/30";
       case "cancelled":
-        return "text-red-600 bg-red-100";
+        return "text-red-400 bg-red-400/10 border border-red-400/30";
       default:
-        return "text-gray-600 bg-gray-100";
+        return "text-[#ababab] bg-[#1f1f1f] border border-[#383838]";
     }
   };
 
@@ -436,12 +436,13 @@ const AdminDashboard = () => {
             size: 12,
             family: "Inter, sans-serif",
           },
+          color: "#f5f5f5",
         },
       },
       tooltip: {
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        titleColor: "white",
-        bodyColor: "white",
+        backgroundColor: "rgba(35, 35, 35, 0.95)",
+        titleColor: "#f5f5f5",
+        bodyColor: "#f5f5f5",
         borderColor: "rgba(192, 80, 80, 1)",
         borderWidth: 1,
         cornerRadius: 8,
@@ -451,9 +452,10 @@ const AdminDashboard = () => {
       y: {
         beginAtZero: true,
         grid: {
-          color: "rgba(0, 0, 0, 0.1)",
+          color: "rgba(255, 255, 255, 0.1)",
         },
         ticks: {
+          color: "#ababab",
           font: {
             size: 11,
           },
@@ -464,6 +466,7 @@ const AdminDashboard = () => {
           display: false,
         },
         ticks: {
+          color: "#ababab",
           font: {
             size: 11,
           },
@@ -485,12 +488,13 @@ const AdminDashboard = () => {
             size: 11,
             family: "Inter, sans-serif",
           },
+          color: "#f5f5f5",
         },
       },
       tooltip: {
-        backgroundColor: "rgba(0, 0, 0, 0.8)",
-        titleColor: "white",
-        bodyColor: "white",
+        backgroundColor: "rgba(35, 35, 35, 0.95)",
+        titleColor: "#f5f5f5",
+        bodyColor: "#f5f5f5",
         borderColor: "rgba(192, 80, 80, 1)",
         borderWidth: 1,
         cornerRadius: 8,
@@ -607,12 +611,12 @@ const AdminDashboard = () => {
         {/* Table Performance & Status Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Table Performance */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
                 Table Performance
               </h3>
-              <Users className="w-5 h-5 text-gray-500" />
+              <Users className="w-5 h-5 text-[#ababab]" />
             </div>
             <div className="h-64">
               {chartData.tablePerformanceData ? (
@@ -621,10 +625,10 @@ const AdminDashboard = () => {
                   options={chartOptions}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg">
+                <div className="h-full flex items-center justify-center bg-[#1f1f1f] rounded-lg">
                   <div className="text-center">
-                    <Users className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">Loading chart data...</p>
+                    <Users className="w-12 h-12 text-[#383838] mx-auto mb-2" />
+                    <p className="text-[#ababab]">Loading chart data...</p>
                   </div>
                 </div>
               )}
@@ -632,12 +636,12 @@ const AdminDashboard = () => {
           </div>
 
           {/* Reservations Status */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
                 Reservations Status
               </h3>
-              <Calendar className="w-5 h-5 text-gray-500" />
+              <Calendar className="w-5 h-5 text-[#ababab]" />
             </div>
             <div className="h-64">
               {chartData.reservationsData ? (
@@ -646,10 +650,10 @@ const AdminDashboard = () => {
                   options={pieChartOptions}
                 />
               ) : (
-                <div className="h-full flex items-center justify-center bg-gray-50 rounded-lg">
+                <div className="h-full flex items-center justify-center bg-[#1f1f1f] rounded-lg">
                   <div className="text-center">
-                    <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">Loading chart data...</p>
+                    <Calendar className="w-12 h-12 text-[#383838] mx-auto mb-2" />
+                    <p className="text-[#ababab]">Loading chart data...</p>
                   </div>
                 </div>
               )}
@@ -660,18 +664,18 @@ const AdminDashboard = () => {
         {/* Recent Orders and Low Stock Items */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
                 Recent Orders
               </h3>
-              <ShoppingCart className="w-5 h-5 text-gray-500" />
+              <ShoppingCart className="w-5 h-5 text-[#ababab]" />
             </div>
             <div className="space-y-3">
               {recentOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-[#1f1f1f] border border-[#383838] rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
                     <div
@@ -682,19 +686,19 @@ const AdminDashboard = () => {
                       {getStatusIcon(order.status)}
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
+                      <p className="font-medium text-[#f5f5f5]">
                         {order.customer_name}
                       </p>
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-[#ababab]">
                         Table {order.table_number}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">
+                    <p className="font-semibold text-[#f6b100]">
                       ₱{order.total_amount}
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-[#ababab]">
                       {new Date(order.created_at).toLocaleTimeString()}
                     </p>
                   </div>
@@ -704,12 +708,12 @@ const AdminDashboard = () => {
           </div>
 
           {/* Low Stock Items */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
                 Low Stock Alert
               </h3>
-              <AlertTriangle className="w-5 h-5 text-orange-500" />
+              <AlertTriangle className="w-5 h-5 text-orange-400" />
             </div>
             <div className="space-y-3">
               {lowStockItems.map((item, index) => (
@@ -717,21 +721,21 @@ const AdminDashboard = () => {
                   key={index}
                   className={`flex items-center justify-between p-3 rounded-lg border ${
                     item.expiring
-                      ? "bg-red-50 border-red-200"
-                      : "bg-orange-50 border-orange-200"
+                      ? "bg-red-400/10 border-red-400/30"
+                      : "bg-orange-400/10 border-orange-400/30"
                   }`}
                 >
                   <div className="flex items-center space-x-3">
                     <AlertTriangle
                       className={`w-4 h-4 ${
-                        item.expiring ? "text-red-500" : "text-orange-500"
+                        item.expiring ? "text-red-400" : "text-orange-400"
                       }`}
                     />
                     <div>
-                      <p className="font-medium text-gray-900">{item.name}</p>
-                      <p className="text-sm text-gray-500">{item.category}</p>
+                      <p className="font-medium text-[#f5f5f5]">{item.name}</p>
+                      <p className="text-sm text-[#ababab]">{item.category}</p>
                       {item.expiring && (
-                        <p className="text-xs text-red-500">
+                        <p className="text-xs text-red-400">
                           Expires:{" "}
                           {new Date(item.expiry_date).toLocaleDateString()}
                         </p>
@@ -741,14 +745,14 @@ const AdminDashboard = () => {
                   <div className="text-right">
                     <p
                       className={`font-semibold ${
-                        item.expiring ? "text-red-600" : "text-orange-600"
+                        item.expiring ? "text-red-400" : "text-orange-400"
                       }`}
                     >
                       {item.quantity} {item.unit}
                     </p>
                     <p
                       className={`text-xs ${
-                        item.expiring ? "text-red-500" : "text-orange-500"
+                        item.expiring ? "text-red-400" : "text-orange-400"
                       }`}
                     >
                       {item.expiring ? "Expiring Soon" : "Low Stock"}
@@ -761,31 +765,31 @@ const AdminDashboard = () => {
         </div>
 
         {/* Staff Performance Summary */}
-        <div className="bg-white rounded-lg shadow-md p-6">
+        <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-[#f5f5f5]">
               Staff Performance
             </h3>
-            <Users className="w-5 h-5 text-gray-500" />
+            <Users className="w-5 h-5 text-[#ababab]" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <p className="text-2xl font-bold text-blue-600">
+            <div className="text-center p-4 bg-blue-400/10 border border-blue-400/30 rounded-lg">
+              <p className="text-2xl font-bold text-blue-400">
                 {dashboardData.staff.totalStaff}
               </p>
-              <p className="text-sm text-gray-600">Total Staff</p>
+              <p className="text-sm text-[#ababab]">Total Staff</p>
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <p className="text-2xl font-bold text-green-600">
+            <div className="text-center p-4 bg-green-400/10 border border-green-400/30 rounded-lg">
+              <p className="text-2xl font-bold text-green-400">
                 {dashboardData.staff.activeStaff}
               </p>
-              <p className="text-sm text-gray-600">Active Today</p>
+              <p className="text-sm text-[#ababab]">Active Today</p>
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <p className="text-2xl font-bold text-purple-600">
+            <div className="text-center p-4 bg-purple-400/10 border border-purple-400/30 rounded-lg">
+              <p className="text-2xl font-bold text-purple-400">
                 ₱{dashboardData.orders.averageOrderValue.toFixed(2)}
               </p>
-              <p className="text-sm text-gray-600">Avg Order Value</p>
+              <p className="text-sm text-[#ababab]">Avg Order Value</p>
             </div>
           </div>
         </div>
