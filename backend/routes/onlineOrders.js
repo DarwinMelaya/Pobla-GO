@@ -54,7 +54,12 @@ router.post("/", verifyAuth, async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    if (!customer_name || !order_items || !Array.isArray(order_items) || order_items.length === 0) {
+    if (
+      !customer_name ||
+      !order_items ||
+      !Array.isArray(order_items) ||
+      order_items.length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Missing required fields: customer_name and order_items array",
@@ -98,10 +103,16 @@ router.post("/", verifyAuth, async (req, res) => {
     const validated_items = [];
 
     for (const item of order_items) {
-      if (!item.item_name || !item.quantity || !item.price || !item.menu_item_id) {
+      if (
+        !item.item_name ||
+        !item.quantity ||
+        !item.price ||
+        !item.menu_item_id
+      ) {
         return res.status(400).json({
           success: false,
-          message: "Each order item must have item_name, quantity, price, and menu_item_id",
+          message:
+            "Each order item must have item_name, quantity, price, and menu_item_id",
         });
       }
 
@@ -140,7 +151,8 @@ router.post("/", verifyAuth, async (req, res) => {
     const total_amount = subtotal_amount + delivery_fee;
 
     // Get customer_id from user if logged in
-    const customer_id = req.user && req.user.role === "Customer" ? req.user._id : null;
+    const customer_id =
+      req.user && req.user.role === "Customer" ? req.user._id : null;
 
     // Create the order (servings will be deducted when order is completed/delivered)
     const order = new OnlineOrder({
@@ -189,10 +201,10 @@ router.post("/", verifyAuth, async (req, res) => {
       order,
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error", 
-      error: error.message 
+      message: "Server error",
+      error: error.message,
     });
   }
 });
@@ -258,10 +270,10 @@ router.get("/", verifyAuth, async (req, res) => {
       total,
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error", 
-      error: error.message 
+      message: "Server error",
+      error: error.message,
     });
   }
 });
@@ -280,9 +292,9 @@ router.get("/:id", verifyAuth, async (req, res) => {
       });
 
     if (!order) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Order not found" 
+        message: "Order not found",
       });
     }
 
@@ -291,10 +303,10 @@ router.get("/:id", verifyAuth, async (req, res) => {
       order,
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error", 
-      error: error.message 
+      message: "Server error",
+      error: error.message,
     });
   }
 });
@@ -329,7 +341,10 @@ router.put("/:id", verifyAuth, async (req, res) => {
     }
 
     // Verify that the user owns this order (if customer_id exists)
-    if (order.customer_id && order.customer_id.toString() !== req.user._id.toString()) {
+    if (
+      order.customer_id &&
+      order.customer_id.toString() !== req.user._id.toString()
+    ) {
       return res.status(403).json({
         success: false,
         message: "You can only edit your own orders",
@@ -364,7 +379,10 @@ router.put("/:id", verifyAuth, async (req, res) => {
     }
 
     // Update payment method if provided
-    if (payment_method && ["cash", "card", "digital", "gcash"].includes(payment_method)) {
+    if (
+      payment_method &&
+      ["cash", "card", "digital", "gcash"].includes(payment_method)
+    ) {
       order.payment_method = payment_method;
       order.payment_status = payment_method === "gcash" ? "paid" : "pending";
     }
@@ -381,10 +399,16 @@ router.put("/:id", verifyAuth, async (req, res) => {
       const validated_items = [];
 
       for (const item of order_items) {
-        if (!item.item_name || !item.quantity || !item.price || !item.menu_item_id) {
+        if (
+          !item.item_name ||
+          !item.quantity ||
+          !item.price ||
+          !item.menu_item_id
+        ) {
           return res.status(400).json({
             success: false,
-            message: "Each order item must have item_name, quantity, price, and menu_item_id",
+            message:
+              "Each order item must have item_name, quantity, price, and menu_item_id",
           });
         }
 
@@ -399,14 +423,18 @@ router.put("/:id", verifyAuth, async (req, res) => {
 
         // Check if sufficient servings are available
         // Get current order items to calculate available servings
-        const currentOrderItems = await OnlineOrderItem.find({ order_id: order._id });
-        const currentItemQuantity = currentOrderItems.find(
-          (oi) => oi.menu_item_id.toString() === item.menu_item_id.toString()
-        )?.quantity || 0;
-        
+        const currentOrderItems = await OnlineOrderItem.find({
+          order_id: order._id,
+        });
+        const currentItemQuantity =
+          currentOrderItems.find(
+            (oi) => oi.menu_item_id.toString() === item.menu_item_id.toString()
+          )?.quantity || 0;
+
         // Available servings = current servings + quantity from this order (if same item)
-        const availableServings = menuItem.servings + (currentItemQuantity || 0);
-        
+        const availableServings =
+          menuItem.servings + (currentItemQuantity || 0);
+
         if (item.quantity > availableServings) {
           return res.status(400).json({
             success: false,
@@ -443,7 +471,11 @@ router.put("/:id", verifyAuth, async (req, res) => {
       const delivery_fee = order.order_type === "delivery" ? 50 : 0;
       order.total_amount = subtotal_amount + delivery_fee;
       order.delivery_fee = delivery_fee;
-    } else if (order_items && Array.isArray(order_items) && order_items.length === 0) {
+    } else if (
+      order_items &&
+      Array.isArray(order_items) &&
+      order_items.length === 0
+    ) {
       return res.status(400).json({
         success: false,
         message: "Order must have at least one item",
@@ -489,27 +521,31 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
     const { status } = req.body;
 
     if (!status) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Status is required" 
+        message: "Status is required",
       });
     }
 
     const order = await OnlineOrder.findById(req.params.id);
 
     if (!order) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Order not found" 
+        message: "Order not found",
       });
     }
 
     const oldStatus = order.status;
 
     // If order is being completed/delivered, deduct servings from menu items
-    if (status === "Completed" && oldStatus !== "Completed" && !order.servings_deducted) {
+    if (
+      status === "Completed" &&
+      oldStatus !== "Completed" &&
+      !order.servings_deducted
+    ) {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
-      
+
       for (const item of orderItems) {
         if (item.menu_item_id) {
           try {
@@ -547,9 +583,13 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
     }
 
     // If order is being cancelled, restore servings (only if they were deducted)
-    if (status === "Cancelled" && oldStatus !== "Cancelled" && order.servings_deducted) {
+    if (
+      status === "Cancelled" &&
+      oldStatus !== "Cancelled" &&
+      order.servings_deducted
+    ) {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
-      
+
       for (const item of orderItems) {
         if (item.menu_item_id) {
           try {
@@ -587,16 +627,77 @@ router.put("/:id/status", verifyAuth, async (req, res) => {
       },
     });
 
-    res.json({ 
+    res.json({
       success: true,
-      message: "Order status updated successfully", 
-      order 
+      message: "Order status updated successfully",
+      order,
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error", 
-      error: error.message 
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
+// POST /online-orders/:id/cancel - Cancel online order (only for pending orders)
+router.post("/:id/cancel", verifyAuth, async (req, res) => {
+  try {
+    const order = await OnlineOrder.findById(req.params.id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Only allow cancellation if order status is Pending
+    if (order.status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: "Only pending orders can be cancelled",
+      });
+    }
+
+    // Verify that the user owns this order (if customer_id exists)
+    if (
+      order.customer_id &&
+      order.customer_id.toString() !== req.user._id.toString()
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only cancel your own orders",
+      });
+    }
+
+    // Update order status to Cancelled
+    order.status = "Cancelled";
+    await order.save();
+
+    // Populate response
+    if (order.customer_id) {
+      await order.populate("customer_id", "name email phone");
+    }
+    await order.populate({
+      path: "order_items",
+      populate: {
+        path: "menu_item_id",
+        select: "name category",
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully",
+      order,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
     });
   }
 });
@@ -607,16 +708,16 @@ router.delete("/:id", verifyAuth, async (req, res) => {
     const order = await OnlineOrder.findById(req.params.id);
 
     if (!order) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Order not found" 
+        message: "Order not found",
       });
     }
 
     // Restore servings for menu items if they were deducted (only if not completed)
     if (order.servings_deducted && order.status !== "Completed") {
       const orderItems = await OnlineOrderItem.find({ order_id: order._id });
-      
+
       for (const item of orderItems) {
         if (item.menu_item_id) {
           try {
@@ -644,18 +745,17 @@ router.delete("/:id", verifyAuth, async (req, res) => {
     // Delete the order
     await OnlineOrder.findByIdAndDelete(req.params.id);
 
-    res.json({ 
+    res.json({
       success: true,
-      message: "Order deleted successfully" 
+      message: "Order deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Server error", 
-      error: error.message 
+      message: "Server error",
+      error: error.message,
     });
   }
 });
 
 module.exports = router;
-

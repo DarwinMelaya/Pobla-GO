@@ -37,6 +37,9 @@ const Orders = ({
   const [loadingMenuItems, setLoadingMenuItems] = useState(false);
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [selectedAddressId, setSelectedAddressId] = useState("");
+  // Cancel confirmation modal state
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [orderToCancel, setOrderToCancel] = useState(null);
 
   // Get status badge
   const getStatusBadge = (status) => {
@@ -264,6 +267,48 @@ const Orders = ({
     return { subtotal, deliveryFee, total };
   };
 
+  // Handle cancel order button click
+  const handleCancelOrderClick = (order) => {
+    if (order.status !== "Pending") {
+      toast.error("Only pending orders can be cancelled");
+      return;
+    }
+    setOrderToCancel(order);
+    setShowCancelModal(true);
+  };
+
+  // Confirm and cancel order
+  const handleConfirmCancel = async () => {
+    if (!orderToCancel) return;
+
+    try {
+      const token = getAuthToken();
+      const response = await fetch(
+        `${API_BASE_URL}/online-orders/${orderToCancel._id}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to cancel order");
+      }
+
+      toast.success("Order cancelled successfully");
+      setShowCancelModal(false);
+      setOrderToCancel(null);
+      fetchOrders(); // Refresh orders list
+    } catch (error) {
+      console.error("Error cancelling order:", error);
+      toast.error(error.message || "Failed to cancel order");
+    }
+  };
+
   // Save edited order
   const handleSaveEditedOrder = async () => {
     if (editOrderForm.order_items.length === 0) {
@@ -404,15 +449,22 @@ const Orders = ({
                 </div>
               </div>
 
-              {/* Edit Button - Only show for Pending orders */}
+              {/* Edit and Cancel Buttons - Only show for Pending orders */}
               {order.status === "Pending" && (
-                <div className="border-t border-[#2f2f2f] pt-4 mt-4">
+                <div className="border-t border-[#2f2f2f] pt-4 mt-4 flex gap-3">
                   <button
                     onClick={() => handleEditOrder(order)}
-                    className="w-full px-4 py-2 rounded-lg bg-[#C05050] text-white font-semibold hover:bg-[#a63e3e] transition flex items-center justify-center gap-2"
+                    className="flex-1 px-4 py-2 rounded-lg bg-[#C05050] text-white font-semibold hover:bg-[#a63e3e] transition flex items-center justify-center gap-2"
                   >
                     <Edit2 className="w-4 h-4" />
                     Edit Order
+                  </button>
+                  <button
+                    onClick={() => handleCancelOrderClick(order)}
+                    className="flex-1 px-4 py-2 rounded-lg bg-[#2f2f2f] border border-red-400/30 text-red-400 font-semibold hover:bg-red-400/10 transition flex items-center justify-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancel Order
                   </button>
                 </div>
               )}
@@ -863,6 +915,67 @@ const Orders = ({
                 className="flex-1 px-4 py-3 rounded-xl bg-[#C05050] text-white font-semibold hover:bg-[#a63e3e] transition"
               >
                 Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Confirmation Modal */}
+      {showCancelModal && orderToCancel && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#232323] border border-[#383838] rounded-2xl p-6 max-w-md w-full space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-white">
+                Cancel Order
+              </h2>
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setOrderToCancel(null);
+                }}
+                className="text-[#ababab] hover:text-white transition"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-3 p-4 bg-[#1f1f1f] border border-[#2f2f2f] rounded-xl">
+                <div className="w-12 h-12 rounded-full bg-red-400/10 flex items-center justify-center">
+                  <XCircle className="w-6 h-6 text-red-400" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold">
+                    Order #{orderToCancel._id.slice(-6).toUpperCase()}
+                  </p>
+                  <p className="text-sm text-[#ababab]">
+                    {currencyFormatter.format(orderToCancel.total_amount)}
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[#ababab] text-center">
+                Are you sure you want to cancel this order? This action cannot
+                be undone.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setOrderToCancel(null);
+                }}
+                className="flex-1 px-4 py-3 rounded-xl bg-[#1f1f1f] border border-[#2f2f2f] text-white font-semibold hover:bg-[#2f2f2f] transition"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition"
+              >
+                Cancel Order
               </button>
             </div>
           </div>
