@@ -58,25 +58,18 @@ const UnitConversion = ({ material, onBack }) => {
     );
   }, [units, form.base_unit]);
 
-  const fallbackEquivalentNames = useMemo(() => {
-    if (baseUnitConfig?.equivalent_units?.length) return [];
-    const baseKey = form.base_unit?.trim().toLowerCase();
-    return baseKey && FALLBACK_EQUIVALENT_UNITS[baseKey]
-      ? FALLBACK_EQUIVALENT_UNITS[baseKey]
-      : [];
-  }, [baseUnitConfig, form.base_unit]);
-
   const allowedEquivalentNames = useMemo(() => {
+    // Only use equivalent_units from UnitMeasurements, don't use fallback
     const primary =
       baseUnitConfig?.equivalent_units?.map((value) =>
         typeof value === "string" ? value.trim().toLowerCase() : ""
       ) || [];
-    const merged = [...primary, ...fallbackEquivalentNames].filter(Boolean);
-    return Array.from(new Set(merged));
-  }, [baseUnitConfig, fallbackEquivalentNames]);
+    return Array.from(new Set(primary.filter(Boolean)));
+  }, [baseUnitConfig]);
 
   const equivalentUnitOptions = useMemo(() => {
-    if (!allowedEquivalentNames.length) return units;
+    // If no equivalent units are defined in UnitMeasurements, return empty array (don't show any units)
+    if (!allowedEquivalentNames.length) return [];
 
     const currentSelection = form.equivalent_unit?.toLowerCase();
     return units.filter((unit) => {
@@ -280,6 +273,12 @@ const UnitConversion = ({ material, onBack }) => {
       return;
     }
 
+    // Check if equivalent units are available
+    if (equivalentUnitOptions.length === 0) {
+      toast.error("No equivalent units available. Please add equivalent units for this unit in Unit Measurements first.");
+      return;
+    }
+
     if (
       !form.base_unit ||
       !form.equivalent_unit ||
@@ -382,7 +381,17 @@ const UnitConversion = ({ material, onBack }) => {
             </div>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="flex items-center gap-2 bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md font-bold"
+              disabled={equivalentUnitOptions.length === 0}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md font-bold ${
+                equivalentUnitOptions.length === 0
+                  ? "bg-[#383838] text-[#666] cursor-not-allowed"
+                  : "bg-[#f6b100] hover:bg-[#dab000] text-[#232323]"
+              }`}
+              title={
+                equivalentUnitOptions.length === 0
+                  ? "No equivalent units available. Add equivalent units in Unit Measurements first."
+                  : ""
+              }
             >
               <Plus className="w-4 h-4" />
               Add Conversion
@@ -532,20 +541,26 @@ const UnitConversion = ({ material, onBack }) => {
                       <label className="block text-sm font-medium text-[#cccccc] mb-2">
                         Equivalent Unit <span className="text-red-400">*</span>
                       </label>
-                      <select
-                        name="equivalent_unit"
-                        value={form.equivalent_unit}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
-                        required
-                      >
-                        <option value="">Select equivalent unit</option>
-                        {equivalentUnitOptions.map((unit) => (
-                          <option key={unit._id} value={unit.unit}>
-                            {unit.unit} {unit.symbol ? `(${unit.symbol})` : ""}
-                          </option>
-                        ))}
-                      </select>
+                      {equivalentUnitOptions.length === 0 ? (
+                        <div className="w-full px-3 py-2 border border-[#383838] rounded-md bg-[#181818] text-[#ababab] text-sm">
+                          No equivalent units available. Please add equivalent units for "{form.base_unit}" in Unit Measurements first.
+                        </div>
+                      ) : (
+                        <select
+                          name="equivalent_unit"
+                          value={form.equivalent_unit}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#181818] text-[#f5f5f5]"
+                          required
+                        >
+                          <option value="">Select equivalent unit</option>
+                          {equivalentUnitOptions.map((unit) => (
+                            <option key={unit._id} value={unit.unit}>
+                              {unit.unit} {unit.symbol ? `(${unit.symbol})` : ""}
+                            </option>
+                          ))}
+                        </select>
+                      )}
                     </div>
 
                     <div>
