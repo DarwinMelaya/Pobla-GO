@@ -16,7 +16,7 @@ const OrderSchema = new mongoose.Schema({
   table_number: {
     type: String,
     trim: true,
-    required: function() {
+    required: function () {
       return this.order_type === "dine_in";
     },
   },
@@ -76,7 +76,7 @@ const OrderSchema = new mongoose.Schema({
   staff_member: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: function() {
+    required: function () {
       return this.order_type === "dine_in";
     },
   },
@@ -125,27 +125,38 @@ OrderSchema.statics.isTableAvailable = async function (tableNumber) {
     table_number: tableNumber,
     status: { $in: ["pending", "preparing", "ready"] },
   });
-  
-  // Also check for active reservations within a 2-hour window
-  if (!activeOrder) {
-    const Reservation = mongoose.model("Reservation");
-    const now = new Date();
-    const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
-    const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
-    
-    const activeReservation = await Reservation.findOne({
-      table_number: tableNumber,
-      reservation_date: {
-        $gte: oneHourBefore,
-        $lte: oneHourAfter,
-      },
-      status: { $in: ["pending", "confirmed"] },
-    });
-    
-    return !activeReservation; // Table is available if no active reservation exists
+
+  // If there's an active order, table is not available
+  if (activeOrder) {
+    return false;
   }
-  
-  return false; // Table is not available if there's an active order
+
+  // Check for confirmed reservations - these always block the table until completed
+  const Reservation = mongoose.model("Reservation");
+  const confirmedReservation = await Reservation.findOne({
+    table_number: tableNumber,
+    status: "confirmed",
+  });
+
+  if (confirmedReservation) {
+    return false; // Table is not available if there's a confirmed reservation
+  }
+
+  // Check for pending reservations within a 2-hour window
+  const now = new Date();
+  const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
+  const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
+
+  const pendingReservation = await Reservation.findOne({
+    table_number: tableNumber,
+    reservation_date: {
+      $gte: oneHourBefore,
+      $lte: oneHourAfter,
+    },
+    status: "pending",
+  });
+
+  return !pendingReservation; // Table is available if no active reservation exists
 };
 
 // Static method to get table status
@@ -166,28 +177,45 @@ OrderSchema.statics.getTableStatus = async function (tableNumber) {
     };
   }
 
-  // Check for active reservations within a 2-hour window
+  // Check for confirmed reservations first - these always block the table until completed
   const Reservation = mongoose.model("Reservation");
+  const confirmedReservation = await Reservation.findOne({
+    table_number: tableNumber,
+    status: "confirmed",
+  });
+
+  if (confirmedReservation) {
+    return {
+      available: false,
+      reservation: confirmedReservation,
+      status: confirmedReservation.status,
+      customer: confirmedReservation.customer_name,
+      reservation_date: confirmedReservation.reservation_date,
+      type: "reservation", // Indicate this is a reservation conflict
+    };
+  }
+
+  // Check for pending reservations within a 2-hour window
   const now = new Date();
   const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
   const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
 
-  const activeReservation = await Reservation.findOne({
+  const pendingReservation = await Reservation.findOne({
     table_number: tableNumber,
     reservation_date: {
       $gte: oneHourBefore,
       $lte: oneHourAfter,
     },
-    status: { $in: ["pending", "confirmed"] },
+    status: "pending",
   });
 
-  if (activeReservation) {
+  if (pendingReservation) {
     return {
       available: false,
-      reservation: activeReservation,
-      status: activeReservation.status,
-      customer: activeReservation.customer_name,
-      reservation_date: activeReservation.reservation_date,
+      reservation: pendingReservation,
+      status: pendingReservation.status,
+      customer: pendingReservation.customer_name,
+      reservation_date: pendingReservation.reservation_date,
       type: "reservation", // Indicate this is a reservation conflict
     };
   }

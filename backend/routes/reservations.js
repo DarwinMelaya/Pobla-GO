@@ -366,10 +366,18 @@ router.get("/tables/available", authenticateToken, async (req, res) => {
         activeOrders.map((order) => order.table_number)
       );
 
-      // Check for reservations at the same date/time
+      // Check for ALL confirmed reservations - these always block tables until completed
+      const confirmedReservations = await Reservation.find({
+        status: "confirmed",
+      });
+      const occupiedByConfirmed = new Set(
+        confirmedReservations.map((res) => res.table_number)
+      );
+
+      // Check for reservations at the same date/time (pending only, confirmed already handled above)
       const conflictingReservations = await Reservation.find({
         reservation_date: reservationDateTime,
-        status: { $in: ["pending", "confirmed"] },
+        status: "pending",
       });
       const occupiedByReservations = new Set(
         conflictingReservations.map((res) => res.table_number)
@@ -379,11 +387,17 @@ router.get("/tables/available", authenticateToken, async (req, res) => {
       const now = new Date();
       const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
       
+      // Combine all occupied tables (orders, confirmed reservations, and conflicting reservations)
+      const allOccupiedTables = new Set([
+        ...occupiedByOrders,
+        ...occupiedByConfirmed,
+        ...occupiedByReservations,
+      ]);
+
       if (reservationDateTime <= twoHoursFromNow) {
         // Reservation is soon, so consider active orders as conflicts
         const availableTables = allTables.filter(
-          (table) =>
-            !occupiedByOrders.has(table) && !occupiedByReservations.has(table)
+          (table) => !allOccupiedTables.has(table)
         );
         
         return res.status(200).json({
@@ -392,9 +406,9 @@ router.get("/tables/available", authenticateToken, async (req, res) => {
           total: availableTables.length,
         });
       } else {
-        // Reservation is in the future, only check for reservations at that exact time
+        // Reservation is in the future, check for confirmed reservations and reservations at that exact time
         const availableTables = allTables.filter(
-          (table) => !occupiedByReservations.has(table)
+          (table) => !allOccupiedTables.has(table)
         );
         
         return res.status(200).json({
@@ -412,24 +426,38 @@ router.get("/tables/available", authenticateToken, async (req, res) => {
         activeOrders.map((order) => order.table_number)
       );
 
-      // Check for reservations within next 2 hours
+      // Check for ALL confirmed reservations - these always block tables until completed
+      const confirmedReservations = await Reservation.find({
+        status: "confirmed",
+      });
+      const occupiedByConfirmed = new Set(
+        confirmedReservations.map((res) => res.table_number)
+      );
+
+      // Check for pending reservations within next 2 hours
       const now = new Date();
       const twoHoursFromNow = new Date(now.getTime() + 2 * 60 * 60 * 1000);
       
-      const upcomingReservations = await Reservation.find({
+      const upcomingPendingReservations = await Reservation.find({
         reservation_date: {
           $gte: now,
           $lte: twoHoursFromNow,
         },
-        status: { $in: ["pending", "confirmed"] },
+        status: "pending",
       });
-      const occupiedByReservations = new Set(
-        upcomingReservations.map((res) => res.table_number)
+      const occupiedByPending = new Set(
+        upcomingPendingReservations.map((res) => res.table_number)
       );
 
+      // Combine all occupied tables
+      const allOccupiedTables = new Set([
+        ...occupiedByOrders,
+        ...occupiedByConfirmed,
+        ...occupiedByPending,
+      ]);
+
       const availableTables = allTables.filter(
-        (table) =>
-          !occupiedByOrders.has(table) && !occupiedByReservations.has(table)
+        (table) => !allOccupiedTables.has(table)
       );
 
       return res.status(200).json({

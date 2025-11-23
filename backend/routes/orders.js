@@ -257,32 +257,62 @@ router.post("/", verifyAuth, async (req, res) => {
       });
     }
 
-    // Check if there's an active reservation for this table at the current time
-    // Check for reservations within a 2-hour window (1 hour before to 1 hour after current time)
+    // Check for confirmed reservations first - these always block the table until completed
+    const confirmedReservation = await Reservation.findOne({
+      table_number,
+      status: "confirmed",
+    });
+
+    if (confirmedReservation) {
+      const reservationTime = new Date(
+        confirmedReservation.reservation_date
+      ).toLocaleString();
+      return res.status(400).json({
+        message: `Table ${table_number} is reserved (confirmed). Customer: ${confirmedReservation.customer_name}. Reservation time: ${reservationTime}`,
+        reservation: {
+          id: confirmedReservation._id,
+          customer_name: confirmedReservation.customer_name,
+          reservation_date: confirmedReservation.reservation_date,
+          status: confirmedReservation.status,
+        },
+        tableStatus: {
+          available: false,
+          type: "reservation",
+          reservation: confirmedReservation,
+        },
+      });
+    }
+
+    // Check for pending reservations within a 2-hour window (1 hour before to 1 hour after current time)
     const now = new Date();
     const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
     const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
 
-    const activeReservation = await Reservation.findOne({
+    const pendingReservation = await Reservation.findOne({
       table_number,
       reservation_date: {
         $gte: oneHourBefore,
         $lte: oneHourAfter,
       },
-      status: { $in: ["pending", "confirmed"] },
+      status: "pending",
     });
 
-    if (activeReservation) {
+    if (pendingReservation) {
       const reservationTime = new Date(
-        activeReservation.reservation_date
+        pendingReservation.reservation_date
       ).toLocaleString();
       return res.status(400).json({
-        message: `Table ${table_number} is reserved for ${reservationTime}. Customer: ${activeReservation.customer_name}`,
+        message: `Table ${table_number} is reserved (pending) for ${reservationTime}. Customer: ${pendingReservation.customer_name}`,
         reservation: {
-          id: activeReservation._id,
-          customer_name: activeReservation.customer_name,
-          reservation_date: activeReservation.reservation_date,
-          status: activeReservation.status,
+          id: pendingReservation._id,
+          customer_name: pendingReservation.customer_name,
+          reservation_date: pendingReservation.reservation_date,
+          status: pendingReservation.status,
+        },
+        tableStatus: {
+          available: false,
+          type: "reservation",
+          reservation: pendingReservation,
         },
       });
     }
