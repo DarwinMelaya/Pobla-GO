@@ -30,12 +30,13 @@ import {
   Checkout,
 } from "../pages";
 import ProtectedRoute from "../components/Security/ProtectedRoute";
+import LandingPageWithIntro from "../components/Intro/LandingPageWithIntro";
 
 export const Routers = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<LandingPageWithIntro />} />
         {/* Auth Pages */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
