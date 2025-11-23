@@ -115,10 +115,12 @@ const AdminOnlineOrders = () => {
       const data = await response.json();
       const allOrders = data.orders || [];
 
-      // Calculate stats
+      // Calculate stats (exclude cancelled and pending orders from revenue)
       const stats = {
         total_orders: allOrders.length,
-        total_revenue: allOrders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
+        total_revenue: allOrders
+          .filter((o) => o.status !== "Cancelled" && o.status !== "Pending")
+          .reduce((sum, order) => sum + (order.total_amount || 0), 0),
         delivery_orders: allOrders.filter((o) => o.order_type === "delivery").length,
         pickup_orders: allOrders.filter((o) => o.order_type === "pickup").length,
         pending_orders: allOrders.filter((o) => o.status === "Pending").length,

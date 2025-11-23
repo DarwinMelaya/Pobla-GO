@@ -748,8 +748,34 @@ router.get("/stats/summary", verifyAuth, async (req, res) => {
         $group: {
           _id: null,
           total_orders: { $sum: 1 },
-          total_revenue: { $sum: "$total_amount" },
-          average_order_value: { $avg: "$total_amount" },
+          total_revenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$status", "cancelled"] },
+                    { $ne: ["$status", "pending"] },
+                  ],
+                },
+                "$total_amount",
+                0,
+              ],
+            },
+          },
+          average_order_value: {
+            $avg: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$status", "cancelled"] },
+                    { $ne: ["$status", "pending"] },
+                  ],
+                },
+                "$total_amount",
+                null,
+              ],
+            },
+          },
           pending_orders: {
             $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
           },
@@ -837,8 +863,34 @@ router.get("/stats/staff", verifyAuth, verifyAdmin, async (req, res) => {
         $group: {
           _id: "$staff_member",
           total_orders: { $sum: 1 },
-          total_revenue: { $sum: "$total_amount" },
-          average_order_value: { $avg: "$total_amount" },
+          total_revenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$status", "cancelled"] },
+                    { $ne: ["$status", "pending"] },
+                  ],
+                },
+                "$total_amount",
+                0,
+              ],
+            },
+          },
+          average_order_value: {
+            $avg: {
+              $cond: [
+                {
+                  $and: [
+                    { $ne: ["$status", "cancelled"] },
+                    { $ne: ["$status", "pending"] },
+                  ],
+                },
+                "$total_amount",
+                null,
+              ],
+            },
+          },
           pending_orders: {
             $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] },
           },
