@@ -19,6 +19,7 @@ import {
   XCircle,
   AlertCircle,
   Clock as ClockIcon,
+  ShoppingCart,
 } from "lucide-react";
 
 const AdminReservations = () => {
@@ -302,6 +303,9 @@ const AdminReservations = () => {
                       Date & Time
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
+                      Food Items
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
@@ -348,6 +352,26 @@ const AdminReservations = () => {
                             </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {reservation.food_items && reservation.food_items.length > 0 ? (
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1 text-sm text-[#f5f5f5]">
+                              <ShoppingCart className="w-4 h-4 text-[#f6b100]" />
+                              <span className="font-medium">
+                                {reservation.food_items.length} item{reservation.food_items.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <div className="text-xs text-[#cccccc]">
+                              Total: ₱{reservation.total_amount?.toFixed(2) || '0.00'}
+                            </div>
+                            <div className="text-xs text-[#b5b5b5] max-w-xs truncate">
+                              {reservation.food_items.map(item => item.item_name).join(', ')}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-[#b5b5b5]">No items</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-2">

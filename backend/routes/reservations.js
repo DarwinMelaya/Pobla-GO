@@ -77,6 +77,7 @@ router.post("/", authenticateToken, async (req, res) => {
       table_number,
       reservation_date,
       status,
+      food_items,
     } = req.body;
 
     // Validate required fields
@@ -91,6 +92,40 @@ router.post("/", authenticateToken, async (req, res) => {
         message:
           "Customer name, contact number, table number, and reservation date are required",
       });
+    }
+
+    // Validate and process food items if provided
+    let processedFoodItems = [];
+    let totalAmount = 0;
+
+    if (food_items && Array.isArray(food_items) && food_items.length > 0) {
+      for (const item of food_items) {
+        if (
+          !item.item_name ||
+          !item.quantity ||
+          !item.price ||
+          item.quantity < 1 ||
+          item.price < 0
+        ) {
+          return res.status(400).json({
+            success: false,
+            message:
+              "Each food item must have item_name, quantity (>=1), and price (>=0)",
+          });
+        }
+
+        const itemTotal = item.quantity * item.price;
+        totalAmount += itemTotal;
+
+        processedFoodItems.push({
+          item_name: item.item_name.trim(),
+          quantity: item.quantity,
+          price: item.price,
+          total_price: itemTotal,
+          menu_item_id: item.menu_item_id || null,
+          special_instructions: item.special_instructions || "",
+        });
+      }
     }
 
     // Check if table is already reserved for the same date and time
@@ -134,6 +169,8 @@ router.post("/", authenticateToken, async (req, res) => {
       table_number,
       reservation_date: new Date(reservation_date),
       status: status || "pending",
+      food_items: processedFoodItems,
+      total_amount: totalAmount,
     });
 
     await newReservation.save();
@@ -162,6 +199,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
       table_number,
       reservation_date,
       status,
+      food_items,
     } = req.body;
 
     const reservation = await Reservation.findById(req.params.id);
@@ -207,6 +245,52 @@ router.put("/:id", authenticateToken, async (req, res) => {
             message: `Table ${table_number} is currently occupied by an active order (Status: ${activeOrder.status})`,
           });
         }
+      }
+    }
+
+    // Validate and process food items if provided
+    if (food_items !== undefined) {
+      if (Array.isArray(food_items)) {
+        let processedFoodItems = [];
+        let totalAmount = 0;
+
+        if (food_items.length > 0) {
+          for (const item of food_items) {
+            if (
+              !item.item_name ||
+              !item.quantity ||
+              !item.price ||
+              item.quantity < 1 ||
+              item.price < 0
+            ) {
+              return res.status(400).json({
+                success: false,
+                message:
+                  "Each food item must have item_name, quantity (>=1), and price (>=0)",
+              });
+            }
+
+            const itemTotal = item.quantity * item.price;
+            totalAmount += itemTotal;
+
+            processedFoodItems.push({
+              item_name: item.item_name.trim(),
+              quantity: item.quantity,
+              price: item.price,
+              total_price: itemTotal,
+              menu_item_id: item.menu_item_id || null,
+              special_instructions: item.special_instructions || "",
+            });
+          }
+        }
+
+        reservation.food_items = processedFoodItems;
+        reservation.total_amount = totalAmount;
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "food_items must be an array",
+        });
       }
     }
 

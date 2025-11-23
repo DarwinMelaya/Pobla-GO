@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Clock as ClockIcon,
   X,
+  ShoppingCart,
 } from "lucide-react";
 
 const ViewReservationModal = ({ isOpen, onClose, reservation }) => {
@@ -167,6 +168,53 @@ const ViewReservationModal = ({ isOpen, onClose, reservation }) => {
                 </div>
               </div>
             </div>
+
+            {/* Food Items */}
+            {reservation.food_items && reservation.food_items.length > 0 && (
+              <div className="bg-gray-700/30 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                  <ShoppingCart className="w-5 h-5 text-[#C05050]" />
+                  Food Items
+                </h3>
+                <div className="space-y-3">
+                  {reservation.food_items.map((item, index) => (
+                    <div
+                      key={index}
+                      className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50"
+                    >
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex-1">
+                          <div className="text-white font-medium">
+                            {item.item_name}
+                          </div>
+                          {item.special_instructions && (
+                            <div className="text-sm text-gray-400 mt-1">
+                              Note: {item.special_instructions}
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <div className="text-white font-medium">
+                            ₱{item.total_price?.toFixed(2) || "0.00"}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {item.quantity} × ₱{item.price?.toFixed(2) || "0.00"}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="pt-3 border-t border-gray-700/50 flex justify-between items-center">
+                    <span className="text-lg font-semibold text-white">
+                      Total Amount:
+                    </span>
+                    <span className="text-xl font-bold text-[#f6b100]">
+                      ₱{reservation.total_amount?.toFixed(2) || "0.00"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Additional Information */}
             <div className="bg-gray-700/30 rounded-lg p-4">
