@@ -49,6 +49,46 @@ const Pos = () => {
     return localStorage.getItem("token");
   };
 
+  // Map available servings to a visual status used across the card
+  const getStockStatus = (availableServings = 0) => {
+    if (availableServings <= 0) {
+      return {
+        level: "none",
+        label: "OUT OF STOCK",
+        textClass: "text-red-400",
+        cardClass:
+          "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed",
+        badgeClass: "bg-[#313131] text-red-400",
+      };
+    }
+    if (availableServings <= 2) {
+      return {
+        level: "critical",
+        label: "CRITICAL STOCK",
+        textClass: "text-red-400",
+        cardClass: "bg-[#3b1f1f] border-red-600 hover:border-red-500",
+        badgeClass: "bg-[#3b1f1f] text-red-300",
+      };
+    }
+    if (availableServings <= 5) {
+      return {
+        level: "low",
+        label: "LOW STOCK",
+        textClass: "text-yellow-300",
+        cardClass: "bg-[#38301b] border-yellow-600 hover:border-yellow-500",
+        badgeClass: "bg-[#50440a] text-[#f6b100]",
+      };
+    }
+    return {
+      level: "healthy",
+      label: "",
+      textClass: "text-green-400",
+      cardClass:
+        "bg-[#262626] border-[#383838] hover:border-[#f6b100] hover:shadow-xl",
+      badgeClass: "",
+    };
+  };
+
   // Fetch menu items
   const fetchMenuItems = async () => {
     setMenuItemsLoading(true);
@@ -858,20 +898,15 @@ const Pos = () => {
                     )?.quantity || 0;
                   const availableServings =
                     item.availableServings || item.servings || 0;
-                  const isOutOfStock = availableServings <= 0;
-                  const isLowStock =
-                    availableServings <= 2 && availableServings > 0;
+                  const stockStatus = getStockStatus(availableServings);
+                  const isOutOfStock = stockStatus.level === "none";
 
                   return (
                     <button
                       key={item._id || index}
                       disabled={isOutOfStock}
                       className={`relative rounded-xl overflow-hidden shadow-lg transition-all flex flex-col border-2 touch-manipulation active:scale-95 w-full ${
-                        isOutOfStock
-                          ? "bg-[#353535] border-[#383838] text-[#ababab] opacity-50 cursor-not-allowed"
-                          : isLowStock
-                          ? "bg-[#38301b] border-yellow-600 hover:border-yellow-500"
-                          : "bg-[#262626] border-[#383838] hover:border-[#f6b100] hover:shadow-xl"
+                        stockStatus.cardClass
                       }`}
                       onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
@@ -921,25 +956,16 @@ const Pos = () => {
                                 Stock:
                               </span>
                               <span
-                                className={`font-bold text-sm sm:text-base ${
-                                  isOutOfStock
-                                    ? "text-red-400"
-                                    : isLowStock
-                                    ? "text-[#f6b100]"
-                                    : "text-green-400"
-                                }`}
+                                className={`font-bold text-sm sm:text-base ${stockStatus.textClass}`}
                               >
                                 {availableServings}
                               </span>
                             </div>
-                            {isOutOfStock && (
-                              <span className="inline-block px-2 sm:px-3 py-1 bg-[#313131] text-red-400 text-xs sm:text-sm font-bold rounded-lg">
-                                OUT OF STOCK
-                              </span>
-                            )}
-                            {isLowStock && !isOutOfStock && (
-                              <span className="inline-block px-2 sm:px-3 py-1 bg-[#50440a] text-[#f6b100] text-xs sm:text-sm font-bold rounded-lg">
-                                LOW STOCK
+                            {stockStatus.label && (
+                              <span
+                                className={`inline-block px-2 sm:px-3 py-1 text-xs sm:text-sm font-bold rounded-lg ${stockStatus.badgeClass}`}
+                              >
+                                {stockStatus.label}
                               </span>
                             )}
                           </div>
