@@ -11,6 +11,7 @@ const DISCOUNT_RATES = {
   pwd: 0.2,
   senior: 0.2,
 };
+const PACKAGING_FEE_PER_BOX = 10;
 
 // Middleware to verify authentication
 const verifyAuth = async (req, res, next) => {
@@ -231,90 +232,105 @@ router.post("/", verifyAuth, async (req, res) => {
       notes,
       payment_method,
       discount_type,
+      order_type,
+      packaging_boxes,
     } = req.body;
+    const rawOrderType = (order_type || "").toLowerCase();
+    const normalizedOrderType = ["dine_in", "delivery", "pickup"].includes(
+      rawOrderType
+    )
+      ? rawOrderType
+      : "dine_in";
 
     // Validate required fields
     if (
       !customer_name ||
-      !table_number ||
       !order_items ||
       !Array.isArray(order_items) ||
       order_items.length === 0
     ) {
       return res.status(400).json({
         message:
-          "Missing required fields: customer_name, table_number, and order_items array",
+          "Missing required fields: customer_name and order_items array",
       });
     }
 
-    // Check if table is available (check for active orders)
-    const isTableAvailable = await Order.isTableAvailable(table_number);
-    if (!isTableAvailable) {
-      const tableStatus = await Order.getTableStatus(table_number);
+    if (normalizedOrderType === "dine_in" && !table_number) {
       return res.status(400).json({
-        message: `Table ${table_number} is currently occupied. Current order status: ${tableStatus.status}`,
-        tableStatus: tableStatus,
+        message: "Table number is required for dine-in orders",
       });
     }
 
-    // Check for confirmed reservations first - these always block the table until completed
-    const confirmedReservation = await Reservation.findOne({
-      table_number,
-      status: "confirmed",
-    });
+    if (normalizedOrderType === "dine_in") {
+      // Check if table is available (check for active orders)
+      const isTableAvailable = await Order.isTableAvailable(table_number);
+      if (!isTableAvailable) {
+        const tableStatus = await Order.getTableStatus(table_number);
+        return res.status(400).json({
+          message: `Table ${table_number} is currently occupied. Current order status: ${tableStatus.status}`,
+          tableStatus: tableStatus,
+        });
+      }
 
-    if (confirmedReservation) {
-      const reservationTime = new Date(
-        confirmedReservation.reservation_date
-      ).toLocaleString();
-      return res.status(400).json({
-        message: `Table ${table_number} is reserved (confirmed). Customer: ${confirmedReservation.customer_name}. Reservation time: ${reservationTime}`,
-        reservation: {
-          id: confirmedReservation._id,
-          customer_name: confirmedReservation.customer_name,
-          reservation_date: confirmedReservation.reservation_date,
-          status: confirmedReservation.status,
-        },
-        tableStatus: {
-          available: false,
-          type: "reservation",
-          reservation: confirmedReservation,
-        },
+      // Check for confirmed reservations first - these always block the table until completed
+      const confirmedReservation = await Reservation.findOne({
+        table_number,
+        status: "confirmed",
       });
-    }
 
-    // Check for pending reservations within a 2-hour window (1 hour before to 1 hour after current time)
-    const now = new Date();
-    const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
-    const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
+      if (confirmedReservation) {
+        const reservationTime = new Date(
+          confirmedReservation.reservation_date
+        ).toLocaleString();
+        return res.status(400).json({
+          message: `Table ${table_number} is reserved (confirmed). Customer: ${confirmedReservation.customer_name}. Reservation time: ${reservationTime}`,
+          reservation: {
+            id: confirmedReservation._id,
+            customer_name: confirmedReservation.customer_name,
+            reservation_date: confirmedReservation.reservation_date,
+            status: confirmedReservation.status,
+          },
+          tableStatus: {
+            available: false,
+            type: "reservation",
+            reservation: confirmedReservation,
+          },
+        });
+      }
 
-    const pendingReservation = await Reservation.findOne({
-      table_number,
-      reservation_date: {
-        $gte: oneHourBefore,
-        $lte: oneHourAfter,
-      },
-      status: "pending",
-    });
+      // Check for pending reservations within a 2-hour window (1 hour before to 1 hour after current time)
+      const now = new Date();
+      const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
+      const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
 
-    if (pendingReservation) {
-      const reservationTime = new Date(
-        pendingReservation.reservation_date
-      ).toLocaleString();
-      return res.status(400).json({
-        message: `Table ${table_number} is reserved (pending) for ${reservationTime}. Customer: ${pendingReservation.customer_name}`,
-        reservation: {
-          id: pendingReservation._id,
-          customer_name: pendingReservation.customer_name,
-          reservation_date: pendingReservation.reservation_date,
-          status: pendingReservation.status,
+      const pendingReservation = await Reservation.findOne({
+        table_number,
+        reservation_date: {
+          $gte: oneHourBefore,
+          $lte: oneHourAfter,
         },
-        tableStatus: {
-          available: false,
-          type: "reservation",
-          reservation: pendingReservation,
-        },
+        status: "pending",
       });
+
+      if (pendingReservation) {
+        const reservationTime = new Date(
+          pendingReservation.reservation_date
+        ).toLocaleString();
+        return res.status(400).json({
+          message: `Table ${table_number} is reserved (pending) for ${reservationTime}. Customer: ${pendingReservation.customer_name}`,
+          reservation: {
+            id: pendingReservation._id,
+            customer_name: pendingReservation.customer_name,
+            reservation_date: pendingReservation.reservation_date,
+            status: pendingReservation.status,
+          },
+          tableStatus: {
+            available: false,
+            type: "reservation",
+            reservation: pendingReservation,
+          },
+        });
+      }
     }
 
     // Calculate total amount
@@ -328,16 +344,18 @@ router.post("/", verifyAuth, async (req, res) => {
         });
       }
 
-      const item_total = item.quantity * item.price;
+      const quantity = Number(item.quantity) || 0;
+      const item_total = quantity * item.price;
       subtotal_amount += item_total;
 
       validated_items.push({
         item_name: item.item_name,
-        quantity: item.quantity,
+        quantity,
         price: item.price,
         total_price: item_total,
         menu_item_id: item.menu_item_id || null,
         special_instructions: item.special_instructions || "",
+        container_fee: 0,
       });
     }
 
@@ -351,12 +369,21 @@ router.post("/", verifyAuth, async (req, res) => {
     const discount_amount = Number(
       (subtotal_amount * discount_rate).toFixed(2)
     );
-    const total_amount = Math.max(0, subtotal_amount - discount_amount);
+    const packagingBoxCount = Math.max(
+      0,
+      parseInt(packaging_boxes ?? 0, 10) || 0
+    );
+    const packaging_fee =
+      normalizedOrderType === "pickup"
+        ? packagingBoxCount * PACKAGING_FEE_PER_BOX
+        : 0;
+    const total_amount =
+      Math.max(0, subtotal_amount - discount_amount) + packaging_fee;
 
     // Create the order
     const order = new Order({
       customer_name,
-      table_number,
+      table_number: normalizedOrderType === "dine_in" ? table_number : null,
       subtotal_amount,
       total_amount,
       staff_member: req.user._id,
@@ -365,6 +392,10 @@ router.post("/", verifyAuth, async (req, res) => {
       discount_type: normalizedDiscountType,
       discount_rate,
       discount_amount,
+      order_type: normalizedOrderType,
+      packaging_fee,
+      packaging_box_count:
+        normalizedOrderType === "pickup" ? packagingBoxCount : 0,
     });
 
     await order.save();

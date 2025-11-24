@@ -26,6 +26,11 @@ const OrderItemSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  container_fee: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
   // Reference to the menu item (optional, for tracking)
   menu_item_id: {
     type: mongoose.Schema.Types.ObjectId,

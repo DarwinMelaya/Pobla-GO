@@ -72,6 +72,16 @@ const OrderSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
+  packaging_fee: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  packaging_box_count: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
   // Staff member who took the order (required for dine_in, optional for online)
   staff_member: {
     type: mongoose.Schema.Types.ObjectId,

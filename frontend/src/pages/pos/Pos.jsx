@@ -12,6 +12,8 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+const PACKAGING_FEE_PER_BOX = 10;
+
 const Pos = () => {
   const navigate = useNavigate();
   const [orderForm, setOrderForm] = useState({
@@ -21,6 +23,8 @@ const Pos = () => {
     payment_method: "cash",
     discount_type: "none",
     order_items: [],
+    order_type: "dine_in",
+    packaging_boxes: 0,
   });
   const [cashAmount, setCashAmount] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
@@ -40,6 +44,17 @@ const Pos = () => {
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
     { label: "Senior 20%", value: "senior", helper: "Requires valid ID" },
   ];
+  const requiresTableNumber = orderForm.order_type === "dine_in";
+  const packagingBoxes = Number(orderForm.packaging_boxes) || 0;
+  const handlePackagingBoxesChange = (value) => {
+    if (value === "") {
+      setOrderForm((prev) => ({ ...prev, packaging_boxes: "" }));
+      return;
+    }
+    const numeric = Math.max(0, parseInt(value, 10) || 0);
+    setOrderForm((prev) => ({ ...prev, packaging_boxes: numeric }));
+  };
+
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -147,6 +162,11 @@ const Pos = () => {
       style: "currency",
       currency: "PHP",
     }).format(amount);
+  };
+
+  const calculatePackagingFee = () => {
+    if (orderForm.order_type !== "pickup") return 0;
+    return packagingBoxes * PACKAGING_FEE_PER_BOX;
   };
 
   // Add item to order
@@ -282,7 +302,8 @@ const Pos = () => {
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
     const discount = subtotal * getDiscountRate();
-    return Math.max(0, subtotal - discount);
+    const totalAfterDiscount = Math.max(0, subtotal - discount);
+    return totalAfterDiscount + calculatePackagingFee();
   };
 
   // Calculate change for cash payment
@@ -338,11 +359,13 @@ const Pos = () => {
     try {
       if (
         !orderForm.customer_name ||
-        !orderForm.table_number ||
+        (requiresTableNumber && !orderForm.table_number) ||
         orderForm.order_items.length === 0
       ) {
         toast.error(
-          "Please fill in all required fields and add at least one item"
+          requiresTableNumber
+            ? "Please fill in all required fields and add at least one item"
+            : "Please provide customer details and add at least one item"
         );
         return;
       }
@@ -357,13 +380,17 @@ const Pos = () => {
 
       setIsCreatingOrder(true);
       const token = getAuthToken();
+      const payload = {
+        ...orderForm,
+        packaging_boxes: packagingBoxes,
+      };
       const response = await fetch(`${API_BASE}/orders`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(orderForm),
+        body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
@@ -410,6 +437,8 @@ const Pos = () => {
       notes: "",
       payment_method: "cash",
       discount_type: "none",
+      order_type: "dine_in",
+      packaging_boxes: 0,
       order_items: [],
     });
     setCashAmount("");
@@ -431,6 +460,8 @@ const Pos = () => {
       const discountAmount = calculateDiscountAmount();
       const totalAmount = calculateTotal();
       const discountLabel = getDiscountLabel();
+      const packagingFee = calculatePackagingFee();
+      const packagingBoxCount = packagingBoxes;
       const printWindow = window.open("", "_blank");
       const currentDate = new Date().toLocaleString("en-US", {
         year: "numeric",
@@ -562,7 +593,9 @@ const Pos = () => {
               orderForm.customer_name || "Walk-in"
             }</div>
             <div><strong>Table:</strong> ${
-              orderForm.table_number || "N/A"
+              orderForm.order_type === "pickup"
+                ? "Take-out"
+                : orderForm.table_number || "N/A"
             }</div>
             <div><strong>Payment:</strong> ${orderForm.payment_method.toUpperCase()}</div>
             ${
@@ -608,6 +641,16 @@ const Pos = () => {
             <div class="total-line">
               <span>Discount (${discountLabel}):</span>
               <span>- ${formatCurrency(discountAmount)}</span>
+            </div>
+          `
+              : ""
+          }
+          ${
+            orderForm.order_type === "pickup"
+              ? `
+            <div class="total-line">
+              <span>Packaging (${packagingBoxCount} x ₱${PACKAGING_FEE_PER_BOX}):</span>
+              <span>${formatCurrency(packagingFee)}</span>
             </div>
           `
               : ""
@@ -720,10 +763,63 @@ const Pos = () => {
             />
           </div>
 
+          {/* Order Type */}
+          <div className="w-full lg:w-40 flex-shrink-0">
+            <label className="block text-xs font-semibold text-[#ababab] mb-1">
+              Order Type
+            </label>
+            <select
+              value={orderForm.order_type}
+              onChange={(e) => {
+                const value = e.target.value;
+                setOrderForm((prev) => ({
+                  ...prev,
+                  order_type: value,
+                  table_number: value === "dine_in" ? prev.table_number : "",
+                  packaging_boxes: value === "pickup" ? prev.packaging_boxes || 0 : 0,
+                }));
+                setTableStatus(null);
+              }}
+              className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
+            >
+              <option value="dine_in">Dine-in</option>
+              <option value="pickup">Take-out</option>
+            </select>
+            {orderForm.order_type === "pickup" && (
+              <p className="text-xs text-[#ababab] mt-1">
+                ₱{PACKAGING_FEE_PER_BOX} per box for packaging
+              </p>
+            )}
+          </div>
+
+          {/* Packaging Boxes */}
+          {orderForm.order_type === "pickup" && (
+            <div className="w-full lg:w-44 flex-shrink-0">
+              <label className="block text-xs font-semibold text-[#ababab] mb-1">
+                Packaging Boxes
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={
+                  orderForm.packaging_boxes === ""
+                    ? ""
+                    : orderForm.packaging_boxes
+                }
+                onChange={(e) => handlePackagingBoxesChange(e.target.value)}
+                className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
+                placeholder="0"
+              />
+              <p className="text-xs text-[#ababab] mt-1">
+                Total packaging fee: {formatCurrency(calculatePackagingFee())}
+              </p>
+            </div>
+          )}
+
           {/* Table Number - Dropdown */}
           <div className="w-full lg:w-48 flex-shrink-0">
             <label className="block text-xs font-semibold text-[#ababab] mb-1">
-              Table Number *
+              Table Number {requiresTableNumber ? "*" : "(Take-out optional)"}
             </label>
             <div className="flex gap-2 items-start">
               <div className="flex-1 min-w-0">
@@ -736,9 +832,15 @@ const Pos = () => {
                     }));
                     setTableStatus(null);
                   }}
-                  disabled={loadingTables || availableTables.length === 0}
+                  disabled={
+                    !requiresTableNumber ||
+                    loadingTables ||
+                    availableTables.length === 0
+                  }
                   className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-xl md:text-2xl font-bold text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation ${
-                    loadingTables || availableTables.length === 0
+                    !requiresTableNumber ||
+                    loadingTables ||
+                    availableTables.length === 0
                       ? "opacity-50 cursor-not-allowed"
                       : ""
                   }`}
@@ -750,21 +852,28 @@ const Pos = () => {
                     </option>
                   ))}
                 </select>
-                {loadingTables && (
+                {requiresTableNumber && loadingTables && (
                   <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#3a2e1f] text-[#f6b100] border border-[#f6b100]">
                     Loading tables...
                   </div>
                 )}
-                {!loadingTables && availableTables.length === 0 && (
+                {requiresTableNumber &&
+                  !loadingTables &&
+                  availableTables.length === 0 && (
                   <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]">
                     No tables available
+                  </div>
+                  )}
+                {!requiresTableNumber && (
+                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#1f1f1f] text-[#ababab] border border-[#353535]">
+                    Table number not needed for take-out
                   </div>
                 )}
               </div>
               <button
                 type="button"
                 onClick={fetchAvailableTables}
-                disabled={loadingTables}
+                disabled={loadingTables || !requiresTableNumber}
                 className="px-3 md:px-4 py-2 md:py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow touch-manipulation min-w-[70px] md:min-w-[80px] flex-shrink-0"
                 title="Refresh available tables"
               >
@@ -990,6 +1099,13 @@ const Pos = () => {
               <div className="text-xs sm:text-sm text-[#ababab]">
                 {orderForm.order_items.length} item(s)
               </div>
+              {orderForm.order_type === "pickup" && (
+                  <div className="text-xs sm:text-sm text-[#92ecb3] mt-1">
+                    Take-out boxes: {packagingBoxes} x ₱
+                    {PACKAGING_FEE_PER_BOX} ={" "}
+                    {formatCurrency(calculatePackagingFee())}
+                  </div>
+                )}
             </div>
 
             {orderForm.order_items.length === 0 ? (
@@ -1082,11 +1198,13 @@ const Pos = () => {
                 onClick={() => {
                   if (
                     !orderForm.customer_name ||
-                    !orderForm.table_number ||
+                    (requiresTableNumber && !orderForm.table_number) ||
                     orderForm.order_items.length === 0
                   ) {
                     toast.error(
-                      "Please fill in customer name, table number, and add items"
+                      requiresTableNumber
+                        ? "Please fill in customer name, table number, and add items"
+                        : "Please fill in customer name and add items"
                     );
                     return;
                   }
@@ -1094,12 +1212,12 @@ const Pos = () => {
                 }}
                 disabled={
                   !orderForm.customer_name ||
-                  !orderForm.table_number ||
+                  (requiresTableNumber && !orderForm.table_number) ||
                   orderForm.order_items.length === 0
                 }
                 className={`w-full px-4 sm:px-6 py-3 sm:py-4 md:py-5 rounded-xl font-bold flex items-center justify-center text-lg sm:text-xl md:text-2xl shadow-lg transition-all duration-200 touch-manipulation min-h-[56px] sm:min-h-[64px] md:min-h-[72px] ${
                   !orderForm.customer_name ||
-                  !orderForm.table_number ||
+                  (requiresTableNumber && !orderForm.table_number) ||
                   orderForm.order_items.length === 0
                     ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                     : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] active:scale-95"
@@ -1177,6 +1295,16 @@ const Pos = () => {
                     <span>Discount ({getDiscountLabel()})</span>
                     <span className="font-semibold">
                       - {formatCurrency(calculateDiscountAmount())}
+                    </span>
+                  </div>
+                )}
+                {orderForm.order_type === "pickup" && (
+                  <div className="flex items-center justify-between text-[#92ecb3]">
+                    <span>
+                      Packaging ({packagingBoxes} x ₱{PACKAGING_FEE_PER_BOX})
+                    </span>
+                    <span className="font-semibold">
+                      {formatCurrency(calculatePackagingFee())}
                     </span>
                   </div>
                 )}
