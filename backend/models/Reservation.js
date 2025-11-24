@@ -15,6 +15,12 @@ const ReservationSchema = new mongoose.Schema({
     type: Date,
     required: true,
   },
+  number_of_persons: {
+    type: Number,
+    required: true,
+    min: 1,
+    default: 1,
+  },
   status: {
     type: String,
     required: true,

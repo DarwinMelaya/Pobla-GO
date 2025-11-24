@@ -321,6 +321,9 @@ const AdminReservations = () => {
                             <div className="text-sm text-[#cccccc]">
                               {reservation.contact_number}
                             </div>
+                            <div className="text-xs text-[#b5b5b5]">
+                              Number of Persons: {reservation.number_of_persons || 1}
+                            </div>
                           </div>
                         </div>
                       </td>

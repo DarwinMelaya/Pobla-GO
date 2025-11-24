@@ -101,6 +101,15 @@ const ViewReservationModal = ({ isOpen, onClose, reservation }) => {
                     {reservation.contact_number}
                   </p>
                 </div>
+                <div>
+                  <label className="block text-sm text-gray-400 mb-1">
+                    Number of Persons
+                  </label>
+                  <p className="text-white font-medium flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    {reservation.number_of_persons || 1}
+                  </p>
+                </div>
               </div>
             </div>
 

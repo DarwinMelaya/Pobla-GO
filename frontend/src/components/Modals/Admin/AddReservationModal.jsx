@@ -15,6 +15,9 @@ const AddReservationModal = ({
     contact_number: initialData.contact_number || "",
     reservation_date: initialData.reservation_date || "",
     status: initialData.status || "pending",
+    number_of_persons: initialData.number_of_persons
+      ? String(initialData.number_of_persons)
+      : "1",
   });
 
   const [errors, setErrors] = useState({});
@@ -135,9 +138,16 @@ const AddReservationModal = ({
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    let nextValue = value;
+
+    if (name === "number_of_persons") {
+      const cleaned = value.replace(/[^0-9]/g, "");
+      nextValue = cleaned;
+    }
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: nextValue,
     }));
 
     // Clear error when user starts typing
@@ -161,6 +171,13 @@ const AddReservationModal = ({
       newErrors.contact_number = "Contact number is required";
     } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.contact_number)) {
       newErrors.contact_number = "Please enter a valid contact number";
+    }
+
+    const numericNumberOfPersons = Number(formData.number_of_persons);
+    if (formData.number_of_persons === "" || isNaN(numericNumberOfPersons)) {
+      newErrors.number_of_persons = "Number of persons is required";
+    } else if (!Number.isInteger(numericNumberOfPersons) || numericNumberOfPersons < 1) {
+      newErrors.number_of_persons = "Number of persons must be at least 1";
     }
 
     if (!formData.reservation_date) {
@@ -189,6 +206,7 @@ const AddReservationModal = ({
       ...formData,
       reservation_date: new Date(formData.reservation_date).toISOString(),
       food_items: foodItems,
+      number_of_persons: Number(formData.number_of_persons || "1"),
     });
   };
 
@@ -215,6 +233,9 @@ const AddReservationModal = ({
         contact_number: initialData.contact_number || "",
         reservation_date: formattedDate,
         status: initialData.status || "pending",
+        number_of_persons: initialData.number_of_persons
+          ? String(initialData.number_of_persons)
+          : "1",
       };
       setFormData(newFormData);
       setErrors({});
@@ -307,6 +328,29 @@ const AddReservationModal = ({
                   </p>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Number of Persons *
+              </label>
+              <input
+                type="number"
+                name="number_of_persons"
+                min="1"
+                value={formData.number_of_persons}
+                onChange={handleInputChange}
+                required
+                className={`w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white placeholder-gray-400 transition-all duration-200 ${
+                  errors.number_of_persons ? "border-red-500" : "border-gray-600/50"
+                }`}
+                placeholder="Enter number of persons"
+              />
+              {errors.number_of_persons && (
+                <p className="text-red-400 text-sm mt-1">
+                  {errors.number_of_persons}
+                </p>
+              )}
             </div>
 
             {/* Status */}

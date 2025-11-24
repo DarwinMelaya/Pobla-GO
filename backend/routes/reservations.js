@@ -76,6 +76,7 @@ router.post("/", authenticateToken, async (req, res) => {
       reservation_date,
       status,
       food_items,
+      number_of_persons,
     } = req.body;
 
     // Validate required fields
@@ -88,6 +89,14 @@ router.post("/", authenticateToken, async (req, res) => {
         success: false,
         message:
           "Customer name, contact number, and reservation date are required",
+      });
+    }
+
+    const parsedNumberOfPersons = Number(number_of_persons ?? 1);
+    if (!Number.isInteger(parsedNumberOfPersons) || parsedNumberOfPersons < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "number_of_persons must be a positive integer",
       });
     }
 
@@ -130,6 +139,7 @@ router.post("/", authenticateToken, async (req, res) => {
       contact_number,
       reservation_date: new Date(reservation_date),
       status: status || "pending",
+      number_of_persons: parsedNumberOfPersons,
       food_items: processedFoodItems,
       total_amount: totalAmount,
     });
@@ -160,6 +170,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
       reservation_date,
       status,
       food_items,
+      number_of_persons,
     } = req.body;
 
     const reservation = await Reservation.findById(req.params.id);
@@ -222,6 +233,16 @@ router.put("/:id", authenticateToken, async (req, res) => {
     if (reservation_date)
       reservation.reservation_date = new Date(reservation_date);
     if (status) reservation.status = status;
+    if (number_of_persons !== undefined) {
+      const parsedNumberOfPersons = Number(number_of_persons);
+      if (!Number.isInteger(parsedNumberOfPersons) || parsedNumberOfPersons < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "number_of_persons must be a positive integer",
+        });
+      }
+      reservation.number_of_persons = parsedNumberOfPersons;
+    }
 
     await reservation.save();
 
