@@ -64,6 +64,13 @@ const OrderSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
+  discount_id_number: {
+    type: String,
+    trim: true,
+    required: function () {
+      return this.discount_type === "pwd" || this.discount_type === "senior";
+    },
+  },
   packaging_fee: {
     type: Number,
     min: 0,

@@ -225,6 +225,7 @@ router.post("/", verifyAuth, async (req, res) => {
       notes,
       payment_method,
       discount_type,
+      discount_id_number,
       order_type,
       packaging_boxes,
     } = req.body;
@@ -280,6 +281,17 @@ router.post("/", verifyAuth, async (req, res) => {
     )
       ? discount_type
       : "none";
+    
+    // Validate discount ID number if discount is applied
+    if (
+      (normalizedDiscountType === "pwd" || normalizedDiscountType === "senior") &&
+      (!discount_id_number || !discount_id_number.trim())
+    ) {
+      return res.status(400).json({
+        message: `ID number is required for ${normalizedDiscountType === "pwd" ? "PWD" : "Senior"} discount`,
+      });
+    }
+    
     const discount_rate = DISCOUNT_RATES[normalizedDiscountType] || 0;
     const discount_amount = Number(
       (subtotal_amount * discount_rate).toFixed(2)
@@ -306,6 +318,10 @@ router.post("/", verifyAuth, async (req, res) => {
       discount_type: normalizedDiscountType,
       discount_rate,
       discount_amount,
+      discount_id_number:
+        normalizedDiscountType === "pwd" || normalizedDiscountType === "senior"
+          ? discount_id_number?.trim() || ""
+          : undefined,
       order_type: normalizedOrderType,
       packaging_fee,
       packaging_box_count:

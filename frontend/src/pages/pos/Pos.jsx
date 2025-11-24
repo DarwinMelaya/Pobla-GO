@@ -20,6 +20,7 @@ const Pos = () => {
     notes: "",
     payment_method: "cash",
     discount_type: "none",
+    discount_id_number: "",
     order_items: [],
     order_type: "dine_in",
     packaging_boxes: 0,
@@ -294,6 +295,18 @@ const Pos = () => {
     return cash >= total && total > 0;
   };
 
+  // Check if discount is valid (ID number required for PWD/Senior)
+  const isDiscountValid = () => {
+    if (orderForm.discount_type === "none") return true;
+    if (
+      (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") &&
+      !orderForm.discount_id_number?.trim()
+    ) {
+      return false;
+    }
+    return true;
+  };
+
   // Memoized unique categories
   const categories = useMemo(() => {
     if (!menuItems.length) return ["All"];
@@ -326,6 +339,15 @@ const Pos = () => {
     try {
       if (!orderForm.customer_name || orderForm.order_items.length === 0) {
         toast.error("Please provide customer details and add at least one item");
+        return;
+      }
+
+      // Validate discount ID number if discount is selected
+      if (
+        (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") &&
+        !orderForm.discount_id_number?.trim()
+      ) {
+        toast.error("Please enter ID number for discount");
         return;
       }
 
@@ -394,6 +416,7 @@ const Pos = () => {
       notes: "",
       payment_method: "cash",
       discount_type: "none",
+      discount_id_number: "",
       order_type: "dine_in",
       packaging_boxes: 0,
       order_items: [],
@@ -1235,6 +1258,7 @@ const Pos = () => {
                         setOrderForm((prev) => ({
                           ...prev,
                           discount_type: option.value,
+                          discount_id_number: option.value === "none" ? "" : prev.discount_id_number,
                         }))
                       }
                       className={`p-3 rounded-xl border-2 text-left transition-all duration-200 touch-manipulation ${
@@ -1251,6 +1275,31 @@ const Pos = () => {
                 <p className="text-xs text-[#ababab] mt-2">
                   Apply 20% discount for qualified PWD or Senior customers upon presenting a valid ID.
                 </p>
+                
+                {/* ID Number Input - Show when PWD or Senior discount is selected */}
+                {(orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") && (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-[#ababab] mb-2">
+                      ID Number <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={orderForm.discount_id_number}
+                      onChange={(e) =>
+                        setOrderForm((prev) => ({
+                          ...prev,
+                          discount_id_number: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
+                      placeholder={`Enter ${orderForm.discount_type === "pwd" ? "PWD" : "Senior"} ID number`}
+                      required
+                    />
+                    <p className="text-xs text-[#ababab] mt-1">
+                      Please enter the {orderForm.discount_type === "pwd" ? "PWD" : "Senior"} ID number
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Cash Payment Inputs */}
@@ -1330,12 +1379,14 @@ const Pos = () => {
                   disabled={
                     isCreatingOrder ||
                     (orderForm.payment_method === "cash" &&
-                      !isCashPaymentValid())
+                      !isCashPaymentValid()) ||
+                    !isDiscountValid()
                   }
                   className={`w-full px-6 py-5 rounded-xl font-bold flex items-center justify-center text-2xl shadow-lg transition-all duration-200 touch-manipulation min-h-[72px] ${
                     isCreatingOrder ||
                     (orderForm.payment_method === "cash" &&
-                      !isCashPaymentValid())
+                      !isCashPaymentValid()) ||
+                    !isDiscountValid()
                       ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                       : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] active:scale-95"
                   }`}
@@ -1348,6 +1399,8 @@ const Pos = () => {
                   ) : orderForm.payment_method === "cash" &&
                     !isCashPaymentValid() ? (
                     "Insufficient Cash"
+                  ) : !isDiscountValid() ? (
+                    "Enter ID Number"
                   ) : (
                     "CONFIRM PAYMENT"
                   )}
