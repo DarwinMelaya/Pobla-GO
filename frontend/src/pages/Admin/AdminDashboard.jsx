@@ -115,6 +115,23 @@ const apiService = {
   getStaffStats: async () => {
     return apiService.makeRequest("/orders/stats/staff");
   },
+
+  // Get daily sales data
+  getDailySales: async (date) => {
+    const targetDate = date || new Date().toISOString().split("T")[0];
+    return apiService.makeRequest(`/orders/sales/daily?date=${targetDate}`);
+  },
+
+  // Get weekly sales data
+  getWeeklySales: async () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay();
+    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    const weekStartDate = monday.toISOString().split("T")[0];
+    return apiService.makeRequest(`/orders/sales/weekly?week_start=${weekStartDate}`);
+  },
 };
 
 const AdminDashboard = () => {
@@ -148,9 +165,10 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData, setChartData] = useState({
-    tablePerformanceData: null,
+    salesTrendData: null,
     ordersPieData: null,
     reservationsData: null,
+    weeklySalesData: null,
   });
 
   // Fetch real data from backend APIs
@@ -168,6 +186,8 @@ const AdminDashboard = () => {
           inventoryResponse,
           expiringInventoryResponse,
           staffStatsResponse,
+          dailySalesResponse,
+          weeklySalesResponse,
         ] = await Promise.allSettled([
           apiService.getOrdersStats(),
           apiService.getRecentOrders(5),
@@ -175,6 +195,8 @@ const AdminDashboard = () => {
           apiService.getInventory(),
           apiService.getExpiringInventory(),
           apiService.getStaffStats(),
+          apiService.getDailySales(),
+          apiService.getWeeklySales(),
         ]);
 
         // Process orders statistics
@@ -299,24 +321,111 @@ const AdminDashboard = () => {
         setRecentOrders(recentOrdersData);
         setLowStockItems(lowStockItemsData);
 
+        // Process sales data for charts
+        let salesTrendData = null;
+        let weeklySalesData = null;
+
+        // Process daily sales (last 7 days) - using hourly breakdown from today
+        if (dailySalesResponse.status === "fulfilled") {
+          const dailySales = dailySalesResponse.value;
+          // Use hourly breakdown to show sales throughout the day
+          if (dailySales.hourly_breakdown && dailySales.hourly_breakdown.length > 0) {
+            const hours = Array.from({ length: 24 }, (_, i) => i);
+            const revenueData = new Array(24).fill(0);
+            dailySales.hourly_breakdown.forEach((item) => {
+              revenueData[item._id] = item.revenue || 0;
+            });
+            salesTrendData = {
+              labels: hours.map((h) => `${h}:00`),
+              datasets: [
+                {
+                  label: "Hourly Revenue (₱)",
+                  data: revenueData,
+                  backgroundColor: "rgba(246, 177, 0, 0.2)",
+                  borderColor: "rgba(246, 177, 0, 1)",
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                },
+              ],
+            };
+          } else {
+            // Fallback: show last 7 days structure
+            const last7Days = [];
+            const last7DaysRevenue = [];
+            for (let i = 6; i >= 0; i--) {
+              const date = new Date();
+              date.setDate(date.getDate() - i);
+              last7Days.push(date.toLocaleDateString("en-US", { weekday: "short" }));
+              last7DaysRevenue.push(dailySales.summary?.total_revenue || 0);
+            }
+            salesTrendData = {
+              labels: last7Days,
+              datasets: [
+                {
+                  label: "Daily Revenue (₱)",
+                  data: last7DaysRevenue,
+                  backgroundColor: "rgba(246, 177, 0, 0.2)",
+                  borderColor: "rgba(246, 177, 0, 1)",
+                  borderWidth: 2,
+                  fill: true,
+                  tension: 0.4,
+                },
+              ],
+            };
+          }
+        }
+
+        // Process weekly sales breakdown
+        if (weeklySalesResponse.status === "fulfilled") {
+          const weeklySales = weeklySalesResponse.value;
+          if (weeklySales.daily_breakdown && weeklySales.daily_breakdown.length > 0) {
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            const revenueData = new Array(7).fill(0);
+            weeklySales.daily_breakdown.forEach((item) => {
+              const dayIndex = item._id === 1 ? 0 : item._id - 1;
+              revenueData[dayIndex] = item.revenue || 0;
+            });
+            weeklySalesData = {
+              labels: days,
+              datasets: [
+                {
+                  label: "Revenue (₱)",
+                  data: revenueData,
+                  backgroundColor: "rgba(192, 80, 80, 0.8)",
+                  borderColor: "rgba(192, 80, 80, 1)",
+                  borderWidth: 2,
+                  borderRadius: 4,
+                },
+              ],
+            };
+          }
+        }
+
         // Process chart data
         const chartDataProcessed = {
-          // Table Performance Chart
-          tablePerformanceData: {
-            labels: [
-              "Table 1",
-              "Table 2",
-              "Table 3",
-              "Table 4",
-              "Table 5",
-              "Table 6",
-              "Table 7",
-              "Table 8",
-            ],
+          // Sales Trend Chart (Today's Hourly or Last 7 Days)
+          salesTrendData: salesTrendData || {
+            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
             datasets: [
               {
-                label: "Orders Count",
-                data: [12, 8, 15, 10, 18, 14, 9, 11],
+                label: "Hourly Revenue (₱)",
+                data: Array(24).fill(0),
+                backgroundColor: "rgba(246, 177, 0, 0.2)",
+                borderColor: "rgba(246, 177, 0, 1)",
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          },
+          // Weekly Sales Breakdown
+          weeklySalesData: weeklySalesData || {
+            labels: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+            datasets: [
+              {
+                label: "Revenue (₱)",
+                data: [0, 0, 0, 0, 0, 0, 0],
                 backgroundColor: "rgba(192, 80, 80, 0.8)",
                 borderColor: "rgba(192, 80, 80, 1)",
                 borderWidth: 2,
@@ -608,26 +717,63 @@ const AdminDashboard = () => {
           {/* Add more chart cards as in your original UI, but keep bg and styles consistent */}
         </div>
 
-        {/* Table Performance & Status Charts */}
+        {/* Sales Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Table Performance */}
+          {/* Sales Trend (Today's Hourly Sales) */}
           <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-[#f5f5f5]">
-                Table Performance
+                Today's Sales Trend (Hourly)
               </h3>
-              <Users className="w-5 h-5 text-[#ababab]" />
+              <TrendingUp className="w-5 h-5 text-[#f6b100]" />
             </div>
             <div className="h-64">
-              {chartData.tablePerformanceData ? (
+              {chartData.salesTrendData ? (
+                <Line
+                  data={chartData.salesTrendData}
+                  options={{
+                    ...chartOptions,
+                    plugins: {
+                      ...chartOptions.plugins,
+                      legend: {
+                        ...chartOptions.plugins.legend,
+                        labels: {
+                          ...chartOptions.plugins.legend.labels,
+                          color: "#f5f5f5",
+                        },
+                      },
+                    },
+                  }}
+                />
+              ) : (
+                <div className="h-full flex items-center justify-center bg-[#1f1f1f] rounded-lg">
+                  <div className="text-center">
+                    <TrendingUp className="w-12 h-12 text-[#383838] mx-auto mb-2" />
+                    <p className="text-[#ababab]">Loading chart data...</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Weekly Sales Breakdown */}
+          <div className="bg-[#232323] rounded-xl shadow-lg border border-[#383838] p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-[#f5f5f5]">
+                Weekly Sales Breakdown
+              </h3>
+              <BarChart3 className="w-5 h-5 text-[#C05050]" />
+            </div>
+            <div className="h-64">
+              {chartData.weeklySalesData ? (
                 <Bar
-                  data={chartData.tablePerformanceData}
+                  data={chartData.weeklySalesData}
                   options={chartOptions}
                 />
               ) : (
                 <div className="h-full flex items-center justify-center bg-[#1f1f1f] rounded-lg">
                   <div className="text-center">
-                    <Users className="w-12 h-12 text-[#383838] mx-auto mb-2" />
+                    <BarChart3 className="w-12 h-12 text-[#383838] mx-auto mb-2" />
                     <p className="text-[#ababab]">Loading chart data...</p>
                   </div>
                 </div>
