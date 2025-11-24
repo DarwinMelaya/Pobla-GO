@@ -37,7 +37,7 @@ ChartJS.register(
 const API_BASE_URL = "http://localhost:5000";
 
 const AllSalesReports = () => {
-  // State for sub-view (daily or weekly)
+  // State for sub-view (daily, monthly, or annual)
   const [activeSubView, setActiveSubView] = useState("daily");
   const [loading, setLoading] = useState(false);
 
@@ -47,29 +47,21 @@ const AllSalesReports = () => {
     new Date().toISOString().split("T")[0]
   );
 
-  // State for weekly sales
-  const [weeklyData, setWeeklyData] = useState(null);
-  const [selectedWeek, setSelectedWeek] = useState(() => {
-    // Initialize with current week (Monday of current week)
+  // State for monthly sales
+  const [monthlyData, setMonthlyData] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState(() => {
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    const diff = today.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); // Adjust to Monday
-    const monday = new Date(today.getFullYear(), today.getMonth(), diff);
-    monday.setHours(0, 0, 0, 0);
-
-    // Get ISO week number
-    const date = new Date(monday);
-    date.setHours(0, 0, 0, 0);
-    date.setDate(date.getDate() + 3 - ((date.getDay() + 6) % 7));
-    const week1 = new Date(date.getFullYear(), 0, 4);
-    const weekNumber =
-      1 +
-      Math.round(
-        ((date - week1) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
-      );
-
-    return `${monday.getFullYear()}-W${String(weekNumber).padStart(2, "0")}`;
+    return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}`;
   });
+
+  // State for annual sales
+  const [annualData, setAnnualData] = useState(null);
+  const [selectedYear, setSelectedYear] = useState(
+    new Date().getFullYear().toString()
+  );
 
   // Get authentication token
   const getAuthToken = () => {
@@ -119,29 +111,30 @@ const AllSalesReports = () => {
     }
   };
 
-  // Fetch weekly sales data
-  const fetchWeeklySales = async (weekString) => {
+  // Fetch monthly sales data
+  const fetchMonthlySales = async (monthString) => {
     setLoading(true);
     try {
-      // Convert week string (YYYY-Www) to date string (YYYY-MM-DD)
-      // Extract year and week number
-      const [year, weekPart] = weekString.split("-W");
-      const weekNumber = parseInt(weekPart, 10);
-
-      // Calculate the date of Monday of that week
-      const jan4 = new Date(year, 0, 4);
-      const jan4Day = jan4.getDay() || 7;
-      const daysToAdd = (weekNumber - 1) * 7 - (jan4Day - 1) + 1;
-      const monday = new Date(year, 0, 4 + daysToAdd);
-
-      const weekStartDate = monday.toISOString().split("T")[0];
-
+      const [year, month] = monthString.split("-");
       const data = await makeRequest(
-        `/orders/sales/weekly?week_start=${weekStartDate}`
+        `/orders/sales/monthly?year=${year}&month=${month}`
       );
-      setWeeklyData(data);
+      setMonthlyData(data);
     } catch (error) {
-      toast.error("Failed to fetch weekly sales data");
+      toast.error("Failed to fetch monthly sales data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch annual sales data
+  const fetchAnnualSales = async (year) => {
+    setLoading(true);
+    try {
+      const data = await makeRequest(`/orders/sales/annual?year=${year}`);
+      setAnnualData(data);
+    } catch (error) {
+      toast.error("Failed to fetch annual sales data");
     } finally {
       setLoading(false);
     }
@@ -151,12 +144,16 @@ const AllSalesReports = () => {
   useEffect(() => {
     if (activeSubView === "daily") {
       fetchDailySales(selectedDate);
-    } else if (activeSubView === "weekly") {
-      if (selectedWeek) {
-        fetchWeeklySales(selectedWeek);
+    } else if (activeSubView === "monthly") {
+      if (selectedMonth) {
+        fetchMonthlySales(selectedMonth);
+      }
+    } else if (activeSubView === "annual") {
+      if (selectedYear) {
+        fetchAnnualSales(selectedYear);
       }
     }
-  }, [activeSubView, selectedDate, selectedWeek]);
+  }, [activeSubView, selectedDate, selectedMonth, selectedYear]);
 
   // Chart data preparation functions
   const prepareHourlyChartData = (hourlyData) => {
@@ -215,27 +212,32 @@ const AllSalesReports = () => {
     };
   };
 
-  const prepareDailyBreakdownChartData = (dailyData) => {
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
+  const prepareMonthlyBreakdownChartData = (monthlyData) => {
+    const months = [
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
     ];
-    const ordersData = new Array(7).fill(0);
-    const revenueData = new Array(7).fill(0);
+    const ordersData = new Array(12).fill(0);
+    const revenueData = new Array(12).fill(0);
 
-    dailyData.forEach((item) => {
-      const dayIndex = item._id === 1 ? 0 : item._id - 1; // MongoDB dayOfWeek starts from Sunday (1)
-      ordersData[dayIndex] = item.orders;
-      revenueData[dayIndex] = item.revenue;
+    monthlyData.forEach((item) => {
+      const monthIndex = item._id - 1; // MongoDB month starts from 1
+      ordersData[monthIndex] = item.orders;
+      revenueData[monthIndex] = item.revenue;
     });
 
     return {
-      labels: days,
+      labels: months,
       datasets: [
         {
           label: "Orders",
@@ -322,35 +324,47 @@ const AllSalesReports = () => {
     exportToCSV(reportData, `daily-sales-${dailyData.date}.csv`);
   };
 
-  const exportWeeklyReport = () => {
-    if (!weeklyData) return;
+  const exportMonthlyReport = () => {
+    if (!monthlyData) return;
     const reportData = [
+      ["Year", "Month", "Total Orders", "Total Revenue", "Average Order Value"],
       [
-        "Week Start",
-        "Week End",
-        "Total Orders",
-        "Total Revenue",
-        "Average Order Value",
-      ],
-      [
-        weeklyData.week_start,
-        weeklyData.week_end,
-        weeklyData.summary.total_orders || 0,
-        weeklyData.summary.total_revenue || 0,
-        weeklyData.summary.average_order_value || 0,
+        monthlyData.year,
+        monthlyData.month_name,
+        monthlyData.summary.total_orders || 0,
+        monthlyData.summary.total_revenue || 0,
+        monthlyData.summary.average_order_value || 0,
       ],
     ];
-    exportToCSV(reportData, `weekly-sales-${weeklyData.week_start}.csv`);
+    exportToCSV(
+      reportData,
+      `monthly-sales-${monthlyData.year}-${monthlyData.month}.csv`
+    );
+  };
+
+  const exportAnnualReport = () => {
+    if (!annualData) return;
+    const reportData = [
+      ["Year", "Total Orders", "Total Revenue", "Average Order Value"],
+      [
+        annualData.year,
+        annualData.summary.total_orders || 0,
+        annualData.summary.total_revenue || 0,
+        annualData.summary.average_order_value || 0,
+      ],
+    ];
+    exportToCSV(reportData, `annual-sales-${annualData.year}.csv`);
   };
 
   return (
     <div className="space-y-6">
-      {/* Sub-tabs for Daily/Weekly */}
+      {/* Sub-tabs for Daily/Monthly/Annual */}
       <div className="bg-[#232323] rounded-lg p-1 inline-flex border border-gray-700">
         <nav className="flex space-x-1">
           {[
             { id: "daily", label: "Daily Sales", icon: Calendar },
-            { id: "weekly", label: "Weekly Sales", icon: BarChart3 },
+            { id: "monthly", label: "Monthly Sales", icon: BarChart3 },
+            { id: "annual", label: "Annual Sales", icon: TrendingUp },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -516,30 +530,30 @@ const AllSalesReports = () => {
         </>
       )}
 
-      {/* Weekly Sales View */}
-      {activeSubView === "weekly" && (
+      {/* Monthly Sales View */}
+      {activeSubView === "monthly" && (
         <div className="space-y-6">
           <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold text-white">
-                Filter Weekly Sales
+                Filter Monthly Sales
               </h3>
               <button
-                onClick={exportWeeklyReport}
+                onClick={exportMonthlyReport}
                 className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
               >
                 <Download className="w-4 h-4" />
-                <span>Export Weekly Report</span>
+                <span>Export Monthly Report</span>
               </button>
             </div>
             <div className="flex items-center space-x-4">
               <label className="text-sm font-medium text-gray-300">
-                Select Week:
+                Select Month:
               </label>
               <input
-                type="week"
-                value={selectedWeek}
-                onChange={(e) => setSelectedWeek(e.target.value)}
+                type="month"
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
                 className="border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#1f1f1f] text-white"
               />
             </div>
@@ -549,7 +563,7 @@ const AllSalesReports = () => {
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
-          ) : weeklyData ? (
+          ) : monthlyData ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
@@ -562,7 +576,7 @@ const AllSalesReports = () => {
                         Total Orders
                       </p>
                       <p className="text-2xl font-bold text-white">
-                        {weeklyData.summary.total_orders}
+                        {monthlyData.summary.total_orders || 0}
                       </p>
                     </div>
                   </div>
@@ -577,7 +591,10 @@ const AllSalesReports = () => {
                         Total Revenue
                       </p>
                       <p className="text-2xl font-bold text-white">
-                        ₱{weeklyData.summary.total_revenue.toFixed(2)}
+                        ₱
+                        {monthlyData.summary.total_revenue
+                          ? monthlyData.summary.total_revenue.toFixed(2)
+                          : "0.00"}
                       </p>
                     </div>
                   </div>
@@ -592,7 +609,10 @@ const AllSalesReports = () => {
                         Average Order Value
                       </p>
                       <p className="text-2xl font-bold text-white">
-                        ₱{weeklyData.summary.average_order_value.toFixed(2)}
+                        ₱
+                        {monthlyData.summary.average_order_value
+                          ? monthlyData.summary.average_order_value.toFixed(2)
+                          : "0.00"}
                       </p>
                     </div>
                   </div>
@@ -601,20 +621,174 @@ const AllSalesReports = () => {
 
               <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
                 <h3 className="text-lg font-semibold text-white mb-4">
-                  Daily Breakdown
+                  Weekly Breakdown
                 </h3>
-                <Bar
-                  data={prepareDailyBreakdownChartData(
-                    weeklyData.daily_breakdown
-                  )}
-                  options={chartOptions}
-                />
+                {monthlyData.weekly_breakdown &&
+                monthlyData.weekly_breakdown.length > 0 ? (
+                  <Bar
+                    data={{
+                      labels: monthlyData.weekly_breakdown.map(
+                        (item) => `Week ${item._id}`
+                      ),
+                      datasets: [
+                        {
+                          label: "Orders",
+                          data: monthlyData.weekly_breakdown.map(
+                            (item) => item.orders
+                          ),
+                          backgroundColor: "rgba(59, 130, 246, 0.5)",
+                          borderColor: "rgba(59, 130, 246, 1)",
+                          borderWidth: 1,
+                        },
+                        {
+                          label: "Revenue (₱)",
+                          data: monthlyData.weekly_breakdown.map(
+                            (item) => item.revenue
+                          ),
+                          backgroundColor: "rgba(16, 185, 129, 0.5)",
+                          borderColor: "rgba(16, 185, 129, 1)",
+                          borderWidth: 1,
+                          yAxisID: "y1",
+                        },
+                      ],
+                    }}
+                    options={chartOptions}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">
+                      No weekly breakdown data available
+                    </p>
+                  </div>
+                )}
               </div>
             </>
           ) : (
             <div className="text-center py-12">
               <p className="text-gray-500">
-                No data available for the selected week
+                No data available for the selected month
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Annual Sales View */}
+      {activeSubView === "annual" && (
+        <div className="space-y-6">
+          <div className="bg-[#232323] rounded-lg shadow-sm border p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-white">
+                Filter Annual Sales
+              </h3>
+              <button
+                onClick={exportAnnualReport}
+                className="flex items-center space-x-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Annual Report</span>
+              </button>
+            </div>
+            <div className="flex items-center space-x-4">
+              <label className="text-sm font-medium text-gray-300">
+                Select Year:
+              </label>
+              <input
+                type="number"
+                min="2020"
+                max={new Date().getFullYear()}
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="border border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#1f1f1f] text-white w-32"
+              />
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : annualData ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Receipt className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Total Orders
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        {annualData.summary.total_orders || 0}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-green-100 rounded-lg">
+                      <DollarSign className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Total Revenue
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        ₱
+                        {annualData.summary.total_revenue
+                          ? annualData.summary.total_revenue.toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <TrendingUp className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <div className="ml-4">
+                      <p className="text-sm font-medium text-gray-300">
+                        Average Order Value
+                      </p>
+                      <p className="text-2xl font-bold text-white">
+                        ₱
+                        {annualData.summary.average_order_value
+                          ? annualData.summary.average_order_value.toFixed(2)
+                          : "0.00"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-[#232323] p-6 rounded-lg shadow-sm border">
+                <h3 className="text-lg font-semibold text-white mb-4">
+                  Monthly Breakdown
+                </h3>
+                {annualData.monthly_breakdown &&
+                annualData.monthly_breakdown.length > 0 ? (
+                  <Bar
+                    data={prepareMonthlyBreakdownChartData(
+                      annualData.monthly_breakdown
+                    )}
+                    options={chartOptions}
+                  />
+                ) : (
+                  <div className="text-center py-12">
+                    <p className="text-gray-500">
+                      No monthly breakdown data available
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-12">
+              <p className="text-gray-500">
+                No data available for the selected year
               </p>
             </div>
           )}

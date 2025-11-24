@@ -1171,6 +1171,104 @@ router.get("/sales/monthly", verifyAuth, verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /orders/sales/annual - Get annual sales summary (Admin only)
+router.get("/sales/annual", verifyAuth, verifyAdmin, async (req, res) => {
+  try {
+    const { year } = req.query;
+    let targetYear;
+
+    if (year) {
+      targetYear = parseInt(year, 10);
+    } else {
+      targetYear = new Date().getFullYear();
+    }
+
+    const startOfYear = new Date(targetYear, 0, 1);
+    startOfYear.setHours(0, 0, 0, 0);
+
+    const endOfYear = new Date(targetYear, 11, 31);
+    endOfYear.setHours(23, 59, 59, 999);
+
+    const annualStats = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfYear, $lte: endOfYear },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          total_orders: { $sum: 1 },
+          total_revenue: { $sum: "$total_amount" },
+          average_order_value: { $avg: "$total_amount" },
+        },
+      },
+    ]);
+
+    // Get monthly breakdown for the year
+    const monthlyBreakdown = await Order.aggregate([
+      {
+        $match: {
+          created_at: { $gte: startOfYear, $lte: endOfYear },
+          status: { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: { $month: "$created_at" },
+          orders: { $sum: 1 },
+          revenue: { $sum: "$total_amount" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    // Get top selling items for the year
+    const topItems = await OrderItem.aggregate([
+      {
+        $lookup: {
+          from: "orders",
+          localField: "order_id",
+          foreignField: "_id",
+          as: "order",
+        },
+      },
+      {
+        $unwind: "$order",
+      },
+      {
+        $match: {
+          "order.created_at": { $gte: startOfYear, $lte: endOfYear },
+          "order.status": { $in: ["completed", "paid"] },
+        },
+      },
+      {
+        $group: {
+          _id: "$item_name",
+          total_quantity: { $sum: "$quantity" },
+          total_revenue: { $sum: "$total_price" },
+        },
+      },
+      { $sort: { total_quantity: -1 } },
+      { $limit: 10 },
+    ]);
+
+    res.json({
+      year: targetYear,
+      summary: annualStats[0] || {
+        total_orders: 0,
+        total_revenue: 0,
+        average_order_value: 0,
+      },
+      monthly_breakdown: monthlyBreakdown,
+      top_selling_items: topItems,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+});
+
 // GET /orders/transactions - Get detailed transaction records (Admin only)
 router.get("/transactions", verifyAuth, verifyAdmin, async (req, res) => {
   try {

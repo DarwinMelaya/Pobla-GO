@@ -61,12 +61,12 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
       path: "/admin-orders",
       isActive: location.pathname === "/admin-orders",
     },
-    {
-      icon: Globe,
-      text: "Online Orders",
-      path: "/admin-online-orders",
-      isActive: location.pathname === "/admin-online-orders",
-    },
+    // {
+    //   icon: Globe,
+    //   text: "Online Orders",
+    //   path: "/admin-online-orders",
+    //   isActive: location.pathname === "/admin-online-orders",
+    // },
     {
       icon: Calendar,
       text: "Manage Reservations",
