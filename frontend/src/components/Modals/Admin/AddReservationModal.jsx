@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Plus, X, Calendar, Clock, RefreshCw, Trash2, ShoppingCart } from "lucide-react";
+import { Plus, X, Calendar, Clock, Trash2, ShoppingCart } from "lucide-react";
 import toast from "react-hot-toast";
 
 const AddReservationModal = ({
@@ -13,14 +13,11 @@ const AddReservationModal = ({
   const [formData, setFormData] = useState({
     customer_name: initialData.customer_name || "",
     contact_number: initialData.contact_number || "",
-    table_number: initialData.table_number || "",
     reservation_date: initialData.reservation_date || "",
     status: initialData.status || "pending",
   });
 
   const [errors, setErrors] = useState({});
-  const [availableTables, setAvailableTables] = useState([]);
-  const [loadingTables, setLoadingTables] = useState(false);
   const [menuItems, setMenuItems] = useState([]);
   const [loadingMenuItems, setLoadingMenuItems] = useState(false);
   const [foodItems, setFoodItems] = useState([]);
@@ -135,59 +132,6 @@ const AddReservationModal = ({
     return foodItems.reduce((sum, item) => sum + item.total_price, 0);
   };
 
-  // Fetch available tables
-  const fetchAvailableTables = async (reservationDate = null, currentTableNumber = null) => {
-    setLoadingTables(true);
-    try {
-      const token = getAuthToken();
-      let url = "http://localhost:5000/reservations/tables/available";
-      
-      if (reservationDate) {
-        // Handle different date formats
-        let dateStr;
-        if (typeof reservationDate === 'string') {
-          // If it's already a datetime-local string, convert it
-          if (reservationDate.includes('T')) {
-            dateStr = new Date(reservationDate).toISOString();
-          } else {
-            dateStr = new Date(reservationDate).toISOString();
-          }
-        } else {
-          dateStr = new Date(reservationDate).toISOString();
-        }
-        url += `?reservation_date=${encodeURIComponent(dateStr)}`;
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch available tables");
-      }
-
-      const data = await response.json();
-      const tables = data.data || [];
-      
-      // If editing, include the current table even if it's not in the available list
-      const tableToInclude = currentTableNumber || formData.table_number;
-      if (editingReservation && tableToInclude && !tables.includes(tableToInclude)) {
-        setAvailableTables([tableToInclude, ...tables]);
-      } else {
-        setAvailableTables(tables);
-      }
-    } catch (error) {
-      console.error("Error fetching available tables:", error);
-      // On error, allow any table (fallback behavior)
-      setAvailableTables([]);
-    } finally {
-      setLoadingTables(false);
-    }
-  };
-
   // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -195,11 +139,6 @@ const AddReservationModal = ({
       ...prev,
       [name]: value,
     }));
-
-    // If reservation_date changes, refresh available tables
-    if (name === "reservation_date" && value) {
-      fetchAvailableTables(value, formData.table_number);
-    }
 
     // Clear error when user starts typing
     if (errors[name]) {
@@ -222,10 +161,6 @@ const AddReservationModal = ({
       newErrors.contact_number = "Contact number is required";
     } else if (!/^[\d\s\-\+\(\)]+$/.test(formData.contact_number)) {
       newErrors.contact_number = "Please enter a valid contact number";
-    }
-
-    if (!formData.table_number.trim()) {
-      newErrors.table_number = "Table number is required";
     }
 
     if (!formData.reservation_date) {
@@ -278,7 +213,6 @@ const AddReservationModal = ({
       const newFormData = {
         customer_name: initialData.customer_name || "",
         contact_number: initialData.contact_number || "",
-        table_number: initialData.table_number || "",
         reservation_date: formattedDate,
         status: initialData.status || "pending",
       };
@@ -294,35 +228,12 @@ const AddReservationModal = ({
       
       // Fetch menu items
       fetchMenuItems();
-      
-      // Fetch available tables when modal opens
-      if (formattedDate) {
-        fetchAvailableTables(formattedDate, newFormData.table_number);
-      } else {
-        fetchAvailableTables(null, newFormData.table_number);
-      }
     } else {
       // Reset when modal closes
       setFoodItems([]);
       setMenuSearchTerm("");
     }
   }, [isOpen, initialData]);
-
-  // Watch for changes in available tables and clear table_number if it becomes unavailable
-  useEffect(() => {
-    if (
-      formData.table_number &&
-      availableTables.length > 0 &&
-      !availableTables.includes(formData.table_number) &&
-      !editingReservation
-    ) {
-      // Only clear if we're not editing and the table is no longer available
-      setFormData((prev) => ({
-        ...prev,
-        table_number: "",
-      }));
-    }
-  }, [availableTables, editingReservation]);
 
   if (!isOpen) return null;
 
@@ -398,92 +309,36 @@ const AddReservationModal = ({
               </div>
             </div>
 
-            {/* Table and Date Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Table Number *
-                  {loadingTables && (
-                    <span className="ml-2 text-xs text-gray-400 flex items-center">
-                      <RefreshCw className="w-3 h-3 animate-spin mr-1" />
-                      Loading...
-                    </span>
-                  )}
-                </label>
-                <select
-                  name="table_number"
-                  value={formData.table_number}
-                  onChange={handleInputChange}
-                  required
-                  disabled={loadingTables || availableTables.length === 0}
-                  className={`w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white transition-all duration-200 ${
-                    errors.table_number
-                      ? "border-red-500"
-                      : "border-gray-600/50"
-                  } ${loadingTables || availableTables.length === 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  <option value="" className="bg-gray-700 text-white">
-                    {loadingTables
-                      ? "Loading available tables..."
-                      : availableTables.length === 0
-                      ? "No tables available for this time"
-                      : "Select a table"}
-                  </option>
-                  {availableTables.map((table) => (
-                    <option
-                      key={table}
-                      value={table}
-                      className="bg-gray-700 text-white"
-                    >
-                      Table {table}
-                    </option>
-                  ))}
-                </select>
-                {errors.table_number && (
-                  <p className="text-red-400 text-sm mt-1">
-                    {errors.table_number}
-                  </p>
-                )}
-                {availableTables.length === 0 && !loadingTables && (
-                  <p className="text-yellow-400 text-xs mt-1">
-                    No tables available for the selected date/time. Please try a different time.
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white transition-all duration-200"
-                >
-                  <option value="pending" className="bg-gray-700 text-white">
-                    Pending
-                  </option>
-                  <option value="confirmed" className="bg-gray-700 text-white">
-                    Confirmed
-                  </option>
-                  <option value="cancelled" className="bg-gray-700 text-white">
-                    Cancelled
-                  </option>
-                  <option value="completed" className="bg-gray-700 text-white">
-                    Completed
-                  </option>
-                </select>
-              </div>
+            {/* Status */}
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">
+                Status
+              </label>
+              <select
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 bg-gray-700/80 backdrop-blur-sm border border-gray-600/50 rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent text-white transition-all duration-200"
+              >
+                <option value="pending" className="bg-gray-700 text-white">
+                  Pending
+                </option>
+                <option value="confirmed" className="bg-gray-700 text-white">
+                  Confirmed
+                </option>
+                <option value="cancelled" className="bg-gray-700 text-white">
+                  Cancelled
+                </option>
+                <option value="completed" className="bg-gray-700 text-white">
+                  Completed
+                </option>
+              </select>
             </div>
 
             {/* Reservation Date and Time */}
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Reservation Date & Time *
-                <span className="ml-2 text-xs text-gray-400">
-                  (Available tables will update based on this date/time)
-                </span>
               </label>
               <input
                 type="datetime-local"

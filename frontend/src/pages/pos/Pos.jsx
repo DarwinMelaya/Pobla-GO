@@ -7,7 +7,6 @@ import {
   Trash2,
   RefreshCw,
   Search,
-  ArrowLeft,
   Utensils,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -18,7 +17,6 @@ const Pos = () => {
   const navigate = useNavigate();
   const [orderForm, setOrderForm] = useState({
     customer_name: "",
-    table_number: "",
     notes: "",
     payment_method: "cash",
     discount_type: "none",
@@ -28,23 +26,18 @@ const Pos = () => {
   });
   const [cashAmount, setCashAmount] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
-  const [showOrderDetails, setShowOrderDetails] = useState(false);
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
-  const [tableStatus, setTableStatus] = useState(null);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [availableTables, setAvailableTables] = useState([]);
-  const [loadingTables, setLoadingTables] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
     { label: "Senior 20%", value: "senior", helper: "Requires valid ID" },
   ];
-  const requiresTableNumber = orderForm.order_type === "dine_in";
   const packagingBoxes = Number(orderForm.packaging_boxes) || 0;
   const handlePackagingBoxesChange = (value) => {
     if (value === "") {
@@ -127,32 +120,6 @@ const Pos = () => {
       toast.error("Failed to fetch menu items");
     } finally {
       setMenuItemsLoading(false);
-    }
-  };
-
-  // Fetch available tables
-  const fetchAvailableTables = async () => {
-    setLoadingTables(true);
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/reservations/tables/available`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch available tables");
-      }
-
-      const data = await response.json();
-      setAvailableTables(data.data || []);
-    } catch (error) {
-      console.error("Error fetching available tables:", error);
-      toast.error("Failed to fetch available tables");
-    } finally {
-      setLoadingTables(false);
     }
   };
 
@@ -357,16 +324,8 @@ const Pos = () => {
   // Create new order
   const createOrder = async () => {
     try {
-      if (
-        !orderForm.customer_name ||
-        (requiresTableNumber && !orderForm.table_number) ||
-        orderForm.order_items.length === 0
-      ) {
-        toast.error(
-          requiresTableNumber
-            ? "Please fill in all required fields and add at least one item"
-            : "Please provide customer details and add at least one item"
-        );
+      if (!orderForm.customer_name || orderForm.order_items.length === 0) {
+        toast.error("Please provide customer details and add at least one item");
         return;
       }
 
@@ -420,7 +379,6 @@ const Pos = () => {
       toast.success("Order created successfully");
       handleReset();
       fetchMenuItems(); // Refresh menu items after order creation
-      fetchAvailableTables(); // Refresh available tables after order creation
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order");
@@ -433,7 +391,6 @@ const Pos = () => {
   const handleReset = () => {
     setOrderForm({
       customer_name: "",
-      table_number: "",
       notes: "",
       payment_method: "cash",
       discount_type: "none",
@@ -443,7 +400,6 @@ const Pos = () => {
     });
     setCashAmount("");
     setShowCashPayment(false);
-    setTableStatus(null);
   };
 
   // Print receipt function
@@ -592,10 +548,8 @@ const Pos = () => {
             <div><strong>Customer:</strong> ${
               orderForm.customer_name || "Walk-in"
             }</div>
-            <div><strong>Table:</strong> ${
-              orderForm.order_type === "pickup"
-                ? "Take-out"
-                : orderForm.table_number || "N/A"
+            <div><strong>Service:</strong> ${
+              orderForm.order_type === "pickup" ? "Take-out" : "Dine-in"
             }</div>
             <div><strong>Payment:</strong> ${orderForm.payment_method.toUpperCase()}</div>
             ${
@@ -715,10 +669,9 @@ const Pos = () => {
     setShowCashPayment(orderForm.payment_method === "cash");
   }, [orderForm.payment_method]);
 
-  // Fetch menu items and available tables on component mount
+  // Fetch menu items on component mount
   useEffect(() => {
     fetchMenuItems();
-    fetchAvailableTables();
   }, []);
 
   return (
@@ -775,10 +728,8 @@ const Pos = () => {
                 setOrderForm((prev) => ({
                   ...prev,
                   order_type: value,
-                  table_number: value === "dine_in" ? prev.table_number : "",
                   packaging_boxes: value === "pickup" ? prev.packaging_boxes || 0 : 0,
                 }));
-                setTableStatus(null);
               }}
               className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
             >
@@ -815,76 +766,6 @@ const Pos = () => {
               </p>
             </div>
           )}
-
-          {/* Table Number - Dropdown */}
-          <div className="w-full lg:w-48 flex-shrink-0">
-            <label className="block text-xs font-semibold text-[#ababab] mb-1">
-              Table Number {requiresTableNumber ? "*" : "(Take-out optional)"}
-            </label>
-            <div className="flex gap-2 items-start">
-              <div className="flex-1 min-w-0">
-                <select
-                  value={orderForm.table_number}
-                  onChange={(e) => {
-                    setOrderForm((prev) => ({
-                      ...prev,
-                      table_number: e.target.value,
-                    }));
-                    setTableStatus(null);
-                  }}
-                  disabled={
-                    !requiresTableNumber ||
-                    loadingTables ||
-                    availableTables.length === 0
-                  }
-                  className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-xl md:text-2xl font-bold text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation ${
-                    !requiresTableNumber ||
-                    loadingTables ||
-                    availableTables.length === 0
-                      ? "opacity-50 cursor-not-allowed"
-                      : ""
-                  }`}
-                >
-                  <option value="" className="text-lg font-bold">Select Table</option>
-                  {availableTables.map((table) => (
-                    <option key={table} value={table} className="text-xl font-bold">
-                      {table}
-                    </option>
-                  ))}
-                </select>
-                {requiresTableNumber && loadingTables && (
-                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#3a2e1f] text-[#f6b100] border border-[#f6b100]">
-                    Loading tables...
-                  </div>
-                )}
-                {requiresTableNumber &&
-                  !loadingTables &&
-                  availableTables.length === 0 && (
-                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#2e2020] text-[#ffb1b1] border border-[#a12c2c]">
-                    No tables available
-                  </div>
-                  )}
-                {!requiresTableNumber && (
-                  <div className="mt-2 p-2 rounded-lg text-xs font-bold bg-[#1f1f1f] text-[#ababab] border border-[#353535]">
-                    Table number not needed for take-out
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={fetchAvailableTables}
-                disabled={loadingTables || !requiresTableNumber}
-                className="px-3 md:px-4 py-2 md:py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm shadow touch-manipulation min-w-[70px] md:min-w-[80px] flex-shrink-0"
-                title="Refresh available tables"
-              >
-                {loadingTables ? (
-                  <RefreshCw size={18} className="animate-spin" />
-                ) : (
-                  <RefreshCw size={18} />
-                )}
-              </button>
-            </div>
-          </div>
 
           {/* Payment Method - Large Touch Select */}
           <div className="w-full lg:w-48 flex-shrink-0">
@@ -1198,26 +1079,20 @@ const Pos = () => {
                 onClick={() => {
                   if (
                     !orderForm.customer_name ||
-                    (requiresTableNumber && !orderForm.table_number) ||
                     orderForm.order_items.length === 0
                   ) {
                     toast.error(
-                      requiresTableNumber
-                        ? "Please fill in customer name, table number, and add items"
-                        : "Please fill in customer name and add items"
+                      "Please fill in customer name and add items"
                     );
                     return;
                   }
                   setShowPaymentModal(true);
                 }}
                 disabled={
-                  !orderForm.customer_name ||
-                  (requiresTableNumber && !orderForm.table_number) ||
-                  orderForm.order_items.length === 0
+                  !orderForm.customer_name || orderForm.order_items.length === 0
                 }
                 className={`w-full px-4 sm:px-6 py-3 sm:py-4 md:py-5 rounded-xl font-bold flex items-center justify-center text-lg sm:text-xl md:text-2xl shadow-lg transition-all duration-200 touch-manipulation min-h-[56px] sm:min-h-[64px] md:min-h-[72px] ${
                   !orderForm.customer_name ||
-                  (requiresTableNumber && !orderForm.table_number) ||
                   orderForm.order_items.length === 0
                     ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                     : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] active:scale-95"

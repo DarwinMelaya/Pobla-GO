@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
 import AddOrders from "../../components/Modals/Admin/AddOrders";
 import StaffPerformanceModal from "../../components/Modals/Admin/StaffPerformanceModal";
-import TableStatusModal from "../../components/Modals/Admin/TableStatusModal";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -14,7 +13,6 @@ import {
   DollarSign,
   Calendar,
   User,
-  Table,
   RefreshCw,
   MoreVertical,
   Edit,
@@ -28,7 +26,6 @@ const AdminManageOrders = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tableFilter, setTableFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +36,6 @@ const AdminManageOrders = () => {
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
   const [showStaffPerformanceModal, setShowStaffPerformanceModal] =
     useState(false);
-  const [showTableStatusModal, setShowTableStatusModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -69,7 +65,6 @@ const AdminManageOrders = () => {
 
       if (searchTerm) queryParams.append("search", searchTerm);
       if (statusFilter) queryParams.append("status", statusFilter);
-      if (tableFilter) queryParams.append("table_number", tableFilter);
       if (dateFrom) queryParams.append("date_from", dateFrom);
       if (dateTo) queryParams.append("date_to", dateTo);
       queryParams.append("page", currentPage);
@@ -318,7 +313,6 @@ const AdminManageOrders = () => {
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
-    setTableFilter("");
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
@@ -361,13 +355,13 @@ const AdminManageOrders = () => {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm || statusFilter || tableFilter || dateFrom || dateTo) {
+    if (searchTerm || statusFilter || dateFrom || dateTo) {
         handleSearch();
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, statusFilter, tableFilter, dateFrom, dateTo]);
+  }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   // Debug useEffect for menuItems
   useEffect(() => {
@@ -388,13 +382,6 @@ const AdminManageOrders = () => {
             </p>
           </div>
           <div className="flex space-x-3">
-            <button
-              onClick={() => setShowTableStatusModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Table size={20} />
-              <span>Table Status</span>
-            </button>
             <button
               onClick={() => setShowStaffPerformanceModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -537,19 +524,6 @@ const AdminManageOrders = () => {
 
             <div>
               <label className="block text-sm font-medium text-[#cccccc] mb-1">
-                Table Number
-              </label>
-              <input
-                type="text"
-                placeholder="Table #"
-                value={tableFilter}
-                onChange={(e) => setTableFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Date From
               </label>
               <input
@@ -608,9 +582,6 @@ const AdminManageOrders = () => {
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
-                      Table
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
@@ -645,9 +616,6 @@ const AdminManageOrders = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
                           {order.customer_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
-                          {order.table_number}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -798,14 +766,6 @@ const AdminManageOrders = () => {
                   </div>
                   <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
                     <label className="block text-xs font-medium text-[#cfcfcf]">
-                      Table
-                    </label>
-                    <p className="text-sm text-[#f5f5f5]">
-                      {selectedOrder.table_number}
-                    </p>
-                  </div>
-                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
-                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Total Amount
                     </label>
                     <p className="text-sm text-[#f6b100] font-bold">
@@ -913,12 +873,6 @@ const AdminManageOrders = () => {
           onClose={() => setShowStaffPerformanceModal(false)}
         />
 
-        {/* Table Status Modal */}
-        <TableStatusModal
-          isOpen={showTableStatusModal}
-          onClose={() => setShowTableStatusModal(false)}
-        />
-
         {/* Delete Confirmation Modal */}
         {showDeleteConfirmModal && orderToDelete && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -957,12 +911,6 @@ const AdminManageOrders = () => {
                       <span className="text-sm text-[#cccccc]">Customer:</span>
                       <span className="text-sm font-medium text-[#f5f5f5]">
                         {orderToDelete.customer_name}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-[#cccccc]">Table:</span>
-                      <span className="text-sm font-medium text-[#f5f5f5]">
-                        {orderToDelete.table_number}
                       </span>
                     </div>
                     <div className="flex justify-between">

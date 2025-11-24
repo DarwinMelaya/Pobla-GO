@@ -14,7 +14,6 @@ import {
   Calendar,
   Clock,
   User,
-  MapPin,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -180,8 +179,7 @@ const AdminReservations = () => {
       reservation.customer_name
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      reservation.contact_number.includes(searchTerm) ||
-      reservation.table_number.toLowerCase().includes(searchTerm.toLowerCase());
+      reservation.contact_number.includes(searchTerm);
 
     const matchesStatus =
       statusFilter === "all" || reservation.status === statusFilter;
@@ -297,9 +295,6 @@ const AdminReservations = () => {
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
-                      Table
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Date & Time
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
@@ -327,12 +322,6 @@ const AdminReservations = () => {
                               {reservation.contact_number}
                             </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
-                        <div className="flex items-center">
-                          <MapPin className="w-4 h-4 text-[#b5b5b5] mr-2" />
-                          <span>{reservation.table_number}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-[#cccccc]">

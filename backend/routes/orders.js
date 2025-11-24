@@ -4,7 +4,6 @@ const Order = require("../models/Order");
 const OrderItem = require("../models/OrderItem");
 const Menu = require("../models/Menu");
 const User = require("../models/User");
-const Reservation = require("../models/Reservation");
 
 const DISCOUNT_RATES = {
   none: 0,
@@ -64,7 +63,6 @@ router.get("/", verifyAuth, async (req, res) => {
   try {
     const {
       status,
-      table_number,
       date_from,
       date_to,
       order_type,
@@ -76,10 +74,6 @@ router.get("/", verifyAuth, async (req, res) => {
 
     if (status) {
       filter.status = status;
-    }
-
-    if (table_number) {
-      filter.table_number = table_number;
     }
 
     if (order_type) {
@@ -227,7 +221,6 @@ router.post("/", verifyAuth, async (req, res) => {
   try {
     const {
       customer_name,
-      table_number,
       order_items,
       notes,
       payment_method,
@@ -253,84 +246,6 @@ router.post("/", verifyAuth, async (req, res) => {
         message:
           "Missing required fields: customer_name and order_items array",
       });
-    }
-
-    if (normalizedOrderType === "dine_in" && !table_number) {
-      return res.status(400).json({
-        message: "Table number is required for dine-in orders",
-      });
-    }
-
-    if (normalizedOrderType === "dine_in") {
-      // Check if table is available (check for active orders)
-      const isTableAvailable = await Order.isTableAvailable(table_number);
-      if (!isTableAvailable) {
-        const tableStatus = await Order.getTableStatus(table_number);
-        return res.status(400).json({
-          message: `Table ${table_number} is currently occupied. Current order status: ${tableStatus.status}`,
-          tableStatus: tableStatus,
-        });
-      }
-
-      // Check for confirmed reservations first - these always block the table until completed
-      const confirmedReservation = await Reservation.findOne({
-        table_number,
-        status: "confirmed",
-      });
-
-      if (confirmedReservation) {
-        const reservationTime = new Date(
-          confirmedReservation.reservation_date
-        ).toLocaleString();
-        return res.status(400).json({
-          message: `Table ${table_number} is reserved (confirmed). Customer: ${confirmedReservation.customer_name}. Reservation time: ${reservationTime}`,
-          reservation: {
-            id: confirmedReservation._id,
-            customer_name: confirmedReservation.customer_name,
-            reservation_date: confirmedReservation.reservation_date,
-            status: confirmedReservation.status,
-          },
-          tableStatus: {
-            available: false,
-            type: "reservation",
-            reservation: confirmedReservation,
-          },
-        });
-      }
-
-      // Check for pending reservations within a 2-hour window (1 hour before to 1 hour after current time)
-      const now = new Date();
-      const oneHourBefore = new Date(now.getTime() - 60 * 60 * 1000);
-      const oneHourAfter = new Date(now.getTime() + 60 * 60 * 1000);
-
-      const pendingReservation = await Reservation.findOne({
-        table_number,
-        reservation_date: {
-          $gte: oneHourBefore,
-          $lte: oneHourAfter,
-        },
-        status: "pending",
-      });
-
-      if (pendingReservation) {
-        const reservationTime = new Date(
-          pendingReservation.reservation_date
-        ).toLocaleString();
-        return res.status(400).json({
-          message: `Table ${table_number} is reserved (pending) for ${reservationTime}. Customer: ${pendingReservation.customer_name}`,
-          reservation: {
-            id: pendingReservation._id,
-            customer_name: pendingReservation.customer_name,
-            reservation_date: pendingReservation.reservation_date,
-            status: pendingReservation.status,
-          },
-          tableStatus: {
-            available: false,
-            type: "reservation",
-            reservation: pendingReservation,
-          },
-        });
-      }
     }
 
     // Calculate total amount
@@ -383,7 +298,6 @@ router.post("/", verifyAuth, async (req, res) => {
     // Create the order
     const order = new Order({
       customer_name,
-      table_number: normalizedOrderType === "dine_in" ? table_number : null,
       subtotal_amount,
       total_amount,
       staff_member: req.user._id,
@@ -867,36 +781,6 @@ router.get("/stats/summary", verifyAuth, async (req, res) => {
       },
       statusBreakdown,
     });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// GET /orders/tables/status - Get all table statuses
-router.get("/tables/status", verifyAuth, async (req, res) => {
-  try {
-    const tableStatuses = await Order.getAllTableStatuses();
-    res.json({ tableStatuses });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-});
-
-// GET /orders/tables/:tableNumber/status - Get specific table status
-router.get("/tables/:tableNumber/status", verifyAuth, async (req, res) => {
-  try {
-    const { tableNumber } = req.params;
-    const tableStatus = await Order.getTableStatus(tableNumber);
-
-    // Enhance response with reservation details if applicable
-    if (!tableStatus.available && tableStatus.type === "reservation") {
-      const reservationTime = new Date(
-        tableStatus.reservation_date
-      ).toLocaleString();
-      tableStatus.message = `Table ${tableNumber} is reserved for ${reservationTime}. Customer: ${tableStatus.customer}`;
-    }
-
-    res.json(tableStatus);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
