@@ -1138,7 +1138,7 @@ const Pos = () => {
     <div className="bg-[#1f1f1f] min-h-screen dark touch-manipulation overflow-x-hidden flex flex-col">
       {/* Top Bar - Quick Order Info (Always Visible) */}
       <div className="bg-[#262626] border-b-2 border-[#383838] px-3 sm:px-4 md:px-6 py-3 md:py-4 shadow-lg">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
+        <div className="flex flex-col lg:flex-row lg:flex-wrap items-stretch lg:items-center gap-3 lg:gap-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => window.close()}
@@ -1158,7 +1158,7 @@ const Pos = () => {
           </div>
 
           {/* Customer Name - Large Touch Input */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-[220px]">
             <label className="block text-xs font-semibold text-[#ababab] mb-1">
               Customer Name *
             </label>
@@ -1222,37 +1222,19 @@ const Pos = () => {
           )}
 
           {isDeliveryOrder && (
-            <div className="w-full flex flex-col gap-2">
+            <div className="w-full sm:w-auto flex-shrink-0 flex items-center justify-end">
               <button
                 type="button"
                 onClick={() => setShowDeliveryModal(true)}
-                className="w-full px-4 py-3 bg-[#4ec57a] hover:bg-[#46ac6b] text-[#1f1f1f] rounded-xl font-bold text-base sm:text-lg shadow-lg touch-manipulation flex items-center justify-between"
+                className="px-4 py-2 bg-[#4ec57a] hover:bg-[#46ac6b] text-[#0b210f] rounded-lg font-semibold text-sm shadow-md touch-manipulation w-full sm:w-auto"
               >
-                <div className="text-left">
-                  <div>Delivery Details</div>
-                  <div className="text-xs text-[#1f1f1f]/80 truncate">
-                    {deliveryAddressPreview}
-                  </div>
-                  <div className="text-[11px] text-[#1f1f1f]/70 mt-0.5">
-                    {hasDeliveryQuote
-                      ? `${deliveryDistanceKm.toFixed(2)} km • ${formatCurrency(
-                          deliveryFee
-                        )}`
-                      : "Tap to add phone, address, and compute fee"}
-                  </div>
-                </div>
-                <Search size={20} />
+                Delivery Details
               </button>
-              {deliveryFeeStatus.error && (
-                <p className="text-xs text-red-400">
-                  {deliveryFeeStatus.error}
-                </p>
-              )}
             </div>
           )}
 
           {/* Payment Method - Large Touch Select */}
-          <div className="w-full lg:w-48 flex-shrink-0">
+          <div className="w-full sm:w-auto lg:min-w-[200px] flex-shrink-0">
             <label className="block text-xs font-semibold text-[#ababab] mb-1">
               Payment Method
             </label>
