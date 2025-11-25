@@ -380,6 +380,45 @@ const AdminPurchaseOrders = () => {
     }
   };
 
+  const computeDeliveredItemTotal = (item) => {
+    const qty =
+      item.received_quantity !== undefined && item.received_quantity !== null
+        ? item.received_quantity
+        : item.quantity || 0;
+    const unitPrice = item.unit_price || 0;
+    return qty * unitPrice;
+  };
+
+  const getDisplayedTotalAmount = (purchaseOrder) => {
+    if (purchaseOrder.status === "Delivered") {
+      if (
+        purchaseOrder.received_total_amount !== undefined &&
+        purchaseOrder.received_total_amount !== null
+      ) {
+        return purchaseOrder.received_total_amount || 0;
+      }
+      const deliveredSum = (purchaseOrder.items || []).reduce(
+        (sum, item) => sum + computeDeliveredItemTotal(item),
+        0
+      );
+      return deliveredSum;
+    }
+    return purchaseOrder.total_amount || 0;
+  };
+
+  const getItemDisplayedTotal = (purchaseOrder, item) => {
+    if (purchaseOrder.status === "Delivered") {
+      if (
+        item.received_total_price !== undefined &&
+        item.received_total_price !== null
+      ) {
+        return item.received_total_price || 0;
+      }
+      return computeDeliveredItemTotal(item);
+    }
+    return item.total_price || 0;
+  };
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString();
   };
@@ -479,7 +518,7 @@ const AdminPurchaseOrders = () => {
                           </div>
                         </td>
                         <td className="px-4 py-2 text-[#f6b100] font-bold text-right">
-                          ₱{po.total_amount.toFixed(2)}
+                          ₱{getDisplayedTotalAmount(po).toFixed(2)}
                         </td>
                         <td className="px-4 py-2">
                           <span
@@ -1109,7 +1148,7 @@ const AdminPurchaseOrders = () => {
                       Total Amount
                     </div>
                     <div className="text-[#f6b100] font-bold text-lg">
-                      ₱{selectedPO.total_amount.toFixed(2)}
+                      ₱{getDisplayedTotalAmount(selectedPO).toFixed(2)}
                     </div>
                   </div>
                 </div>
@@ -1166,7 +1205,7 @@ const AdminPurchaseOrders = () => {
                               ₱{item.unit_price.toFixed(2)}
                             </td>
                             <td className="px-4 py-2 text-[#f6b100] font-bold text-right">
-                              ₱{item.total_price.toFixed(2)}
+                              ₱{getItemDisplayedTotal(selectedPO, item).toFixed(2)}
                             </td>
                           </tr>
                         ))}

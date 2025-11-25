@@ -498,6 +498,8 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
     }
 
     // Update received quantities for each item and add to inventory
+    let receivedTotalAmount = 0;
+
     for (let i = 0; i < items.length; i++) {
       if (
         items[i].received_quantity === undefined ||
@@ -510,8 +512,15 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
       }
 
       if (purchaseOrder.items[i]) {
-        const receivedQty = items[i].received_quantity;
+        const receivedQty = Number(items[i].received_quantity) || 0;
         purchaseOrder.items[i].received_quantity = receivedQty;
+
+        const lineUnitPrice = Number(purchaseOrder.items[i].unit_price) || 0;
+        const receivedLineTotal = receivedQty * lineUnitPrice;
+
+        purchaseOrder.items[i].received_total_price = receivedLineTotal;
+        purchaseOrder.items[i].total_price = receivedLineTotal;
+        receivedTotalAmount += receivedLineTotal;
 
         // Add to inventory if received quantity is greater than 0
         if (receivedQty > 0) {
@@ -591,6 +600,8 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
     purchaseOrder.status = "Delivered";
     purchaseOrder.date_received = new Date(date_received);
     purchaseOrder.received_by = req.user._id;
+    purchaseOrder.received_total_amount = receivedTotalAmount;
+    purchaseOrder.total_amount = receivedTotalAmount;
 
     await purchaseOrder.save();
 

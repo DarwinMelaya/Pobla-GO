@@ -32,9 +32,11 @@ const purchaseOrderSchema = new mongoose.Schema(
         unit: { type: String, required: true, trim: true },
         unit_price: { type: Number, required: true, min: 0 },
         total_price: { type: Number, required: true, min: 0 },
+        received_total_price: { type: Number, default: 0, min: 0 },
       },
     ],
     total_amount: { type: Number, required: true, min: 0 },
+    received_total_amount: { type: Number, default: 0, min: 0 },
     status: {
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Delivered", "Cancelled"],
