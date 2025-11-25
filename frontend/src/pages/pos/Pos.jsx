@@ -10,13 +10,77 @@ import {
   Utensils,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import L from "leaflet";
 
 const PACKAGING_FEE_PER_BOX = 10;
+const BUSINESS_COORDINATES = {
+  latitude: 13.475246207507663,
+  longitude: 121.85945810514359,
+};
+const DELIVERY_MIN_FEE = 50;
+const DELIVERY_RATE_PER_KM = 30;
+const DELIVERY_GEO_ENDPOINT = "https://photon.komoot.io/api";
+
+const normalizeDistance = (meters = 0) => Number((meters / 1000).toFixed(2));
+
+const calculateDeliveryFeeFromDistance = (distanceKm = 0) => {
+  if (!distanceKm || Number.isNaN(distanceKm)) {
+    return DELIVERY_MIN_FEE;
+  }
+  const computed = Math.round(distanceKm * DELIVERY_RATE_PER_KM * 100) / 100;
+  return Math.max(DELIVERY_MIN_FEE, computed);
+};
+
+const geocodeDeliveryAddress = async (address) => {
+  if (!address?.trim()) {
+    return null;
+  }
+
+  const response = await fetch(
+    `${DELIVERY_GEO_ENDPOINT}?q=${encodeURIComponent(address)}&limit=1&lang=en`
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to reach the mapping service");
+  }
+
+  const data = await response.json();
+  const feature = data?.features?.[0];
+  const coordinates = feature?.geometry?.coordinates;
+
+  if (!Array.isArray(coordinates) || coordinates.length < 2) {
+    return null;
+  }
+
+  const [longitude, latitude] = coordinates;
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+  };
+};
+
+const calculateLeafletDistance = (coords) => {
+  if (!coords) return 0;
+  const businessPoint = L.latLng(
+    BUSINESS_COORDINATES.latitude,
+    BUSINESS_COORDINATES.longitude
+  );
+  const clientPoint = L.latLng(coords.latitude, coords.longitude);
+  const meters = businessPoint.distanceTo(clientPoint);
+  return normalizeDistance(meters);
+};
 
 const Pos = () => {
   const navigate = useNavigate();
   const [orderForm, setOrderForm] = useState({
     customer_name: "",
+    customer_phone: "",
+    delivery_address: "",
     notes: "",
     payment_method: "cash",
     discount_type: "none",
@@ -24,16 +88,24 @@ const Pos = () => {
     order_items: [],
     order_type: "dine_in",
     packaging_boxes: 0,
+    delivery_distance_km: 0,
+    delivery_fee: 0,
+    delivery_coordinates: null,
   });
   const [cashAmount, setCashAmount] = useState("");
   const [showCashPayment, setShowCashPayment] = useState(false);
   const [menuSearchTerm, setMenuSearchTerm] = useState("");
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
   const [isPrintingReceipt, setIsPrintingReceipt] = useState(false);
+  const [deliveryFeeStatus, setDeliveryFeeStatus] = useState({
+    loading: false,
+    error: "",
+  });
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [menuItems, setMenuItems] = useState([]);
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showDeliveryModal, setShowDeliveryModal] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
@@ -49,6 +121,103 @@ const Pos = () => {
     setOrderForm((prev) => ({ ...prev, packaging_boxes: numeric }));
   };
 
+  const isDeliveryOrder = orderForm.order_type === "delivery";
+  const deliveryDistanceKm = isDeliveryOrder
+    ? Number(orderForm.delivery_distance_km) || 0
+    : 0;
+  const deliveryFee = isDeliveryOrder ? Number(orderForm.delivery_fee) || 0 : 0;
+  const hasDeliveryAddress = Boolean(orderForm.delivery_address?.trim());
+  const hasDeliveryPhone = Boolean(orderForm.customer_phone?.trim());
+  const hasDeliveryQuote = Boolean(deliveryDistanceKm && deliveryFee);
+  const isDeliveryInfoComplete =
+    !isDeliveryOrder ||
+    (hasDeliveryAddress && hasDeliveryPhone && hasDeliveryQuote);
+  const hasCustomerName = Boolean(orderForm.customer_name?.trim());
+  const hasOrderItems = orderForm.order_items.length > 0;
+  const canOpenPaymentModal =
+    hasCustomerName && hasOrderItems && isDeliveryInfoComplete;
+
+  const handleOrderTypeChange = (value) => {
+    setOrderForm((prev) => ({
+      ...prev,
+      order_type: value,
+      packaging_boxes: value === "pickup" ? prev.packaging_boxes || 0 : 0,
+      delivery_address: value === "delivery" ? prev.delivery_address : "",
+      customer_phone: value === "delivery" ? prev.customer_phone : "",
+      delivery_distance_km:
+        value === "delivery" ? prev.delivery_distance_km : 0,
+      delivery_fee: value === "delivery" ? prev.delivery_fee : 0,
+      delivery_coordinates:
+        value === "delivery" ? prev.delivery_coordinates : null,
+    }));
+
+    if (value !== "delivery") {
+      setDeliveryFeeStatus({ loading: false, error: "" });
+      setShowDeliveryModal(false);
+    } else {
+      setShowDeliveryModal(true);
+    }
+  };
+
+  const ensureDeliveryDetails = () => {
+    if (!isDeliveryOrder) return true;
+    if (!hasDeliveryAddress) {
+      toast.error("Please provide a delivery address");
+      return false;
+    }
+    if (!hasDeliveryPhone) {
+      toast.error("Please provide the customer's phone number");
+      return false;
+    }
+    if (!hasDeliveryQuote) {
+      toast.error("Please calculate the delivery fee before proceeding");
+      return false;
+    }
+    return true;
+  };
+
+  const handleDeliveryFeeCalculation = async () => {
+    if (!isDeliveryOrder) return;
+    if (!orderForm.delivery_address?.trim()) {
+      toast.error("Please enter the delivery address first");
+      return;
+    }
+
+    setDeliveryFeeStatus({ loading: true, error: "" });
+    try {
+      const coordinates = await geocodeDeliveryAddress(
+        orderForm.delivery_address
+      );
+      if (!coordinates) {
+        throw new Error(
+          "We couldn't locate that address. Please refine it or add landmarks."
+        );
+      }
+
+      const distanceKm = calculateLeafletDistance(coordinates);
+      if (!distanceKm) {
+        throw new Error("Unable to compute distance for this address");
+      }
+
+      const fee = calculateDeliveryFeeFromDistance(distanceKm);
+      setOrderForm((prev) => ({
+        ...prev,
+        delivery_distance_km: distanceKm,
+        delivery_fee: fee,
+        delivery_coordinates: coordinates,
+      }));
+      toast.success(`Delivery distance: ${distanceKm.toFixed(2)} km`);
+      setDeliveryFeeStatus({ loading: false, error: "" });
+    } catch (error) {
+      console.error("Delivery fee calculation failed:", error);
+      setDeliveryFeeStatus({
+        loading: false,
+        error:
+          error.message ||
+          "Unable to compute the delivery distance. Please try again.",
+      });
+    }
+  };
 
   // API base URL
   const API_BASE = "http://localhost:5000";
@@ -247,7 +416,10 @@ const Pos = () => {
   };
 
   const getDiscountRate = () => {
-    if (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") {
+    if (
+      orderForm.discount_type === "pwd" ||
+      orderForm.discount_type === "senior"
+    ) {
       return 0.2;
     }
     return 0;
@@ -271,7 +443,11 @@ const Pos = () => {
     const subtotal = calculateSubtotal();
     const discount = subtotal * getDiscountRate();
     const totalAfterDiscount = Math.max(0, subtotal - discount);
-    return totalAfterDiscount + calculatePackagingFee();
+    return (
+      totalAfterDiscount +
+      calculatePackagingFee() +
+      (isDeliveryOrder ? deliveryFee : 0)
+    );
   };
 
   // Calculate change for cash payment
@@ -299,7 +475,8 @@ const Pos = () => {
   const isDiscountValid = () => {
     if (orderForm.discount_type === "none") return true;
     if (
-      (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") &&
+      (orderForm.discount_type === "pwd" ||
+        orderForm.discount_type === "senior") &&
       !orderForm.discount_id_number?.trim()
     ) {
       return false;
@@ -338,13 +515,16 @@ const Pos = () => {
   const createOrder = async () => {
     try {
       if (!orderForm.customer_name || orderForm.order_items.length === 0) {
-        toast.error("Please provide customer details and add at least one item");
+        toast.error(
+          "Please provide customer details and add at least one item"
+        );
         return;
       }
 
       // Validate discount ID number if discount is selected
       if (
-        (orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") &&
+        (orderForm.discount_type === "pwd" ||
+          orderForm.discount_type === "senior") &&
         !orderForm.discount_id_number?.trim()
       ) {
         toast.error("Please enter ID number for discount");
@@ -359,11 +539,20 @@ const Pos = () => {
         return;
       }
 
+      if (!ensureDeliveryDetails()) {
+        return;
+      }
+
       setIsCreatingOrder(true);
       const token = getAuthToken();
       const payload = {
         ...orderForm,
         packaging_boxes: packagingBoxes,
+        delivery_fee: isDeliveryOrder ? deliveryFee : 0,
+        delivery_distance_km: isDeliveryOrder ? deliveryDistanceKm : 0,
+        delivery_coordinates: isDeliveryOrder
+          ? orderForm.delivery_coordinates
+          : null,
       };
       const response = await fetch(`${API_BASE}/orders`, {
         method: "POST",
@@ -379,7 +568,7 @@ const Pos = () => {
         if (
           errorData.message &&
           (errorData.message.includes("currently occupied") ||
-           errorData.message.includes("reserved"))
+            errorData.message.includes("reserved"))
         ) {
           toast.error(errorData.message);
           // Update table status if provided
@@ -413,6 +602,8 @@ const Pos = () => {
   const handleReset = () => {
     setOrderForm({
       customer_name: "",
+      customer_phone: "",
+      delivery_address: "",
       notes: "",
       payment_method: "cash",
       discount_type: "none",
@@ -420,9 +611,13 @@ const Pos = () => {
       order_type: "dine_in",
       packaging_boxes: 0,
       order_items: [],
+      delivery_distance_km: 0,
+      delivery_fee: 0,
+      delivery_coordinates: null,
     });
     setCashAmount("");
     setShowCashPayment(false);
+    setDeliveryFeeStatus({ loading: false, error: "" });
   };
 
   // Print receipt function
@@ -441,6 +636,8 @@ const Pos = () => {
       const discountLabel = getDiscountLabel();
       const packagingFee = calculatePackagingFee();
       const packagingBoxCount = packagingBoxes;
+      const deliveryFeeAmount = deliveryFee;
+      const deliveryDistance = deliveryDistanceKm;
       const printWindow = window.open("", "_blank");
       const currentDate = new Date().toLocaleString("en-US", {
         year: "numeric",
@@ -572,8 +769,20 @@ const Pos = () => {
               orderForm.customer_name || "Walk-in"
             }</div>
             <div><strong>Service:</strong> ${
-              orderForm.order_type === "pickup" ? "Take-out" : "Dine-in"
+              orderForm.order_type === "pickup"
+                ? "Take-out"
+                : orderForm.order_type === "delivery"
+                ? "Delivery"
+                : "Dine-in"
             }</div>
+            ${
+              isDeliveryOrder
+                ? `
+            <div><strong>Address:</strong> ${orderForm.delivery_address}</div>
+            <div><strong>Contact:</strong> ${orderForm.customer_phone}</div>
+            `
+                : ""
+            }
             <div><strong>Payment:</strong> ${orderForm.payment_method.toUpperCase()}</div>
             ${
               orderForm.notes
@@ -628,6 +837,16 @@ const Pos = () => {
             <div class="total-line">
               <span>Packaging (${packagingBoxCount} x ₱${PACKAGING_FEE_PER_BOX}):</span>
               <span>${formatCurrency(packagingFee)}</span>
+            </div>
+          `
+              : ""
+          }
+          ${
+            isDeliveryOrder
+              ? `
+            <div class="total-line">
+              <span>Delivery (${deliveryDistance.toFixed(2)} km):</span>
+              <span>${formatCurrency(deliveryFeeAmount)}</span>
             </div>
           `
               : ""
@@ -698,7 +917,7 @@ const Pos = () => {
   }, []);
 
   return (
-    <div className="bg-[#1f1f1f] min-h-screen dark touch-manipulation overflow-hidden">
+    <div className="bg-[#1f1f1f] min-h-screen dark touch-manipulation overflow-x-hidden flex flex-col">
       {/* Top Bar - Quick Order Info (Always Visible) */}
       <div className="bg-[#262626] border-b-2 border-[#383838] px-3 sm:px-4 md:px-6 py-3 md:py-4 shadow-lg">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3 lg:gap-4">
@@ -746,18 +965,12 @@ const Pos = () => {
             </label>
             <select
               value={orderForm.order_type}
-              onChange={(e) => {
-                const value = e.target.value;
-                setOrderForm((prev) => ({
-                  ...prev,
-                  order_type: value,
-                  packaging_boxes: value === "pickup" ? prev.packaging_boxes || 0 : 0,
-                }));
-              }}
+              onChange={(e) => handleOrderTypeChange(e.target.value)}
               className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
             >
               <option value="dine_in">Dine-in</option>
               <option value="pickup">Take-out</option>
+              <option value="delivery">Delivery</option>
             </select>
             {orderForm.order_type === "pickup" && (
               <p className="text-xs text-[#ababab] mt-1">
@@ -787,6 +1000,33 @@ const Pos = () => {
               <p className="text-xs text-[#ababab] mt-1">
                 Total packaging fee: {formatCurrency(calculatePackagingFee())}
               </p>
+            </div>
+          )}
+
+          {isDeliveryOrder && (
+            <div className="w-full flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setShowDeliveryModal(true)}
+                className="w-full px-4 py-3 bg-[#4ec57a] hover:bg-[#46ac6b] text-[#1f1f1f] rounded-xl font-bold text-base sm:text-lg shadow-lg touch-manipulation flex items-center justify-between"
+              >
+                <div className="text-left">
+                  <div>Delivery Details</div>
+                  <div className="text-xs text-[#1f1f1f]/80">
+                    {hasDeliveryQuote
+                      ? `${deliveryDistanceKm.toFixed(2)} km • ${formatCurrency(
+                          deliveryFee
+                        )}`
+                      : "Tap to add phone, address, and fee"}
+                  </div>
+                </div>
+                <Search size={20} />
+              </button>
+              {deliveryFeeStatus.error && (
+                <p className="text-xs text-red-400">
+                  {deliveryFeeStatus.error}
+                </p>
+              )}
             </div>
           )}
 
@@ -827,7 +1067,7 @@ const Pos = () => {
       </div>
 
       {/* Main POS Layout - Jollibee Style */}
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] lg:h-[calc(100vh-105px)] overflow-hidden">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-hidden">
         {/* Left Side - Menu Items */}
         <div className="w-full lg:w-[60%] border-r-0 lg:border-r-2 border-b-2 lg:border-b-0 border-[#383838] flex flex-col bg-[#181818] overflow-hidden">
           {/* Category & Search Bar */}
@@ -918,9 +1158,7 @@ const Pos = () => {
                     <button
                       key={item._id || index}
                       disabled={isOutOfStock}
-                      className={`relative rounded-xl overflow-hidden shadow-lg transition-all flex flex-col border-2 touch-manipulation active:scale-95 w-full ${
-                        stockStatus.cardClass
-                      }`}
+                      className={`relative rounded-xl overflow-hidden shadow-lg transition-all flex flex-col border-2 touch-manipulation active:scale-95 w-full ${stockStatus.cardClass}`}
                       onClick={() => !isOutOfStock && addItemToOrder(item)}
                     >
                       {/* Image Section */}
@@ -938,7 +1176,7 @@ const Pos = () => {
                           </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-[#1f1f1f] via-transparent to-transparent pointer-events-none" />
-                        
+
                         {/* Category Badge */}
                         <div className="absolute top-2 left-2 bg-[#1f1f1f]/70 backdrop-blur-md rounded-full px-2 sm:px-3 py-1 text-xs font-medium text-white uppercase tracking-wide">
                           {item.category || "Misc"}
@@ -1004,12 +1242,21 @@ const Pos = () => {
                 {orderForm.order_items.length} item(s)
               </div>
               {orderForm.order_type === "pickup" && (
-                  <div className="text-xs sm:text-sm text-[#92ecb3] mt-1">
-                    Take-out boxes: {packagingBoxes} x ₱
-                    {PACKAGING_FEE_PER_BOX} ={" "}
-                    {formatCurrency(calculatePackagingFee())}
-                  </div>
-                )}
+                <div className="text-xs sm:text-sm text-[#92ecb3] mt-1">
+                  Take-out boxes: {packagingBoxes} x ₱{PACKAGING_FEE_PER_BOX} ={" "}
+                  {formatCurrency(calculatePackagingFee())}
+                </div>
+              )}
+              {isDeliveryOrder && (
+                <div className="text-xs sm:text-sm text-[#92d5ff] mt-1">
+                  Delivery:{" "}
+                  {hasDeliveryQuote
+                    ? `${deliveryDistanceKm.toFixed(2)} km • ${formatCurrency(
+                        deliveryFee
+                      )}`
+                    : "Pending address / fee"}
+                </div>
+              )}
             </div>
 
             {orderForm.order_items.length === 0 ? (
@@ -1100,23 +1347,18 @@ const Pos = () => {
             <div className="space-y-2 sm:space-y-3">
               <button
                 onClick={() => {
-                  if (
-                    !orderForm.customer_name ||
-                    orderForm.order_items.length === 0
-                  ) {
-                    toast.error(
-                      "Please fill in customer name and add items"
-                    );
+                  if (!hasCustomerName || !hasOrderItems) {
+                    toast.error("Please fill in customer name and add items");
+                    return;
+                  }
+                  if (!ensureDeliveryDetails()) {
                     return;
                   }
                   setShowPaymentModal(true);
                 }}
-                disabled={
-                  !orderForm.customer_name || orderForm.order_items.length === 0
-                }
+                disabled={!canOpenPaymentModal}
                 className={`w-full px-4 sm:px-6 py-3 sm:py-4 md:py-5 rounded-xl font-bold flex items-center justify-center text-lg sm:text-xl md:text-2xl shadow-lg transition-all duration-200 touch-manipulation min-h-[56px] sm:min-h-[64px] md:min-h-[72px] ${
-                  !orderForm.customer_name ||
-                  orderForm.order_items.length === 0
+                  !canOpenPaymentModal
                     ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                     : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] active:scale-95"
                 }`}
@@ -1129,6 +1371,127 @@ const Pos = () => {
           </div>
         </div>
       </div>
+
+      {/* Delivery Details Modal */}
+      {isDeliveryOrder && showDeliveryModal && (
+        <div className="fixed inset-0 z-40 p-4 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black bg-opacity-50"
+            style={{
+              backdropFilter: "blur(12px)",
+              WebkitBackdropFilter: "blur(12px)",
+            }}
+            onClick={() => setShowDeliveryModal(false)}
+          ></div>
+          <div className="relative bg-[#232323] rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border-2 border-[#383838]">
+            <div className="bg-[#1f1f1f] p-4 sm:p-6 border-b-2 border-[#383838] flex items-center justify-between sticky top-0 z-10">
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#f5f5f5]">
+                Delivery Details
+              </h2>
+              <button
+                onClick={() => setShowDeliveryModal(false)}
+                className="text-[#ababab] hover:text-[#f6b100] p-2 hover:bg-[#353535] rounded-lg transition-all touch-manipulation"
+              >
+                <XCircle size={28} />
+              </button>
+            </div>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-[#ababab] mb-2">
+                  Customer Phone <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={orderForm.customer_phone}
+                  onChange={(e) =>
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      customer_phone: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
+                  placeholder="09XX XXX XXXX"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-[#ababab] mb-2">
+                  Delivery Address <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={orderForm.delivery_address}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setOrderForm((prev) => ({
+                      ...prev,
+                      delivery_address: value,
+                      delivery_distance_km: 0,
+                      delivery_fee: 0,
+                      delivery_coordinates: null,
+                    }));
+                    setDeliveryFeeStatus((prev) => ({
+                      ...prev,
+                      error: "",
+                    }));
+                  }}
+                  rows={4}
+                  className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation resize-none"
+                  placeholder="Street, Barangay, City"
+                />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleDeliveryFeeCalculation}
+                    disabled={deliveryFeeStatus.loading}
+                    className={`px-4 py-2 rounded-lg font-semibold text-sm shadow-lg flex items-center justify-center gap-2 touch-manipulation ${
+                      deliveryFeeStatus.loading
+                        ? "bg-gray-600 text-gray-300 cursor-not-allowed"
+                        : "bg-[#4ec57a] text-[#1f1f1f] hover:bg-[#46ac6b]"
+                    }`}
+                  >
+                    {deliveryFeeStatus.loading ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Calculating...
+                      </>
+                    ) : (
+                      "Calculate Delivery Fee"
+                    )}
+                  </button>
+                  <div className="text-xs text-[#92ecb3]">
+                    {hasDeliveryQuote
+                      ? `Distance: ${deliveryDistanceKm.toFixed(
+                          2
+                        )} km • Fee: ${formatCurrency(deliveryFee)}`
+                      : "Distance not calculated yet"}
+                  </div>
+                </div>
+                {deliveryFeeStatus.error && (
+                  <p className="text-xs text-red-400 mt-2">
+                    {deliveryFeeStatus.error}
+                  </p>
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  onClick={() => setShowDeliveryModal(false)}
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-lg shadow-lg touch-manipulation bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000]"
+                >
+                  Save & Close
+                </button>
+                <button
+                  onClick={() => {
+                    setShowDeliveryModal(false);
+                    setDeliveryFeeStatus({ loading: false, error: "" });
+                  }}
+                  className="flex-1 px-6 py-4 rounded-xl font-bold text-lg shadow-lg touch-manipulation bg-[#353535] text-[#f5f5f5] hover:bg-[#454545] border-2 border-[#383838]"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Payment Modal */}
       {showPaymentModal && (
@@ -1181,32 +1544,46 @@ const Pos = () => {
                     </div>
                   ))}
                 </div>
-              <div className="mt-4 space-y-2 text-sm">
-                <div className="flex items-center justify-between text-[#ababab]">
-                  <span>Subtotal</span>
-                  <span className="font-semibold">
-                    {formatCurrency(calculateSubtotal())}
-                  </span>
+                <div className="mt-4 space-y-2 text-sm">
+                  <div className="flex items-center justify-between text-[#ababab]">
+                    <span>Subtotal</span>
+                    <span className="font-semibold">
+                      {formatCurrency(calculateSubtotal())}
+                    </span>
+                  </div>
+                  {calculateDiscountAmount() > 0 && (
+                    <div className="flex items-center justify-between text-[#f6b100]">
+                      <span>Discount ({getDiscountLabel()})</span>
+                      <span className="font-semibold">
+                        - {formatCurrency(calculateDiscountAmount())}
+                      </span>
+                    </div>
+                  )}
+                  {orderForm.order_type === "pickup" && (
+                    <div className="flex items-center justify-between text-[#92ecb3]">
+                      <span>
+                        Packaging ({packagingBoxes} x ₱{PACKAGING_FEE_PER_BOX})
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(calculatePackagingFee())}
+                      </span>
+                    </div>
+                  )}
+                  {isDeliveryOrder && (
+                    <div className="flex items-center justify-between text-[#92d5ff]">
+                      <span>
+                        Delivery (
+                        {hasDeliveryQuote
+                          ? `${deliveryDistanceKm.toFixed(2)} km`
+                          : "pending"}
+                        )
+                      </span>
+                      <span className="font-semibold">
+                        {formatCurrency(deliveryFee)}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                {calculateDiscountAmount() > 0 && (
-                  <div className="flex items-center justify-between text-[#f6b100]">
-                    <span>Discount ({getDiscountLabel()})</span>
-                    <span className="font-semibold">
-                      - {formatCurrency(calculateDiscountAmount())}
-                    </span>
-                  </div>
-                )}
-                {orderForm.order_type === "pickup" && (
-                  <div className="flex items-center justify-between text-[#92ecb3]">
-                    <span>
-                      Packaging ({packagingBoxes} x ₱{PACKAGING_FEE_PER_BOX})
-                    </span>
-                    <span className="font-semibold">
-                      {formatCurrency(calculatePackagingFee())}
-                    </span>
-                  </div>
-                )}
-              </div>
                 <div className="border-t-2 border-[#383838] mt-4 pt-4 flex justify-between items-center">
                   <span className="text-xl font-bold text-[#ababab]">
                     Total:
@@ -1258,7 +1635,10 @@ const Pos = () => {
                         setOrderForm((prev) => ({
                           ...prev,
                           discount_type: option.value,
-                          discount_id_number: option.value === "none" ? "" : prev.discount_id_number,
+                          discount_id_number:
+                            option.value === "none"
+                              ? ""
+                              : prev.discount_id_number,
                         }))
                       }
                       className={`p-3 rounded-xl border-2 text-left transition-all duration-200 touch-manipulation ${
@@ -1268,16 +1648,20 @@ const Pos = () => {
                       }`}
                     >
                       <div className="font-bold text-base">{option.label}</div>
-                      <div className="text-xs text-[#ababab]">{option.helper}</div>
+                      <div className="text-xs text-[#ababab]">
+                        {option.helper}
+                      </div>
                     </button>
                   ))}
                 </div>
                 <p className="text-xs text-[#ababab] mt-2">
-                  Apply 20% discount for qualified PWD or Senior customers upon presenting a valid ID.
+                  Apply 20% discount for qualified PWD or Senior customers upon
+                  presenting a valid ID.
                 </p>
-                
+
                 {/* ID Number Input - Show when PWD or Senior discount is selected */}
-                {(orderForm.discount_type === "pwd" || orderForm.discount_type === "senior") && (
+                {(orderForm.discount_type === "pwd" ||
+                  orderForm.discount_type === "senior") && (
                   <div className="mt-4">
                     <label className="block text-sm font-semibold text-[#ababab] mb-2">
                       ID Number <span className="text-red-400">*</span>
@@ -1292,11 +1676,15 @@ const Pos = () => {
                         }))
                       }
                       className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
-                      placeholder={`Enter ${orderForm.discount_type === "pwd" ? "PWD" : "Senior"} ID number`}
+                      placeholder={`Enter ${
+                        orderForm.discount_type === "pwd" ? "PWD" : "Senior"
+                      } ID number`}
                       required
                     />
                     <p className="text-xs text-[#ababab] mt-1">
-                      Please enter the {orderForm.discount_type === "pwd" ? "PWD" : "Senior"} ID number
+                      Please enter the{" "}
+                      {orderForm.discount_type === "pwd" ? "PWD" : "Senior"} ID
+                      number
                     </p>
                   </div>
                 )}
@@ -1380,13 +1768,15 @@ const Pos = () => {
                     isCreatingOrder ||
                     (orderForm.payment_method === "cash" &&
                       !isCashPaymentValid()) ||
-                    !isDiscountValid()
+                    !isDiscountValid() ||
+                    !isDeliveryInfoComplete
                   }
                   className={`w-full px-6 py-5 rounded-xl font-bold flex items-center justify-center text-2xl shadow-lg transition-all duration-200 touch-manipulation min-h-[72px] ${
                     isCreatingOrder ||
                     (orderForm.payment_method === "cash" &&
                       !isCashPaymentValid()) ||
-                    !isDiscountValid()
+                    !isDiscountValid() ||
+                    !isDeliveryInfoComplete
                       ? "bg-gray-600 text-gray-400 cursor-not-allowed"
                       : "bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] active:scale-95"
                   }`}
@@ -1401,6 +1791,8 @@ const Pos = () => {
                     "Insufficient Cash"
                   ) : !isDiscountValid() ? (
                     "Enter ID Number"
+                  ) : !isDeliveryInfoComplete ? (
+                    "Complete Delivery Details"
                   ) : (
                     "CONFIRM PAYMENT"
                   )}

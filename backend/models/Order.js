@@ -17,21 +17,42 @@ const OrderSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   },
-  // Customer phone number (for delivery/pickup)
+  // Customer phone number (required for delivery orders)
   customer_phone: {
     type: String,
     trim: true,
+    required: function () {
+      return this.order_type === "delivery";
+    },
   },
   // Delivery address (for delivery orders)
   delivery_address: {
     type: String,
     trim: true,
+    required: function () {
+      return this.order_type === "delivery";
+    },
   },
   // Delivery fee (for delivery orders)
   delivery_fee: {
     type: Number,
     min: 0,
     default: 0,
+  },
+  delivery_distance_km: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  delivery_coordinates: {
+    latitude: {
+      type: Number,
+      default: null,
+    },
+    longitude: {
+      type: Number,
+      default: null,
+    },
   },
   status: {
     type: String,

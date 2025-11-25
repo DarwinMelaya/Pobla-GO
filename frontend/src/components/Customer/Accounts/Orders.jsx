@@ -452,6 +452,16 @@ const Orders = ({
                       {order.delivery_address}
                     </p>
                   )}
+                  {order.order_type === "delivery" && (
+                    <p className="text-xs text-[#92d5ff] mt-1">
+                      Distance:{" "}
+                      {order.delivery_distance_km
+                        ? `${Number(order.delivery_distance_km).toFixed(2)} km`
+                        : "N/A"}{" "}
+                      • Delivery Fee:{" "}
+                      {currencyFormatter.format(order.delivery_fee || 0)}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xl font-bold text-[#C05050]">

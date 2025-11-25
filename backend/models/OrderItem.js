@@ -31,6 +31,16 @@ const OrderItemSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
+  delivery_distance_km: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
+  delivery_fee_share: {
+    type: Number,
+    min: 0,
+    default: 0,
+  },
   // Reference to the menu item (optional, for tracking)
   menu_item_id: {
     type: mongoose.Schema.Types.ObjectId,

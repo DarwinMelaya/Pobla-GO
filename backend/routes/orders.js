@@ -1,4 +1,5 @@
 const express = require("express");
+const https = require("https");
 const router = express.Router();
 const Order = require("../models/Order");
 const OrderItem = require("../models/OrderItem");
@@ -11,6 +12,203 @@ const DISCOUNT_RATES = {
   senior: 0.2,
 };
 const PACKAGING_FEE_PER_BOX = 10;
+const BUSINESS_COORDINATES = {
+  latitude: 13.475246207507663,
+  longitude: 121.85945810514359,
+};
+const DELIVERY_RATE_PER_KM =
+  Number(process.env.DELIVERY_RATE_PER_KM) || 15;
+const DELIVERY_MIN_FEE = Number(process.env.DELIVERY_MIN_FEE) || 50;
+const PHOTON_BASE_URL = "https://photon.komoot.io/api/";
+const geocodeCache = new Map();
+
+const toRadians = (degrees = 0) => (degrees * Math.PI) / 180;
+
+const calculateDistanceKm = (from, to) => {
+  if (!from || !to) {
+    return 0;
+  }
+
+  const R = 6371; // Earth radius in KM
+  const dLat = toRadians(to.latitude - from.latitude);
+  const dLon = toRadians(to.longitude - from.longitude);
+  const lat1 = toRadians(from.latitude);
+  const lat2 = toRadians(to.latitude);
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) *
+      Math.cos(lat2) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  return Number(distance.toFixed(2));
+};
+
+const calculateDeliveryFee = (distanceKm = 0) => {
+  if (!distanceKm || Number.isNaN(distanceKm)) {
+    return DELIVERY_MIN_FEE;
+  }
+
+  const computed = Math.round(distanceKm * DELIVERY_RATE_PER_KM * 100) / 100;
+  return Math.max(DELIVERY_MIN_FEE, computed);
+};
+
+const fetchJson = (requestUrl) =>
+  new Promise((resolve, reject) => {
+    const req = https.get(
+      requestUrl,
+      {
+        headers: {
+          "User-Agent":
+            process.env.DELIVERY_GEO_USER_AGENT ||
+            "PoblaGO-Server/1.0 (+https://pobla.local)",
+        },
+      },
+      (res) => {
+        let data = "";
+
+        res.on("data", (chunk) => {
+          data += chunk;
+        });
+
+        res.on("end", () => {
+          if (res.statusCode >= 400) {
+            return reject(
+              new Error(
+                `Geocoding request failed with status ${res.statusCode}`
+              )
+            );
+          }
+
+          try {
+            resolve(JSON.parse(data));
+          } catch (error) {
+            reject(error);
+          }
+        });
+      }
+    );
+
+    req.on("error", reject);
+  });
+
+const normalizeCoords = (coords) => {
+  if (!coords) return null;
+
+  const latitude =
+    typeof coords.latitude === "number"
+      ? coords.latitude
+      : typeof coords.lat === "number"
+      ? coords.lat
+      : null;
+  const longitude =
+    typeof coords.longitude === "number"
+      ? coords.longitude
+      : typeof coords.lng === "number"
+      ? coords.lng
+      : typeof coords.lon === "number"
+      ? coords.lon
+      : null;
+
+  if (
+    latitude === null ||
+    Number.isNaN(latitude) ||
+    longitude === null ||
+    Number.isNaN(longitude)
+  ) {
+    return null;
+  }
+
+  return { latitude, longitude };
+};
+
+const geocodeAddress = async (address) => {
+  if (!address) {
+    return null;
+  }
+
+  const normalized = address.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+
+  if (geocodeCache.has(normalized)) {
+    return geocodeCache.get(normalized);
+  }
+
+  const encoded = encodeURIComponent(address);
+  const requestUrl = `${PHOTON_BASE_URL}?q=${encoded}&limit=1&lang=en`;
+
+  const response = await fetchJson(requestUrl);
+  const feature = response?.features?.[0];
+  const coordinates = feature?.geometry?.coordinates;
+
+  if (!Array.isArray(coordinates) || coordinates.length < 2) {
+    return null;
+  }
+
+  const [longitude, latitude] = coordinates;
+  const parsed = {
+    latitude: Number(latitude),
+    longitude: Number(longitude),
+  };
+
+  if (
+    Number.isFinite(parsed.latitude) &&
+    Number.isFinite(parsed.longitude)
+  ) {
+    geocodeCache.set(normalized, parsed);
+    return parsed;
+  }
+
+  return null;
+};
+
+const resolveDeliveryMeta = async ({
+  address,
+  coordinates,
+  fallbackDistance,
+  fallbackFee,
+}) => {
+  let targetCoords = normalizeCoords(coordinates);
+
+  if (!targetCoords && address) {
+    targetCoords = await geocodeAddress(address);
+  }
+
+  if (!targetCoords) {
+    const hasFallback =
+      typeof fallbackDistance === "number" &&
+      fallbackDistance > 0 &&
+      typeof fallbackFee === "number" &&
+      fallbackFee > 0;
+
+    if (hasFallback) {
+      return {
+        coords: null,
+        distanceKm: Number(fallbackDistance),
+        fee: Number(fallbackFee),
+      };
+    }
+
+    throw new Error(
+      "Unable to determine delivery distance for the provided address."
+    );
+  }
+
+  const distanceKm = calculateDistanceKm(BUSINESS_COORDINATES, targetCoords);
+  const fee = calculateDeliveryFee(distanceKm);
+
+  return {
+    coords: targetCoords,
+    distanceKm,
+    fee,
+  };
+};
 
 // Middleware to verify authentication
 const verifyAuth = async (req, res, next) => {
@@ -228,6 +426,11 @@ router.post("/", verifyAuth, async (req, res) => {
       discount_id_number,
       order_type,
       packaging_boxes,
+      delivery_address,
+      customer_phone,
+      delivery_distance_km: clientDeliveryDistance,
+      delivery_fee: clientDeliveryFee,
+      delivery_coordinates,
     } = req.body;
     const rawOrderType = (order_type || "").toLowerCase();
     const normalizedOrderType = ["dine_in", "delivery", "pickup"].includes(
@@ -247,6 +450,41 @@ router.post("/", verifyAuth, async (req, res) => {
         message:
           "Missing required fields: customer_name and order_items array",
       });
+    }
+
+    if (
+      normalizedOrderType === "delivery" &&
+      (!delivery_address || !delivery_address.trim())
+    ) {
+      return res.status(400).json({
+        message: "delivery_address is required for delivery orders",
+      });
+    }
+
+    if (
+      normalizedOrderType === "delivery" &&
+      (!customer_phone || !customer_phone.trim())
+    ) {
+      return res.status(400).json({
+        message: "customer_phone is required for delivery orders",
+      });
+    }
+
+    let deliveryMeta = null;
+    if (normalizedOrderType === "delivery") {
+      try {
+        deliveryMeta = await resolveDeliveryMeta({
+          address: delivery_address,
+          coordinates: delivery_coordinates,
+          fallbackDistance: Number(clientDeliveryDistance),
+          fallbackFee: Number(clientDeliveryFee),
+        });
+      } catch (error) {
+        console.error("Delivery computation error:", error);
+        return res.status(400).json({
+          message: error.message || "Failed to compute delivery fee",
+        });
+      }
     }
 
     // Calculate total amount
@@ -272,6 +510,8 @@ router.post("/", verifyAuth, async (req, res) => {
         menu_item_id: item.menu_item_id || null,
         special_instructions: item.special_instructions || "",
         container_fee: 0,
+        delivery_distance_km: deliveryMeta ? deliveryMeta.distanceKm : 0,
+        delivery_fee_share: 0,
       });
     }
 
@@ -304,8 +544,22 @@ router.post("/", verifyAuth, async (req, res) => {
       normalizedOrderType === "pickup"
         ? packagingBoxCount * PACKAGING_FEE_PER_BOX
         : 0;
+    const delivery_fee = deliveryMeta?.fee || 0;
+    const delivery_distance_km = deliveryMeta?.distanceKm || 0;
     const total_amount =
-      Math.max(0, subtotal_amount - discount_amount) + packaging_fee;
+      Math.max(0, subtotal_amount - discount_amount) +
+      packaging_fee +
+      delivery_fee;
+
+    if (deliveryMeta && validated_items.length) {
+      const perItemShare = Number(
+        (deliveryMeta.fee / validated_items.length).toFixed(2)
+      );
+      validated_items.forEach((item) => {
+        item.delivery_distance_km = deliveryMeta.distanceKm;
+        item.delivery_fee_share = perItemShare;
+      });
+    }
 
     // Create the order
     const order = new Order({
@@ -326,6 +580,18 @@ router.post("/", verifyAuth, async (req, res) => {
       packaging_fee,
       packaging_box_count:
         normalizedOrderType === "pickup" ? packagingBoxCount : 0,
+      delivery_fee,
+      delivery_distance_km,
+      delivery_address:
+        normalizedOrderType === "delivery" ? delivery_address?.trim() : null,
+      customer_phone:
+        normalizedOrderType === "delivery" ? customer_phone?.trim() : null,
+      delivery_coordinates: deliveryMeta?.coords
+        ? {
+            latitude: deliveryMeta.coords.latitude,
+            longitude: deliveryMeta.coords.longitude,
+          }
+        : undefined,
     });
 
     await order.save();
@@ -400,6 +666,9 @@ router.post("/online", verifyAuth, async (req, res) => {
       customer_phone,
       payment_method,
       notes,
+      delivery_distance_km: clientDeliveryDistance,
+      delivery_fee: clientDeliveryFee,
+      delivery_coordinates,
     } = req.body;
 
     // Validate required fields
@@ -430,6 +699,23 @@ router.post("/online", verifyAuth, async (req, res) => {
       }
     }
 
+    let deliveryMeta = null;
+    if (order_type === "delivery") {
+      try {
+        deliveryMeta = await resolveDeliveryMeta({
+          address: delivery_address,
+          coordinates: delivery_coordinates,
+          fallbackDistance: Number(clientDeliveryDistance),
+          fallbackFee: Number(clientDeliveryFee),
+        });
+      } catch (error) {
+        console.error("Delivery computation error (online):", error);
+        return res.status(400).json({
+          message: error.message || "Failed to compute delivery fee",
+        });
+      }
+    }
+
     // Calculate subtotal
     let subtotal_amount = 0;
     const validated_items = [];
@@ -451,11 +737,23 @@ router.post("/online", verifyAuth, async (req, res) => {
         total_price: item_total,
         menu_item_id: item.menu_item_id || null,
         special_instructions: item.special_instructions || "",
+        delivery_distance_km: deliveryMeta ? deliveryMeta.distanceKm : 0,
+        delivery_fee_share: 0,
       });
     }
 
-    // Calculate delivery fee (50 PHP for delivery)
-    const delivery_fee = order_type === "delivery" ? 50 : 0;
+    if (deliveryMeta && validated_items.length) {
+      const perItemShare = Number(
+        (deliveryMeta.fee / validated_items.length).toFixed(2)
+      );
+      validated_items.forEach((item) => {
+        item.delivery_distance_km = deliveryMeta.distanceKm;
+        item.delivery_fee_share = perItemShare;
+      });
+    }
+
+    const delivery_fee = deliveryMeta?.fee || 0;
+    const delivery_distance_km = deliveryMeta?.distanceKm || 0;
     const total_amount = subtotal_amount + delivery_fee;
 
     // Get customer_id from user if logged in
@@ -469,6 +767,13 @@ router.post("/online", verifyAuth, async (req, res) => {
       customer_phone: customer_phone || null,
       delivery_address: delivery_address || null,
       delivery_fee,
+      delivery_distance_km,
+      delivery_coordinates: deliveryMeta?.coords
+        ? {
+            latitude: deliveryMeta.coords.latitude,
+            longitude: deliveryMeta.coords.longitude,
+          }
+        : undefined,
       subtotal_amount,
       total_amount,
       notes: notes || "",
