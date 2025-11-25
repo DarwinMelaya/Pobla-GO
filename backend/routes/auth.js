@@ -2,7 +2,16 @@ const express = require("express");
 const passport = require("passport");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const sendEmail = require("../utils/sendEmail");
+const {
+  getVerificationEmailTemplate,
+  getWelcomeEmailTemplate,
+} = require("../utils/sendEmail");
 const router = express.Router();
+
+const VERIFICATION_CODE_EXPIRY_MINUTES = 10;
+const generateVerificationCode = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
 
 // Google login route
 router.get(
@@ -47,6 +56,14 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+      });
+    }
+
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: "Please verify your email before logging in.",
+        needsVerification: true,
       });
     }
 
@@ -142,6 +159,11 @@ router.post("/signup", async (req, res) => {
     }
 
     // Create new user
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(
+      Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000
+    );
+
     const newUser = new User({
       name,
       email,
@@ -149,13 +171,32 @@ router.post("/signup", async (req, res) => {
       address,
       password,
       role: assignedRole,
+      verificationCode,
+      verificationCodeExpires,
+      isVerified: false,
+      isActive: false,
     });
 
     await newUser.save();
 
+    try {
+      const emailHtml = getVerificationEmailTemplate(name, verificationCode);
+      const emailText = `Hi ${name}, your verification code is: ${verificationCode}. This code will expire in ${VERIFICATION_CODE_EXPIRY_MINUTES} minutes.`;
+
+      await sendEmail(
+        newUser.email,
+        "Verify Your Email - Harmony Hub",
+        emailText,
+        emailHtml
+      );
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+    }
+
     res.status(201).json({
       success: true,
-      message: "User created successfully",
+      message: "User created successfully. Please verify your email.",
+      needsVerification: true,
       user: {
         id: newUser._id,
         name: newUser.name,
@@ -168,6 +209,147 @@ router.post("/signup", async (req, res) => {
     });
   } catch (error) {
     console.error("Signup error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    if (!email || !code) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and verification code are required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already verified.",
+      });
+    }
+
+    if (
+      !user.verificationCode ||
+      user.verificationCode !== code ||
+      !user.verificationCodeExpires ||
+      user.verificationCodeExpires < new Date()
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification code.",
+      });
+    }
+
+    user.isVerified = true;
+    user.isActive = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save();
+
+    try {
+      const emailHtml = getWelcomeEmailTemplate(user.name, user.email);
+      const emailText = `Hi ${user.name}, welcome to Harmony Hub! Your email has been verified.`;
+
+      await sendEmail(
+        user.email,
+        "Welcome to Harmony Hub",
+        emailText,
+        emailHtml
+      );
+    } catch (emailError) {
+      console.error("Failed to send welcome email:", emailError);
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Email verified successfully.",
+    });
+  } catch (error) {
+    console.error("Verify email error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      error: error.message,
+    });
+  }
+});
+
+router.post("/resend-verification", async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is already verified.",
+      });
+    }
+
+    const verificationCode = generateVerificationCode();
+    const verificationCodeExpires = new Date(
+      Date.now() + VERIFICATION_CODE_EXPIRY_MINUTES * 60 * 1000
+    );
+
+    user.verificationCode = verificationCode;
+    user.verificationCodeExpires = verificationCodeExpires;
+    await user.save();
+
+    try {
+      const emailHtml = getVerificationEmailTemplate(user.name, verificationCode);
+      const emailText = `Hi ${user.name}, your verification code is: ${verificationCode}. This code will expire in ${VERIFICATION_CODE_EXPIRY_MINUTES} minutes.`;
+
+      await sendEmail(
+        user.email,
+        "Verify Your Email - Harmony Hub",
+        emailText,
+        emailHtml
+      );
+    } catch (emailError) {
+      console.error("Failed to resend verification email:", emailError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send verification email. Please try again later.",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Verification code resent successfully.",
+    });
+  } catch (error) {
+    console.error("Resend verification error:", error);
     res.status(500).json({
       success: false,
       message: "Internal server error",

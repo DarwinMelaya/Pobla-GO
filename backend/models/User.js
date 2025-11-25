@@ -40,6 +40,10 @@ const UserSchema = new mongoose.Schema({
     enum: ["Customer", "Staff", "Admin"],
     default: "Customer",
   },
+  isVerified: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: false },
+  verificationCode: { type: String },
+  verificationCodeExpires: { type: Date },
 
   // Timestamps
   createdAt: { type: Date, default: Date.now },

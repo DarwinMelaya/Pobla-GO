@@ -14,6 +14,8 @@ import {
 import logoClear from "/logoClear.png";
 import bgPobla from "/bgPobla.jpg";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const SignUp = () => {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -25,6 +27,12 @@ const SignUp = () => {
     confirmPassword: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerificationStep, setIsVerificationStep] = useState(false);
+  const [verificationCode, setVerificationCode] = useState("");
+  const [emailForVerification, setEmailForVerification] = useState("");
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -37,6 +45,14 @@ const SignUp = () => {
   const [cityList, setCityList] = useState([]);
   const [barangayList, setBarangayList] = useState([]);
   const [isLoadingAddress, setIsLoadingAddress] = useState(false);
+
+  useEffect(() => {
+    if (!resendCooldown) return;
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendCooldown]);
 
   // Load Marinduque province data on mount
   useEffect(() => {
@@ -320,13 +336,26 @@ const SignUp = () => {
       };
 
       const response = await axios.post(
-        "http://localhost:5000/auth/signup",
+        `${API_BASE_URL}/auth/signup`,
         submissionData
       );
 
       if (response.data.success) {
-        toast.success("Account created successfully!");
-        // Reset form
+        const userEmail = formData.email;
+        if (response.data.needsVerification) {
+          toast.success(
+            response.data.message ||
+              "Account created! Please check your email for the verification code."
+          );
+          setEmailForVerification(userEmail);
+          setIsVerificationStep(true);
+          setVerificationCode("");
+          setResendCooldown(60);
+        } else {
+          toast.success("Account created successfully!");
+          navigate("/login");
+        }
+
         setFormData({
           name: "",
           email: "",
@@ -338,8 +367,6 @@ const SignUp = () => {
         setStreetAddress("");
         setCityCode("");
         setBarangayCode("");
-        // Navigate to login page
-        navigate("/login");
       }
     } catch (error) {
       if (error.response?.data?.message) {
@@ -349,6 +376,71 @@ const SignUp = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleVerificationSubmit = async (e) => {
+    e.preventDefault();
+
+    if (!verificationCode.trim()) {
+      toast.error("Please enter the verification code.");
+      return;
+    }
+
+    setIsVerifying(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/verify-email`,
+        {
+          email: emailForVerification,
+          code: verificationCode.trim(),
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Email verified! You can now log in.");
+        navigate("/login");
+      }
+    } catch (error) {
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to verify email. Please try again.");
+      }
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!emailForVerification) {
+      toast.error("No email found for verification.");
+      return;
+    }
+
+    if (resendCooldown > 0) {
+      return;
+    }
+
+    setIsResending(true);
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/resend-verification`,
+        { email: emailForVerification }
+      );
+
+      if (response.data.success) {
+        toast.success("Verification code resent! Check your inbox.");
+        setResendCooldown(60);
+      }
+    } catch (error) {
+      if (error.response?.data?.message) {
+        toast.error(error.response.data.message);
+      } else {
+        toast.error("Failed to resend verification code. Please try again.");
+      }
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -407,8 +499,9 @@ const SignUp = () => {
               </p>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Form / Verification Step */}
+            {!isVerificationStep ? (
+              <form onSubmit={handleSubmit} className="space-y-6">
               {/* Full Name */}
               <div>
                 <label className="block text-sm font-medium text-white/90 mb-2">
@@ -704,7 +797,79 @@ const SignUp = () => {
                   </Link>
                 </p>
               </div>
-            </form>
+              </form>
+            ) : (
+              <form onSubmit={handleVerificationSubmit} className="space-y-6">
+                <div className="text-center mb-4">
+                  <p className="text-white/80">
+                    We sent a 6-digit verification code to{" "}
+                    <span className="font-semibold text-white">
+                      {emailForVerification}
+                    </span>
+                    . Enter the code below to activate your account.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/90 mb-2">
+                    Verification Code
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={verificationCode}
+                    onChange={(e) =>
+                      setVerificationCode(e.target.value.replace(/[^0-9]/g, ""))
+                    }
+                    placeholder="Enter 6-digit code"
+                    className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200 tracking-[0.5em] text-center text-lg"
+                    required
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isVerifying}
+                  className={`w-full font-semibold py-3 px-6 rounded-lg transition-all duration-200 transform shadow-lg ${
+                    isVerifying
+                      ? "bg-gray-400 cursor-not-allowed"
+                      : "bg-[#bf595a] hover:bg-[#a04a4b] hover:scale-105"
+                  } text-white`}
+                >
+                  {isVerifying ? "Verifying..." : "Verify Email"}
+                </button>
+
+                <div className="text-center space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={isResending || resendCooldown > 0}
+                    className={`w-full py-2 px-4 rounded-lg border ${
+                      isResending || resendCooldown > 0
+                        ? "border-white/30 text-white/60 cursor-not-allowed"
+                        : "border-white text-white hover:bg-white/10"
+                    } transition-all duration-200`}
+                  >
+                    {isResending
+                      ? "Sending..."
+                      : resendCooldown > 0
+                      ? `Resend Code in ${resendCooldown}s`
+                      : "Resend Code"}
+                  </button>
+
+                  <p className="text-white/80">
+                    Already verified?{" "}
+                    <Link
+                      to="/login"
+                      className="text-white hover:text-[#bf595a] font-medium hover:underline transition-colors duration-200"
+                    >
+                      Go to Login
+                    </Link>
+                  </p>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       </div>
