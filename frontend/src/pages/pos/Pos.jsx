@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import L from "leaflet";
+import { cities, barangays, provinceByName } from "select-philippines-address";
 
 const PACKAGING_FEE_PER_BOX = 10;
 const BUSINESS_COORDINATES = {
@@ -106,6 +107,14 @@ const Pos = () => {
   const [menuItemsLoading, setMenuItemsLoading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showDeliveryModal, setShowDeliveryModal] = useState(false);
+  const [deliveryStreetAddress, setDeliveryStreetAddress] = useState("");
+  const [deliveryCityCode, setDeliveryCityCode] = useState("");
+  const [deliveryBarangayCode, setDeliveryBarangayCode] = useState("");
+  const [deliveryProvinceCode, setDeliveryProvinceCode] = useState("");
+  const [deliveryRegionCode, setDeliveryRegionCode] = useState("");
+  const [deliveryCityList, setDeliveryCityList] = useState([]);
+  const [deliveryBarangayList, setDeliveryBarangayList] = useState([]);
+  const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
@@ -129,6 +138,14 @@ const Pos = () => {
   const hasDeliveryAddress = Boolean(orderForm.delivery_address?.trim());
   const hasDeliveryPhone = Boolean(orderForm.customer_phone?.trim());
   const hasDeliveryQuote = Boolean(deliveryDistanceKm && deliveryFee);
+  const isDeliveryAddressComplete = Boolean(
+    deliveryStreetAddress.trim() && deliveryCityCode && deliveryBarangayCode
+  );
+  const deliveryAddressPreview =
+    orderForm.delivery_address?.trim() ||
+    (deliveryStreetAddress || deliveryCityCode || deliveryBarangayCode
+      ? "Incomplete address"
+      : "No address yet");
   const isDeliveryInfoComplete =
     !isDeliveryOrder ||
     (hasDeliveryAddress && hasDeliveryPhone && hasDeliveryQuote);
@@ -136,6 +153,191 @@ const Pos = () => {
   const hasOrderItems = orderForm.order_items.length > 0;
   const canOpenPaymentModal =
     hasCustomerName && hasOrderItems && isDeliveryInfoComplete;
+
+  const resetDeliveryAddressFields = () => {
+    setDeliveryStreetAddress("");
+    setDeliveryCityCode("");
+    setDeliveryBarangayCode("");
+    setDeliveryBarangayList([]);
+  };
+
+  useEffect(() => {
+    const loadMarinduqueData = async () => {
+      try {
+        setDeliveryAddressLoading(true);
+        const marinduqueProvince = await provinceByName("Marinduque");
+        if (marinduqueProvince) {
+          const provinceCodeValue = marinduqueProvince.province_code;
+          const regionCodeValue = marinduqueProvince.region_code || "17";
+          setDeliveryProvinceCode(provinceCodeValue);
+          setDeliveryRegionCode(regionCodeValue);
+          const citiesData = await cities(provinceCodeValue);
+          setDeliveryCityList(citiesData || []);
+        } else {
+          toast.error("Marinduque province not found");
+        }
+      } catch (error) {
+        console.error("Failed to load delivery address data:", error);
+        toast.error("Failed to load delivery address options");
+      } finally {
+        setDeliveryAddressLoading(false);
+      }
+    };
+
+    loadMarinduqueData();
+  }, []);
+
+  useEffect(() => {
+    const loadBarangays = async () => {
+      if (!deliveryCityCode) {
+        setDeliveryBarangayList([]);
+        setDeliveryBarangayCode("");
+        return;
+      }
+
+      try {
+        setDeliveryAddressLoading(true);
+        const selectedCity = deliveryCityList.find(
+          (c) =>
+            c.code === deliveryCityCode ||
+            c.city_code === deliveryCityCode ||
+            c.municipality_code === deliveryCityCode ||
+            String(c.code) === String(deliveryCityCode) ||
+            String(c.city_code) === String(deliveryCityCode) ||
+            String(c.municipality_code) === String(deliveryCityCode)
+        );
+
+        const baseCode =
+          selectedCity?.code ||
+          selectedCity?.city_code ||
+          selectedCity?.municipality_code ||
+          deliveryCityCode;
+
+        let barangaysData;
+        try {
+          barangaysData = await barangays(baseCode);
+        } catch (firstError) {
+          if (selectedCity && deliveryProvinceCode) {
+            const combinedCode = `${deliveryProvinceCode}${baseCode}`;
+            try {
+              barangaysData = await barangays(combinedCode);
+            } catch (secondError) {
+              const alternateCode =
+                selectedCity.city_code ||
+                selectedCity.municipality_code ||
+                selectedCity.code;
+              barangaysData = await barangays(alternateCode);
+            }
+          } else {
+            throw firstError;
+          }
+        }
+
+        let formattedBarangays = [];
+        if (Array.isArray(barangaysData)) {
+          formattedBarangays = barangaysData;
+        } else if (barangaysData && typeof barangaysData === "object") {
+          formattedBarangays =
+            barangaysData.data ||
+            barangaysData.barangays ||
+            Object.values(barangaysData).find(Array.isArray) ||
+            [];
+        }
+
+        setDeliveryBarangayList(formattedBarangays);
+      } catch (error) {
+        console.error("Failed to load barangays:", error);
+        setDeliveryBarangayList([]);
+      } finally {
+        setDeliveryAddressLoading(false);
+      }
+    };
+
+    loadBarangays();
+  }, [deliveryCityCode, deliveryCityList, deliveryProvinceCode]);
+
+  useEffect(() => {
+    if (!isDeliveryOrder) {
+      return;
+    }
+
+    const trimmedStreet = deliveryStreetAddress.trim();
+    const barangay =
+      deliveryBarangayCode &&
+      deliveryBarangayList.find(
+        (b) =>
+          b.code === deliveryBarangayCode ||
+          b.barangay_code === deliveryBarangayCode ||
+          b.brgy_code === deliveryBarangayCode ||
+          String(b.code) === String(deliveryBarangayCode) ||
+          String(b.barangay_code) === String(deliveryBarangayCode) ||
+          String(b.brgy_code) === String(deliveryBarangayCode)
+      );
+    const city =
+      deliveryCityCode &&
+      deliveryCityList.find(
+        (c) =>
+          c.code === deliveryCityCode ||
+          c.city_code === deliveryCityCode ||
+          c.municipality_code === deliveryCityCode ||
+          String(c.code) === String(deliveryCityCode) ||
+          String(c.city_code) === String(deliveryCityCode) ||
+          String(c.municipality_code) === String(deliveryCityCode)
+      );
+
+    const parts = [];
+    if (trimmedStreet) {
+      parts.push(trimmedStreet);
+    }
+    if (barangay) {
+      parts.push(
+        barangay.name ||
+          barangay.barangay_name ||
+          barangay.brgy_name ||
+          "Barangay"
+      );
+    }
+    if (city) {
+      parts.push(city.name || city.city_name || city.municipality_name);
+    }
+    if (deliveryProvinceCode) {
+      parts.push("Marinduque");
+    }
+    if (deliveryRegionCode) {
+      parts.push("MIMAROPA");
+    }
+
+    const canBuild = Boolean(trimmedStreet && barangay && city);
+    const newAddress = canBuild ? parts.join(", ") : "";
+
+    let addressChanged = false;
+    setOrderForm((prev) => {
+      if (prev.delivery_address === newAddress) {
+        return prev;
+      }
+      addressChanged = true;
+      return {
+        ...prev,
+        delivery_address: newAddress,
+        delivery_distance_km: 0,
+        delivery_fee: 0,
+        delivery_coordinates: null,
+      };
+    });
+
+    if (addressChanged) {
+      setDeliveryFeeStatus((prev) => ({ ...prev, error: "" }));
+    }
+  }, [
+    deliveryStreetAddress,
+    deliveryBarangayCode,
+    deliveryCityCode,
+    deliveryProvinceCode,
+    deliveryRegionCode,
+    deliveryCityList,
+    deliveryBarangayList,
+    isDeliveryOrder,
+  ]);
 
   const handleOrderTypeChange = (value) => {
     setOrderForm((prev) => ({
@@ -154,9 +356,19 @@ const Pos = () => {
     if (value !== "delivery") {
       setDeliveryFeeStatus({ loading: false, error: "" });
       setShowDeliveryModal(false);
+      resetDeliveryAddressFields();
     } else {
       setShowDeliveryModal(true);
     }
+  };
+
+  const handleDeliveryCityChange = (value) => {
+    setDeliveryCityCode(value);
+    setDeliveryBarangayCode("");
+  };
+
+  const handleDeliveryBarangayChange = (value) => {
+    setDeliveryBarangayCode(value);
   };
 
   const ensureDeliveryDetails = () => {
@@ -178,8 +390,12 @@ const Pos = () => {
 
   const handleDeliveryFeeCalculation = async () => {
     if (!isDeliveryOrder) return;
+    if (!isDeliveryAddressComplete) {
+      toast.error("Please complete the delivery address first");
+      return;
+    }
     if (!orderForm.delivery_address?.trim()) {
-      toast.error("Please enter the delivery address first");
+      toast.error("Please complete the delivery address first");
       return;
     }
 
@@ -618,6 +834,8 @@ const Pos = () => {
     setCashAmount("");
     setShowCashPayment(false);
     setDeliveryFeeStatus({ loading: false, error: "" });
+    resetDeliveryAddressFields();
+    setShowDeliveryModal(false);
   };
 
   // Print receipt function
@@ -1012,12 +1230,15 @@ const Pos = () => {
               >
                 <div className="text-left">
                   <div>Delivery Details</div>
-                  <div className="text-xs text-[#1f1f1f]/80">
+                  <div className="text-xs text-[#1f1f1f]/80 truncate">
+                    {deliveryAddressPreview}
+                  </div>
+                  <div className="text-[11px] text-[#1f1f1f]/70 mt-0.5">
                     {hasDeliveryQuote
                       ? `${deliveryDistanceKm.toFixed(2)} km • ${formatCurrency(
                           deliveryFee
                         )}`
-                      : "Tap to add phone, address, and fee"}
+                      : "Tap to add phone, address, and compute fee"}
                   </div>
                 </div>
                 <Search size={20} />
@@ -1413,37 +1634,160 @@ const Pos = () => {
                   placeholder="09XX XXX XXXX"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-[#ababab] mb-2">
-                  Delivery Address <span className="text-red-400">*</span>
+              <div className="space-y-4">
+                <label className="block text-sm font-semibold text-[#ababab]">
+                  Delivery Address (Marinduque Province){" "}
+                  <span className="text-red-400">*</span>
                 </label>
-                <textarea
-                  value={orderForm.delivery_address}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setOrderForm((prev) => ({
-                      ...prev,
-                      delivery_address: value,
-                      delivery_distance_km: 0,
-                      delivery_fee: 0,
-                      delivery_coordinates: null,
-                    }));
-                    setDeliveryFeeStatus((prev) => ({
-                      ...prev,
-                      error: "",
-                    }));
-                  }}
-                  rows={4}
-                  className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation resize-none"
-                  placeholder="Street, Barangay, City"
-                />
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3">
+                <div>
+                  <label className="block text-xs text-[#ababab] mb-1">
+                    Street / Lot / House No.
+                  </label>
+                  <input
+                    type="text"
+                    value={deliveryStreetAddress}
+                    onChange={(e) => setDeliveryStreetAddress(e.target.value)}
+                    placeholder="e.g. 123 Main St."
+                    className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-[#ababab] mb-1">
+                    City / Municipality
+                  </label>
+                  <select
+                    value={deliveryCityCode}
+                    onChange={(e) => handleDeliveryCityChange(e.target.value)}
+                    disabled={
+                      deliveryAddressLoading || deliveryCityList.length === 0
+                    }
+                    className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">Select City / Municipality</option>
+                    {deliveryCityList.map((city) => {
+                      const cityCodeValue =
+                        city.code || city.city_code || city.municipality_code;
+                      const cityName =
+                        city.name ||
+                        city.city_name ||
+                        city.municipality_name ||
+                        "City";
+                      return (
+                        <option
+                          key={cityCodeValue || cityName}
+                          value={cityCodeValue}
+                          className="bg-[#1f1f1f]"
+                        >
+                          {cityName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#ababab] mb-1">
+                    Barangay
+                  </label>
+                  <select
+                    value={deliveryBarangayCode}
+                    onChange={(e) =>
+                      handleDeliveryBarangayChange(e.target.value)
+                    }
+                    disabled={deliveryAddressLoading || !deliveryCityCode}
+                    className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {!deliveryCityCode
+                        ? "Select city first"
+                        : deliveryAddressLoading
+                        ? "Loading barangays..."
+                        : deliveryBarangayList.length === 0
+                        ? "No barangays available"
+                        : "Select Barangay"}
+                    </option>
+                    {deliveryBarangayList.map((barangay, index) => {
+                      const barangayCodeValue =
+                        barangay.code ||
+                        barangay.barangay_code ||
+                        barangay.brgy_code ||
+                        `brgy_${index}`;
+                      const barangayName =
+                        barangay.name ||
+                        barangay.barangay_name ||
+                        barangay.brgy_name ||
+                        `Barangay ${index + 1}`;
+                      return (
+                        <option
+                          key={barangayCodeValue || `brgy_${index}`}
+                          value={barangayCodeValue}
+                          className="bg-[#1f1f1f]"
+                        >
+                          {barangayName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                  {deliveryCityCode &&
+                    deliveryBarangayList.length === 0 &&
+                    !deliveryAddressLoading && (
+                      <p className="text-xs text-yellow-400 mt-1">
+                        No barangays found for this city. Please double-check
+                        the selection.
+                      </p>
+                    )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-[#ababab] mb-1">
+                      Province
+                    </label>
+                    <input
+                      type="text"
+                      value="Marinduque"
+                      disabled
+                      className="w-full px-4 py-3 bg-[#181818]/60 border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5]/70 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-[#ababab] mb-1">
+                      Region
+                    </label>
+                    <input
+                      type="text"
+                      value="MIMAROPA"
+                      disabled
+                      className="w-full px-4 py-3 bg-[#181818]/60 border-2 border-[#353535] rounded-xl text-base text-[#f5f5f5]/70 cursor-not-allowed"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#ababab] mb-1">
+                    Address Preview
+                  </label>
+                  <div className="w-full px-4 py-3 bg-[#1b1b1b] border-2 border-[#353535] rounded-xl text-sm text-[#f5f5f5] min-h-[52px] flex items-center">
+                    {deliveryAddressPreview}
+                  </div>
+                  {!isDeliveryAddressComplete && (
+                    <p className="text-xs text-yellow-400 mt-1">
+                      Fill in street, city, and barangay to complete the
+                      address.
+                    </p>
+                  )}
+                </div>
+                {deliveryAddressLoading && (
+                  <p className="text-xs text-[#ababab]">
+                    Loading address data…
+                  </p>
+                )}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                   <button
                     type="button"
                     onClick={handleDeliveryFeeCalculation}
-                    disabled={deliveryFeeStatus.loading}
+                    disabled={
+                      deliveryFeeStatus.loading || !isDeliveryAddressComplete
+                    }
                     className={`px-4 py-2 rounded-lg font-semibold text-sm shadow-lg flex items-center justify-center gap-2 touch-manipulation ${
-                      deliveryFeeStatus.loading
+                      deliveryFeeStatus.loading || !isDeliveryAddressComplete
                         ? "bg-gray-600 text-gray-300 cursor-not-allowed"
                         : "bg-[#4ec57a] text-[#1f1f1f] hover:bg-[#46ac6b]"
                     }`}
@@ -1473,16 +1817,25 @@ const Pos = () => {
               </div>
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
-                  onClick={() => setShowDeliveryModal(false)}
+                  onClick={() => {
+                    if (!orderForm.customer_phone?.trim()) {
+                      toast.error("Please enter the customer's phone number");
+                      return;
+                    }
+                    if (!isDeliveryAddressComplete) {
+                      toast.error(
+                        "Please complete the delivery address fields"
+                      );
+                      return;
+                    }
+                    setShowDeliveryModal(false);
+                  }}
                   className="flex-1 px-6 py-4 rounded-xl font-bold text-lg shadow-lg touch-manipulation bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000]"
                 >
                   Save & Close
                 </button>
                 <button
-                  onClick={() => {
-                    setShowDeliveryModal(false);
-                    setDeliveryFeeStatus({ loading: false, error: "" });
-                  }}
+                  onClick={() => setShowDeliveryModal(false)}
                   className="flex-1 px-6 py-4 rounded-xl font-bold text-lg shadow-lg touch-manipulation bg-[#353535] text-[#f5f5f5] hover:bg-[#454545] border-2 border-[#383838]"
                 >
                   Cancel
