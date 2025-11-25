@@ -10,6 +10,8 @@ const AdminUsers = () => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [resendCooldowns, setResendCooldowns] = useState({});
+  const [resendLoadingEmail, setResendLoadingEmail] = useState(null);
 
   const authHeaders = useMemo(() => {
     const token = localStorage.getItem("token");
@@ -18,6 +20,24 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setResendCooldowns((prev) => {
+        let hasChanges = false;
+        const next = {};
+        Object.entries(prev).forEach(([email, value]) => {
+          if (value > 0) {
+            hasChanges = true;
+            next[email] = value - 1;
+          }
+        });
+        return hasChanges ? next : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const fetchUsers = async () => {
@@ -55,6 +75,46 @@ const AdminUsers = () => {
   const roleColors = {
     Admin: "bg-purple-600 text-white",
     Staff: "bg-blue-600 text-white",
+  };
+
+  const handleResendVerification = async (email) => {
+    if (!email) {
+      toast.error("Missing email for verification.");
+      return;
+    }
+
+    if (resendCooldowns[email]) {
+      return;
+    }
+
+    try {
+      setResendLoadingEmail(email);
+      const response = await fetch(`${API_BASE}/auth/resend-verification`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders,
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || "Failed to resend verification code");
+      }
+
+      toast.success("Verification code sent.");
+      setResendCooldowns((prev) => ({
+        ...prev,
+        [email]: 60,
+      }));
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      toast.error(error.message || "Failed to resend verification email");
+    } finally {
+      setResendLoadingEmail(null);
+    }
   };
 
   return (
@@ -109,6 +169,9 @@ const AdminUsers = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       Created At
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Verification
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#383838]">
@@ -143,6 +206,34 @@ const AdminUsers = () => {
                         <div className="text-sm text-[#cccccc]">
                           {formatDate(user.createdAt)}
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {user.isVerified ? (
+                          <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-600 text-white">
+                            Verified
+                          </span>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <span className="px-2 py-1 text-xs font-semibold rounded-full bg-yellow-600 text-white">
+                              Pending
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleResendVerification(user.email)}
+                              disabled={
+                                resendLoadingEmail === user.email ||
+                                (resendCooldowns[user.email] ?? 0) > 0
+                              }
+                              className="text-xs border border-[#f6b100]/60 text-[#f6b100] rounded-md px-3 py-1 hover:bg-[#f6b100]/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {resendLoadingEmail === user.email
+                                ? "Sending..."
+                                : (resendCooldowns[user.email] ?? 0) > 0
+                                ? `Resend in ${resendCooldowns[user.email]}s`
+                                : "Resend Code"}
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
