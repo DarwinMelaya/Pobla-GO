@@ -25,6 +25,7 @@ const SignUp = () => {
     address: "",
     password: "",
     confirmPassword: "",
+    role: "Staff", // Default to Staff
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isVerificationStep, setIsVerificationStep] = useState(false);
@@ -230,9 +231,16 @@ const SignUp = () => {
       !cityCode ||
       !barangayCode ||
       !formData.password ||
-      !formData.confirmPassword
+      !formData.confirmPassword ||
+      !formData.role
     ) {
-      toast.error("Please fill in all fields including complete address");
+      toast.error("Please fill in all fields including complete address and role");
+      return;
+    }
+
+    // Validate role
+    if (formData.role !== "Admin" && formData.role !== "Staff") {
+      toast.error("Please select a valid role (Admin or Staff)");
       return;
     }
 
@@ -363,6 +371,7 @@ const SignUp = () => {
           address: "",
           password: "",
           confirmPassword: "",
+          role: "Staff",
         });
         setStreetAddress("");
         setCityCode("");
@@ -548,6 +557,26 @@ const SignUp = () => {
                   className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white placeholder-white/70 focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
                   required
                 />
+              </div>
+
+              {/* Role Selection */}
+              <div>
+                <label className="block text-sm font-medium text-white/90 mb-2">
+                  Role <span className="text-red-400">*</span>
+                </label>
+                <select
+                  name="role"
+                  value={formData.role}
+                  onChange={handleChange}
+                  className="w-full px-4 py-3 bg-white/20 backdrop-blur-sm border border-white/30 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-[#bf595a] focus:border-transparent transition-all duration-200"
+                  required
+                >
+                  <option value="Staff" className="bg-[#1f1f1f]">Staff</option>
+                  <option value="Admin" className="bg-[#1f1f1f]">Admin</option>
+                </select>
+                <p className="text-xs text-white/70 mt-1">
+                  Select your role for account access
+                </p>
               </div>
 
               {/* Address Section - Marinduque Only */}

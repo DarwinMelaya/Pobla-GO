@@ -783,7 +783,23 @@ const AdminPurchaseOrders = () => {
                       key={index}
                       className="bg-[#181818] p-4 rounded-lg border border-[#383838] mb-4"
                     >
-                      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <div className="flex-1">
+                          <h4 className="text-sm font-medium text-[#cccccc]">
+                            Item {index + 1}
+                          </h4>
+                        </div>
+                        {formData.items.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => removeItem(index)}
+                            className="bg-red-700 hover:bg-red-800 text-white px-3 py-2 rounded-md text-sm font-bold whitespace-nowrap"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                         <div>
                           <label className="block text-[#cccccc] text-sm mb-1">
                             Raw Material <span className="text-red-400">*</span>
@@ -907,24 +923,13 @@ const AdminPurchaseOrders = () => {
                           />
                         </div>
 
-                        <div className="flex items-end">
-                          <div className="flex-1">
-                            <label className="block text-[#cccccc] text-sm mb-1">
-                              Total Price
-                            </label>
-                            <div className="px-3 py-2 bg-[#232323] border border-[#383838] rounded-md text-[#f6b100] font-bold">
-                              ₱{(item.total_price || 0).toFixed(2)}
-                            </div>
+                        <div>
+                          <label className="block text-[#cccccc] text-sm mb-1">
+                            Total Price
+                          </label>
+                          <div className="px-3 py-2 bg-[#232323] border border-[#383838] rounded-md text-[#f6b100] font-bold">
+                            ₱{(item.total_price || 0).toFixed(2)}
                           </div>
-                          {formData.items.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => removeItem(index)}
-                              className="ml-2 bg-red-700 hover:bg-red-800 text-white px-3 py-2 rounded-md text-sm font-bold"
-                            >
-                              Remove
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>

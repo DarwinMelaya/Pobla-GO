@@ -115,38 +115,23 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    const authHeader = req.headers.authorization;
-    let assignedRole = "Customer";
-
-    if (role && role !== "Customer") {
-      if (!authHeader) {
-        return res.status(403).json({
-          success: false,
-          message: "Admin authorization required to assign this role",
-        });
-      }
-      try {
-        const token = authHeader.split(" ")[1];
-        const decoded = jwt.verify(
-          token,
-          process.env.JWT_SECRET || "yourSecretKey"
-        );
-        const requestingUser = await User.findById(decoded.userId);
-
-        if (!requestingUser || requestingUser.role !== "Admin") {
-          return res.status(403).json({
-            success: false,
-            message: "Only admins can create staff accounts",
-          });
-        }
-
-        assignedRole = role;
-      } catch (error) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid or expired token",
-        });
-      }
+    // Validate and assign role
+    let assignedRole = "Staff"; // Default to Staff
+    
+    // Allow direct signup as Admin or Staff (removed Customer role)
+    if (role && (role === "Admin" || role === "Staff")) {
+      assignedRole = role;
+    } else if (role && role === "Customer") {
+      // Customer role is no longer allowed
+      return res.status(400).json({
+        success: false,
+        message: "Customer role is no longer available. Please select Admin or Staff.",
+      });
+    }
+    
+    // If no role provided, default to Staff
+    if (!role) {
+      assignedRole = "Staff";
     }
 
     // Check if user already exists
