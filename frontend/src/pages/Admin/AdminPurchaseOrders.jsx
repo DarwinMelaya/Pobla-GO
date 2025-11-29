@@ -117,10 +117,43 @@ const AdminPurchaseOrders = () => {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    
+    // If supplier changed, clear items' raw material selections that don't match the new supplier
+    if (name === "supplier") {
+      const selectedSupplier = suppliers.find((s) => s._id === value);
+      const supplierCompanyName = selectedSupplier?.company_name || "";
+      
+      setFormData((prev) => {
+        const updatedItems = prev.items.map((item) => {
+          // If item has a raw material selected, check if it belongs to the new supplier
+          if (item.raw_material) {
+            const material = rawMaterials.find((m) => m._id === item.raw_material);
+            // If material doesn't match the new supplier, clear it
+            if (material && material.supplier !== supplierCompanyName) {
+              return {
+                ...item,
+                raw_material: "",
+                unit_conversion: "",
+                unit_price: 0,
+                total_price: 0,
+              };
+            }
+          }
+          return item;
+        });
+        
+        return {
+          ...prev,
+          [name]: value,
+          items: updatedItems,
+        };
+      });
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
 
   const handleItemChange = (index, field, value) => {
@@ -430,6 +463,23 @@ const AdminPurchaseOrders = () => {
     );
   };
 
+  // Filter raw materials based on selected supplier
+  const getFilteredRawMaterials = () => {
+    if (!formData.supplier) {
+      return rawMaterials; // Show all if no supplier selected
+    }
+    
+    const selectedSupplier = suppliers.find((s) => s._id === formData.supplier);
+    if (!selectedSupplier) {
+      return rawMaterials;
+    }
+    
+    // Filter raw materials where supplier matches the selected supplier's company name
+    return rawMaterials.filter(
+      (material) => material.supplier === selectedSupplier.company_name
+    );
+  };
+
   return (
     <Layout>
       <div className="min-h-screen bg-[#1a1a1a] p-6">
@@ -713,11 +763,20 @@ const AdminPurchaseOrders = () => {
                     <button
                       type="button"
                       onClick={addItem}
-                      className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md text-sm font-bold"
+                      disabled={!formData.supplier || getFilteredRawMaterials().length === 0}
+                      className="bg-[#f6b100] hover:bg-[#dab000] text-[#232323] px-4 py-2 rounded-md text-sm font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Add Item
                     </button>
                   </div>
+                  
+                  {formData.supplier && getFilteredRawMaterials().length === 0 && (
+                    <div className="mb-4 p-3 bg-yellow-900/30 border border-yellow-700/50 rounded-md">
+                      <p className="text-sm text-yellow-400">
+                        ⚠️ No raw materials available for the selected supplier. Please select a different supplier or add raw materials for this supplier first.
+                      </p>
+                    </div>
+                  )}
 
                   {formData.items.map((item, index) => (
                     <div
@@ -739,10 +798,17 @@ const AdminPurchaseOrders = () => {
                               )
                             }
                             required
-                            className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5]"
+                            disabled={!formData.supplier}
+                            className="w-full px-3 py-2 border border-[#383838] rounded-md focus:outline-none focus:ring-2 focus:ring-[#f6b100] bg-[#232323] text-[#f5f5f5] disabled:opacity-50 disabled:cursor-not-allowed"
                           >
-                            <option value="">Select Material</option>
-                            {rawMaterials.map((material) => (
+                            <option value="">
+                              {!formData.supplier
+                                ? "Select Supplier First"
+                                : getFilteredRawMaterials().length === 0
+                                ? "No materials available for this supplier"
+                                : "Select Material"}
+                            </option>
+                            {getFilteredRawMaterials().map((material) => (
                               <option key={material._id} value={material._id}>
                                 {material.name} ({material.unit})
                               </option>
