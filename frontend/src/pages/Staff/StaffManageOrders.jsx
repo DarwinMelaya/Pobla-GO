@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import Layout from "../../components/Layout/Layout";
 import AddOrders from "../../components/Modals/Admin/AddOrders";
 import StaffPerformanceModal from "../../components/Modals/Admin/StaffPerformanceModal";
-import TableStatusModal from "../../components/Modals/Admin/TableStatusModal";
 import toast from "react-hot-toast";
 import {
   Search,
@@ -14,7 +13,6 @@ import {
   DollarSign,
   Calendar,
   User,
-  Table,
   RefreshCw,
   MoreVertical,
   Edit,
@@ -28,7 +26,6 @@ const StaffManageOrders = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [tableFilter, setTableFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -39,7 +36,6 @@ const StaffManageOrders = () => {
   const [showAddOrderModal, setShowAddOrderModal] = useState(false);
   const [showStaffPerformanceModal, setShowStaffPerformanceModal] =
     useState(false);
-  const [showTableStatusModal, setShowTableStatusModal] = useState(false);
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [menuItems, setMenuItems] = useState([]);
@@ -69,7 +65,6 @@ const StaffManageOrders = () => {
 
       if (searchTerm) queryParams.append("search", searchTerm);
       if (statusFilter) queryParams.append("status", statusFilter);
-      if (tableFilter) queryParams.append("table_number", tableFilter);
       if (dateFrom) queryParams.append("date_from", dateFrom);
       if (dateTo) queryParams.append("date_to", dateTo);
       queryParams.append("page", currentPage);
@@ -134,22 +129,13 @@ const StaffManageOrders = () => {
     try {
       const token = getAuthToken();
 
-      // First try to get all menu items to see what's available
-      let response;
-      try {
-        response = await fetch(`${API_BASE}/menu`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
-      } catch (authError) {
-        response = await fetch(`${API_BASE}/menu`, {
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-      }
+      // Fetch available menu items with servings
+      const response = await fetch(`${API_BASE}/menu?available_only=true`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -159,38 +145,26 @@ const StaffManageOrders = () => {
 
       const data = await response.json();
 
-      // Handle different response formats
+      // Handle response format from new /menu endpoint
       let menuItemsArray = [];
-      if (Array.isArray(data)) {
-        menuItemsArray = data;
-      } else if (data && Array.isArray(data.items)) {
+      if (data.success && Array.isArray(data.items)) {
         menuItemsArray = data.items;
-      } else if (data && Array.isArray(data.menuItems)) {
-        menuItemsArray = data.menuItems;
+      } else if (Array.isArray(data)) {
+        menuItemsArray = data;
       } else {
         console.error("Unexpected data format:", data);
         menuItemsArray = [];
       }
 
-      // Filter for available items
-      const availableItems = menuItemsArray.filter(
-        (item) => item.is_available === true
-      );
+      // Items are already filtered by availability from backend
+      // Each item has: _id, name, price, servings, availableServings, is_available, stock_status
+      console.log(`✅ Loaded ${menuItemsArray.length} available menu items`);
 
-      // Test if items have the expected structure
-      if (availableItems.length > 0) {
-        // verified item structure
-      }
-
-      // Force set some test data if no items found
-      if (availableItems.length === 0 && menuItemsArray.length > 0) {
-        setMenuItems(menuItemsArray);
-      } else {
-        setMenuItems(availableItems);
-      }
+      setMenuItems(menuItemsArray);
     } catch (error) {
       console.error("Error fetching menu items:", error);
       toast.error(`Failed to fetch menu items: ${error.message}`);
+      setMenuItems([]);
     } finally {
       setMenuItemsLoading(false);
     }
@@ -339,7 +313,6 @@ const StaffManageOrders = () => {
   const clearFilters = () => {
     setSearchTerm("");
     setStatusFilter("");
-    setTableFilter("");
     setDateFrom("");
     setDateTo("");
     setCurrentPage(1);
@@ -371,70 +344,7 @@ const StaffManageOrders = () => {
 
   // Open add order modal (now opens POS in new tab)
   const openAddOrderModal = () => {
-    window.open('/pos', '_blank');
-  };
-
-  // Create test menu data
-  const createTestMenuData = async () => {
-    try {
-      const token = getAuthToken();
-      const response = await fetch(`${API_BASE}/menu/test-data`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to create test data");
-      }
-
-      const data = await response.json();
-      toast.success(data.message);
-      fetchMenuItems();
-    } catch (error) {
-      console.error("Error creating test data:", error);
-      toast.error("Failed to create test data");
-    }
-  };
-
-  // Debug database connection
-  const debugDatabase = async () => {
-    try {
-      const response = await fetch(`${API_BASE}/menu/debug`);
-      const data = await response.json();
-      toast.success(
-        `Debug: ${data.totalItems} total, ${data.availableItems} available`
-      );
-    } catch (error) {
-      console.error("Debug error:", error);
-      toast.error("Debug failed");
-    }
-  };
-
-  // Force test data for debugging
-  const forceTestData = () => {
-    const testItems = [
-      {
-        _id: "test1",
-        name: "Test Burger",
-        category: "Main Course",
-        price: 12.99,
-        description: "A test burger",
-        is_available: true,
-      },
-      {
-        _id: "test2",
-        name: "Test Pizza",
-        category: "Main Course",
-        price: 15.99,
-        description: "A test pizza",
-        is_available: true,
-      },
-    ];
-    setMenuItems(testItems);
-    toast.success("Hardcoded test data set");
+    window.open("/pos", "_blank");
   };
 
   useEffect(() => {
@@ -444,13 +354,13 @@ const StaffManageOrders = () => {
 
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      if (searchTerm || statusFilter || tableFilter || dateFrom || dateTo) {
+      if (searchTerm || statusFilter || dateFrom || dateTo) {
         handleSearch();
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, statusFilter, tableFilter, dateFrom, dateTo]);
+  }, [searchTerm, statusFilter, dateFrom, dateTo]);
 
   // Debug useEffect for menuItems
   useEffect(() => {
@@ -471,13 +381,6 @@ const StaffManageOrders = () => {
             </p>
           </div>
           <div className="flex space-x-3">
-            <button
-              onClick={() => setShowTableStatusModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Table size={20} />
-              <span>Table Status</span>
-            </button>
             {/* <button
               onClick={() => setShowStaffPerformanceModal(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
@@ -620,19 +523,6 @@ const StaffManageOrders = () => {
 
             <div>
               <label className="block text-sm font-medium text-[#cccccc] mb-1">
-                Table Number
-              </label>
-              <input
-                type="text"
-                placeholder="Table #"
-                value={tableFilter}
-                onChange={(e) => setTableFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-[#383838] rounded-lg focus:ring-2 focus:ring-[#C05050] focus:border-transparent bg-[#181818] text-[#f5f5f5]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-[#cccccc] mb-1">
                 Date From
               </label>
               <input
@@ -691,9 +581,6 @@ const StaffManageOrders = () => {
                       Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
-                      Table
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
                       Status
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-[#f5f5f5] uppercase">
@@ -728,9 +615,6 @@ const StaffManageOrders = () => {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-[#f5f5f5]">
                           {order.customer_name}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-[#b5b5b5]">
-                          {order.table_number}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
@@ -881,14 +765,6 @@ const StaffManageOrders = () => {
                   </div>
                   <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
                     <label className="block text-xs font-medium text-[#cfcfcf]">
-                      Table
-                    </label>
-                    <p className="text-sm text-[#f5f5f5]">
-                      {selectedOrder.table_number}
-                    </p>
-                  </div>
-                  <div className="bg-[#121212] border border-[#2a2a2a] rounded-lg p-4">
-                    <label className="block text-xs font-medium text-[#cfcfcf]">
                       Total Amount
                     </label>
                     <p className="text-sm text-[#f6b100] font-bold">
@@ -988,21 +864,12 @@ const StaffManageOrders = () => {
           menuItems={menuItems}
           menuItemsLoading={menuItemsLoading}
           onFetchMenuItems={fetchMenuItems}
-          onCreateTestMenuData={createTestMenuData}
-          onDebugDatabase={debugDatabase}
-          onForceTestData={forceTestData}
         />
 
         {/* Staff Performance Modal */}
         <StaffPerformanceModal
           isOpen={showStaffPerformanceModal}
           onClose={() => setShowStaffPerformanceModal(false)}
-        />
-
-        {/* Table Status Modal */}
-        <TableStatusModal
-          isOpen={showTableStatusModal}
-          onClose={() => setShowTableStatusModal(false)}
         />
 
         {/* Delete Confirmation Modal */}
@@ -1043,12 +910,6 @@ const StaffManageOrders = () => {
                       <span className="text-sm text-[#cccccc]">Customer:</span>
                       <span className="text-sm font-medium text-[#f5f5f5]">
                         {orderToDelete.customer_name}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-sm text-[#cccccc]">Table:</span>
-                      <span className="text-sm font-medium text-[#f5f5f5]">
-                        {orderToDelete.table_number}
                       </span>
                     </div>
                     <div className="flex justify-between">

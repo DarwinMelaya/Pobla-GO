@@ -634,4 +634,59 @@ router.post("/:id/receive", verifyAdmin, async (req, res) => {
   }
 });
 
+// Cancel purchase order
+router.put("/:id/cancel", verifyAdmin, async (req, res) => {
+  try {
+    const purchaseOrder = await PurchaseOrder.findById(req.params.id);
+    if (!purchaseOrder) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Purchase order not found" });
+    }
+
+    // Cannot cancel if already cancelled or delivered
+    if (purchaseOrder.status === "Cancelled") {
+      return res.status(400).json({
+        success: false,
+        message: "Purchase order is already cancelled",
+      });
+    }
+
+    if (purchaseOrder.status === "Delivered") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot cancel a purchase order that has been delivered",
+      });
+    }
+
+    // Update status to Cancelled
+    purchaseOrder.status = "Cancelled";
+    await purchaseOrder.save();
+
+    // Populate the response
+    const populatedPO = await PurchaseOrder.findById(purchaseOrder._id)
+      .populate(
+        "supplier",
+        "company_name business_address contact_person contact_number"
+      )
+      .populate("items.raw_material", "name unit category unit_price")
+      .populate(
+        "items.unit_conversion",
+        "base_unit equivalent_unit quantity unit_price srp"
+      )
+      .populate("created_by", "username email")
+      .populate("approved_by", "username email");
+
+    res.json({
+      success: true,
+      message: "Purchase order cancelled successfully",
+      data: populatedPO,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
 module.exports = router;

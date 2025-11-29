@@ -11,6 +11,7 @@ const AdminPurchaseOrders = () => {
   const [showModal, setShowModal] = useState(false);
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [selectedPO, setSelectedPO] = useState(null);
   const [nextPONumber, setNextPONumber] = useState("");
   const [openDropdown, setOpenDropdown] = useState(null);
@@ -326,6 +327,46 @@ const AdminPurchaseOrders = () => {
     });
     setShowReceiveModal(true);
     setOpenDropdown(null);
+  };
+
+  const openCancelModal = (po) => {
+    setSelectedPO(po);
+    setShowCancelModal(true);
+    setOpenDropdown(null);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!selectedPO) return;
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("token");
+      const response = await fetch(
+        `http://localhost:5000/purchase-orders/${selectedPO._id}/cancel`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Purchase order cancelled successfully!");
+        setShowCancelModal(false);
+        setSelectedPO(null);
+        fetchPurchaseOrders();
+      } else {
+        toast.error(data.message || "Error cancelling purchase order");
+      }
+    } catch (error) {
+      console.error("Error cancelling purchase order:", error);
+      toast.error("Error cancelling purchase order");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleReceiveItemChange = (index, value) => {
@@ -677,6 +718,26 @@ const AdminPurchaseOrders = () => {
                                         </button>
                                       </>
                                     )}
+                                    {po.status !== "Cancelled" &&
+                                      po.status !== "Delivered" && (
+                                        <>
+                                          <div className="mx-4 my-1 border-t border-[#383838]" />
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              openCancelModal(po);
+                                            }}
+                                            className="w-full text-left px-5 py-3 text-sm text-red-400 hover:bg-[#383838] transition-colors duration-150 flex items-center gap-3 group whitespace-nowrap"
+                                          >
+                                            <span className="text-lg group-hover:scale-110 transition-transform">
+                                              ❌
+                                            </span>
+                                            <span className="font-medium">
+                                              Cancel Order
+                                            </span>
+                                          </button>
+                                        </>
+                                      )}
                                   </div>
                                 </div>
                               </>
@@ -1301,6 +1362,80 @@ const AdminPurchaseOrders = () => {
                     className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-4 py-2 rounded-md font-bold hover:bg-[#262626]"
                   >
                     Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Cancel Purchase Order Confirmation Modal */}
+        {showCancelModal && selectedPO && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto">
+            <div
+              className="absolute inset-0 bg-black/50"
+              onClick={() => setShowCancelModal(false)}
+            />
+            <div className="relative bg-[#232323] w-full max-w-md mx-4 my-8 rounded-lg border border-[#383838] shadow p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-[#f5f5f5]">
+                  Cancel Purchase Order
+                </h2>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  className="text-[#b5b5b5] hover:text-white"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">PO Number</div>
+                  <div className="text-lg text-[#f5f5f5] font-medium">
+                    {selectedPO.po_number}
+                  </div>
+                </div>
+
+                <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Supplier</div>
+                  <div className="text-lg text-[#f5f5f5] font-medium">
+                    {selectedPO.supplier?.company_name}
+                  </div>
+                </div>
+
+                <div className="bg-[#181818] p-4 rounded-lg border border-[#383838]">
+                  <div className="text-sm text-[#cccccc] mb-1">Current Status</div>
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-white text-sm ${getStatusColor(
+                      selectedPO.status
+                    )}`}
+                  >
+                    {selectedPO.status}
+                  </span>
+                </div>
+
+                <div className="bg-yellow-900/30 border border-yellow-700/50 rounded-lg p-4">
+                  <p className="text-sm text-yellow-400">
+                    ⚠️ Are you sure you want to cancel this purchase order? This action cannot be undone.
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(false)}
+                    className="flex items-center gap-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] px-4 py-2 rounded-md font-bold hover:bg-[#262626]"
+                  >
+                    No, Keep It
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelOrder}
+                    disabled={loading}
+                    className="flex items-center gap-2 bg-red-700 hover:bg-red-800 text-white px-4 py-2 rounded-md font-bold disabled:opacity-70"
+                  >
+                    {loading ? "Cancelling..." : "Yes, Cancel Order"}
                   </button>
                 </div>
               </div>
