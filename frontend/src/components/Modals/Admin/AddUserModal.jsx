@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import toast from "react-hot-toast";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
+// Use the same base URL + verification flow as the public SignUp page
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
   const [formData, setFormData] = useState({
@@ -82,18 +84,26 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
 
     try {
       setIsSubmitting(true);
-      const response = await fetch(`${API_BASE}/auth/signup`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
+
+      // Mirror the SignUp flow so that creating a staff user from admin
+      // also triggers the same verification behaviour.
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/signup`,
+        {
+          ...formData,
+          // Ensure role is explicitly set to Staff when created from this modal
+          role: "Staff",
         },
-        body: JSON.stringify(formData),
-      });
+        {
+          headers: {
+            ...authHeaders,
+          },
+        }
+      );
 
-      const data = await response.json();
+      const data = response?.data || {};
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data?.message || "Failed to add user");
       }
 
@@ -102,21 +112,25 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
       if (data?.needsVerification) {
         toast.success(
           data?.message ||
-            "Staff user created. Verification email has been sent."
+            "Staff user created! A verification email has been sent."
         );
         setEmailForVerification(userEmail);
         setIsVerificationStep(true);
         setVerificationCode("");
         setResendCooldown(60);
       } else {
-        toast.success("Staff user created successfully");
+        toast.success(
+          data?.message || "Staff user created successfully and verified."
+        );
         resetForm();
         onClose?.();
         onUserAdded?.();
       }
     } catch (error) {
       console.error("Error creating user:", error);
-      toast.error(error.message || "Error creating user");
+      const message =
+        error.response?.data?.message || error.message || "Error creating user";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -132,31 +146,37 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
 
     try {
       setIsVerifying(true);
-      const response = await fetch(`${API_BASE}/auth/verify-email`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify({
+
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/verify-email`,
+        {
           email: emailForVerification,
           code: verificationCode.trim(),
-        }),
-      });
+        },
+        {
+          headers: {
+            ...authHeaders,
+          },
+        }
+      );
 
-      const data = await response.json();
+      const data = response?.data || {};
 
-      if (!response.ok) {
+      if (!data.success) {
         throw new Error(data?.message || "Failed to verify email");
       }
 
-      toast.success("Email verified! User can now log in.");
+      toast.success(data?.message || "Email verified! User can now log in.");
       resetForm();
       onClose?.();
       onUserAdded?.();
     } catch (error) {
       console.error("Verification error:", error);
-      toast.error(error.message || "Failed to verify email");
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to verify email";
+      toast.error(message);
     } finally {
       setIsVerifying(false);
     }
@@ -174,26 +194,34 @@ const AddUserModal = ({ isOpen, onClose, onUserAdded }) => {
 
     try {
       setIsResending(true);
-      const response = await fetch(`${API_BASE}/auth/resend-verification`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify({ email: emailForVerification }),
-      });
 
-      const data = await response.json();
+      const response = await axios.post(
+        `${API_BASE_URL}/auth/resend-verification`,
+        { email: emailForVerification },
+        {
+          headers: {
+            ...authHeaders,
+          },
+        }
+      );
 
-      if (!response.ok) {
+      const data = response?.data || {};
+
+      if (!data.success) {
         throw new Error(data?.message || "Failed to resend code");
       }
 
-      toast.success("Verification code resent!");
+      toast.success(
+        data?.message || "Verification code resent! Check the inbox."
+      );
       setResendCooldown(60);
     } catch (error) {
       console.error("Resend code error:", error);
-      toast.error(error.message || "Failed to resend verification code");
+      const message =
+        error.response?.data?.message ||
+        error.message ||
+        "Failed to resend verification code";
+      toast.error(message);
     } finally {
       setIsResending(false);
     }

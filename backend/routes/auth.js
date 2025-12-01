@@ -309,7 +309,11 @@ router.post("/resend-verification", async (req, res) => {
 
     user.verificationCode = verificationCode;
     user.verificationCodeExpires = verificationCodeExpires;
-    await user.save();
+
+    // Some legacy users may be missing required fields like `address`.
+    // We still want to allow resending verification codes for them,
+    // so skip full schema validation on this save.
+    await user.save({ validateBeforeSave: false });
 
     try {
       const emailHtml = getVerificationEmailTemplate(user.name, verificationCode);

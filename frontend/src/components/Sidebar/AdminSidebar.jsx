@@ -25,6 +25,7 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
   const location = useLocation();
   const [isInventoryOpen, setIsInventoryOpen] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const navigationItems = [
     {
@@ -154,7 +155,7 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogoutConfirm = () => {
     // Clear localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("user");
@@ -169,126 +170,167 @@ const AdminSidebar = ({ onNavigate, isOpen = true, onClose }) => {
     if (typeof onNavigate === "function") onNavigate();
   };
 
-  return (
-    <div
-      className={`fixed lg:static inset-y-0 left-0 z-50 h-screen w-64 flex flex-col bg-[#1f1f1f] border-r border-[#383838] transform transition-transform duration-300 ease-in-out ${
-        isOpen ? "translate-x-0" : "-translate-x-full"
-      } lg:translate-x-0`}
-    >
-      {/* Logo - Fixed at top */}
-      <div className="px-6 py-4 border-b border-[#383838] flex-shrink-0">
-        <h1 className="text-xl font-semibold">
-          <span className="text-[#f5f5f5]">POBLA</span>
-          <span className="text-[#C05050]">GO</span>
-        </h1>
-      </div>
+  const handleLogoutClick = () => {
+    setIsLogoutModalOpen(true);
+  };
 
-      {/* Navigation Items - Scrollable */}
-      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
-        {navigationItems.map((item, index) => (
-          <div key={index}>
-            {/* Main Navigation Item */}
-            <div
-              onClick={() => {
-                if (item.hasDropdown) {
-                  if (item.text === "Inventory") {
-                    setIsInventoryOpen(!isInventoryOpen);
-                  } else if (item.text === "Reports") {
-                    setIsReportsOpen(!isReportsOpen);
+  const handleLogoutCancel = () => {
+    setIsLogoutModalOpen(false);
+  };
+
+  return (
+    <div className="fixed lg:static inset-y-0 left-0 z-50 h-screen w-64">
+      {/* Sidebar container with slide animation */}
+      <div
+        className={`h-full flex flex-col bg-[#1f1f1f] border-r border-[#383838] transform transition-transform duration-300 ease-in-out ${
+          isOpen ? "translate-x-0" : "-translate-x-full"
+        } lg:translate-x-0`}
+      >
+        {/* Logo - Fixed at top */}
+        <div className="px-6 py-4 border-b border-[#383838] flex-shrink-0">
+          <h1 className="text-xl font-semibold">
+            <span className="text-[#f5f5f5]">POBLA</span>
+            <span className="text-[#C05050]">GO</span>
+          </h1>
+        </div>
+
+        {/* Navigation Items - Scrollable */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+          {navigationItems.map((item, index) => (
+            <div key={index}>
+              {/* Main Navigation Item */}
+              <div
+                onClick={() => {
+                  if (item.hasDropdown) {
+                    if (item.text === "Inventory") {
+                      setIsInventoryOpen(!isInventoryOpen);
+                    } else if (item.text === "Reports") {
+                      setIsReportsOpen(!isReportsOpen);
+                    }
+                  } else {
+                    handleNavigation(item.path);
                   }
-                } else {
-                  handleNavigation(item.path);
-                }
-              }}
-              className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 relative ${
-                item.isActive
-                  ? "bg-[#232323] text-[#f5f5f5] font-medium"
-                  : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
-              }`}
-            >
-              <div className="flex items-center gap-3 min-w-0 flex-1">
-                <item.icon
-                  size={18}
-                  className={`flex-shrink-0 ${
-                    item.isActive
-                      ? "text-[#C05050]"
-                      : "text-[#ababab] group-hover:text-[#f5f5f5]"
-                  }`}
-                />
-                <span className="text-sm truncate">{item.text}</span>
+                }}
+                className={`group flex items-center justify-between gap-2 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 relative ${
+                  item.isActive
+                    ? "bg-[#232323] text-[#f5f5f5] font-medium"
+                    : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
+                }`}
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <item.icon
+                    size={18}
+                    className={`flex-shrink-0 ${
+                      item.isActive
+                        ? "text-[#C05050]"
+                        : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                    }`}
+                  />
+                  <span className="text-sm truncate">{item.text}</span>
+                </div>
+
+                {/* Dropdown Arrow */}
+                {item.hasDropdown && (
+                  <ChevronDown
+                    size={16}
+                    className={`flex-shrink-0 transition-transform duration-200 ${
+                      (item.text === "Inventory" && isInventoryOpen) ||
+                      (item.text === "Reports" && isReportsOpen)
+                        ? "rotate-180"
+                        : ""
+                    } ${
+                      item.isActive
+                        ? "text-[#C05050]"
+                        : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                    }`}
+                  />
+                )}
+
+                {/* Active indicator bar */}
+                {item.isActive && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#C05050] rounded-r-full"></div>
+                )}
               </div>
 
-              {/* Dropdown Arrow */}
-              {item.hasDropdown && (
-                <ChevronDown
-                  size={16}
-                  className={`flex-shrink-0 transition-transform duration-200 ${
-                    (item.text === "Inventory" && isInventoryOpen) ||
-                    (item.text === "Reports" && isReportsOpen)
-                      ? "rotate-180"
-                      : ""
-                  } ${
-                    item.isActive
-                      ? "text-[#C05050]"
-                      : "text-[#ababab] group-hover:text-[#f5f5f5]"
-                  }`}
-                />
-              )}
-
-              {/* Active indicator bar */}
-              {item.isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-[#C05050] rounded-r-full"></div>
-              )}
-            </div>
-
-            {/* Dropdown Sub-items */}
-            {item.hasDropdown &&
-              ((item.text === "Inventory" && isInventoryOpen) ||
-                (item.text === "Reports" && isReportsOpen)) && (
-                <div className="ml-7 mt-1 space-y-1 border-l border-[#383838] pl-3">
-                  {item.subItems.map((subItem, subIndex) => (
-                    <div
-                      key={subIndex}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleNavigation(subItem.path);
-                      }}
-                      className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
-                        subItem.isActive
-                          ? "bg-[#232323] text-[#f5f5f5] font-medium"
-                          : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
-                      }`}
-                    >
-                      <subItem.icon
-                        size={16}
-                        className={`flex-shrink-0 ${
+              {/* Dropdown Sub-items */}
+              {item.hasDropdown &&
+                ((item.text === "Inventory" && isInventoryOpen) ||
+                  (item.text === "Reports" && isReportsOpen)) && (
+                  <div className="ml-7 mt-1 space-y-1 border-l border-[#383838] pl-3">
+                    {item.subItems.map((subItem, subIndex) => (
+                      <div
+                        key={subIndex}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleNavigation(subItem.path);
+                        }}
+                        className={`group flex items-center gap-3 px-3 py-2 rounded-md cursor-pointer transition-all duration-200 ${
                           subItem.isActive
-                            ? "text-[#C05050]"
-                            : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                            ? "bg-[#232323] text-[#f5f5f5] font-medium"
+                            : "text-[#ababab] hover:bg-[#232323] hover:text-[#f5f5f5]"
                         }`}
-                      />
-                      <span className="text-sm truncate">{subItem.text}</span>
-                      {subItem.isActive && (
-                        <div className="ml-auto w-1 h-1 rounded-full bg-[#C05050]"></div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-          </div>
-        ))}
-      </nav>
+                      >
+                        <subItem.icon
+                          size={16}
+                          className={`flex-shrink-0 ${
+                            subItem.isActive
+                              ? "text-[#C05050]"
+                              : "text-[#ababab] group-hover:text-[#f5f5f5]"
+                          }`}
+                        />
+                        <span className="text-sm truncate">{subItem.text}</span>
+                        {subItem.isActive && (
+                          <div className="ml-auto w-1 h-1 rounded-full bg-[#C05050]"></div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+            </div>
+          ))}
+        </nav>
 
-      {/* Logout Button - Fixed at bottom */}
-      <div className="p-3 border-t border-[#383838] flex-shrink-0">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-md bg-[#C05050] text-[#f5f5f5] hover:bg-[#B04040] transition-colors duration-200 text-sm font-medium"
-        >
-          <LogOut size={18} />
-          <span>Log Out</span>
-        </button>
+        {/* Logout Button - Fixed at bottom */}
+        <div className="p-3 border-t border-[#383838] flex-shrink-0">
+          <button
+            onClick={handleLogoutClick}
+            className="flex items-center gap-3 w-full px-3 py-2 rounded-md bg-[#C05050] text-[#f5f5f5] hover:bg-[#B04040] transition-colors duration-200 text-sm font-medium"
+          >
+            <LogOut size={18} />
+            <span>Log Out</span>
+          </button>
+        </div>
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {isLogoutModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm rounded-2xl bg-[#1f1f1f] border border-[#383838] p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-[#f5f5f5] mb-2">
+              Confirm Logout
+            </h2>
+            <p className="text-sm text-[#b5b5b5] mb-6">
+              Are you sure you want to log out of your admin account?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={handleLogoutCancel}
+                className="px-4 py-2 rounded-md border border-[#383838] text-[#b5b5b5] hover:text-white hover:border-[#f5f5f5] transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleLogoutConfirm}
+                className="px-4 py-2 rounded-md bg-[#C05050] text-white hover:bg-[#B04040] transition-colors text-sm font-medium"
+              >
+                Log Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
