@@ -115,6 +115,7 @@ const Pos = () => {
   const [deliveryCityList, setDeliveryCityList] = useState([]);
   const [deliveryBarangayList, setDeliveryBarangayList] = useState([]);
   const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(false);
+  const [showConfirmOrderModal, setShowConfirmOrderModal] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
@@ -734,7 +735,7 @@ const Pos = () => {
         toast.error(
           "Please provide customer details and add at least one item"
         );
-        return;
+        return false;
       }
 
       // Validate discount ID number if discount is selected
@@ -744,7 +745,7 @@ const Pos = () => {
         !orderForm.discount_id_number?.trim()
       ) {
         toast.error("Please enter ID number for discount");
-        return;
+        return false;
       }
 
       // Validate cash payment if payment method is cash
@@ -752,11 +753,11 @@ const Pos = () => {
         toast.error(
           "Cash amount must be greater than or equal to total amount"
         );
-        return;
+        return false;
       }
 
       if (!ensureDeliveryDetails()) {
-        return;
+        return false;
       }
 
       setIsCreatingOrder(true);
@@ -798,7 +799,7 @@ const Pos = () => {
               ...errorData.reservation,
             });
           }
-          return;
+          return false;
         }
         throw new Error("Failed to create order");
       }
@@ -806,9 +807,11 @@ const Pos = () => {
       toast.success("Order created successfully");
       handleReset();
       fetchMenuItems(); // Refresh menu items after order creation
+      return true;
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order");
+      return false;
     } finally {
       setIsCreatingOrder(false);
     }
@@ -1254,8 +1257,7 @@ const Pos = () => {
               className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
             >
               <option value="cash">Cash</option>
-              <option value="card">Card</option>
-              <option value="digital">Digital</option>
+              <option value="gcash">GCash</option>
             </select>
           </div>
 
@@ -1951,8 +1953,7 @@ const Pos = () => {
                   className="w-full px-4 py-3 bg-[#181818] border-2 border-[#353535] rounded-xl text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] touch-manipulation"
                 >
                   <option value="cash">Cash</option>
-                  <option value="card">Card</option>
-                  <option value="digital">Digital</option>
+                  <option value="gcash">GCash</option>
                 </select>
               </div>
 
@@ -2091,13 +2092,17 @@ const Pos = () => {
                       );
                       return;
                     }
-                    await createOrder();
-                    // If order was successful, items will be cleared by handleReset
-                    // Close modal after a short delay to allow state update
-                    setTimeout(() => {
-                      setShowPaymentModal(false);
-                      setCashAmount("");
-                    }, 500);
+                    if (!isDiscountValid()) {
+                      toast.error(
+                        "Please enter a valid ID number for discount"
+                      );
+                      return;
+                    }
+                    if (!isDeliveryInfoComplete) {
+                      toast.error("Please complete delivery details first");
+                      return;
+                    }
+                    setShowConfirmOrderModal(true);
                   }}
                   disabled={
                     isCreatingOrder ||
@@ -2167,6 +2172,52 @@ const Pos = () => {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Place Order Confirmation Modal */}
+      {showPaymentModal && showConfirmOrderModal && (
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/60">
+          <div className="w-full max-w-sm rounded-2xl bg-[#232323] border-2 border-[#383838] p-6 shadow-2xl">
+            <h2 className="text-xl font-bold text-[#f5f5f5] mb-2">
+              Confirm Order
+            </h2>
+            <p className="text-sm text-[#ababab] mb-4">
+              Are you sure you want to place this order for{" "}
+              <span className="font-semibold text-[#f6b100]">
+                {formatCurrency(calculateTotal())}
+              </span>
+              ?
+            </p>
+            <p className="text-xs text-[#777] mb-6">
+              Please make sure all items, discounts, payment, and delivery
+              details are correct before continuing.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowConfirmOrderModal(false)}
+                className="px-4 py-2 rounded-md border border-[#383838] text-[#b5b5b5] hover:text-white hover:border-[#f5f5f5] transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const success = await createOrder();
+                  if (success) {
+                    setShowConfirmOrderModal(false);
+                    setShowPaymentModal(false);
+                    setCashAmount("");
+                  }
+                }}
+                disabled={isCreatingOrder}
+                className="px-4 py-2 rounded-md bg-[#f6b100] text-[#1f1f1f] hover:bg-[#dab000] transition-colors text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isCreatingOrder ? "Placing..." : "Yes, Place Order"}
+              </button>
             </div>
           </div>
         </div>
