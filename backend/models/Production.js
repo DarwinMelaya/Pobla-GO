@@ -43,6 +43,34 @@ const productionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
     },
+    // Admin approval workflow fields
+    approval_status: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Approved", // existing data / admin-created are auto-approved
+    },
+    approval_action: {
+      type: String,
+      enum: ["Create", "Update", "Delete"],
+      default: "Create",
+    },
+    requested_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approved_by: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+    approval_notes: {
+      type: String,
+      trim: true,
+    },
+    // Track if inventory was already deducted for this production
+    inventory_deducted: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

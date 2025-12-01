@@ -209,7 +209,9 @@ router.get("/", verifyStaffOrAdmin, async (req, res) => {
 
     const productions = await Production.find(filter)
       .populate("menu_id", "name category description image")
-      .populate("created_by", "firstName lastName email")
+      .populate("created_by", "firstName lastName email role")
+      .populate("requested_by", "firstName lastName email role")
+      .populate("approved_by", "firstName lastName email role")
       .sort({ production_date: -1 });
 
     res.json({ success: true, data: productions });
@@ -225,7 +227,9 @@ router.get("/:id", verifyStaffOrAdmin, async (req, res) => {
   try {
     const production = await Production.findById(req.params.id)
       .populate("menu_id", "name category description image")
-      .populate("created_by", "firstName lastName email");
+      .populate("created_by", "firstName lastName email role")
+      .populate("requested_by", "firstName lastName email role")
+      .populate("approved_by", "firstName lastName email role");
 
     if (!production) {
       return res
@@ -261,20 +265,6 @@ router.post("/", verifyStaffOrAdmin, async (req, res) => {
         .json({ success: false, message: "Menu item not found" });
     }
 
-    // Deduct inventory for production (this will throw error if insufficient stock)
-    let inventoryDeductions;
-    try {
-      inventoryDeductions = await deductInventoryForProduction(
-        menu_id,
-        parseInt(quantity)
-      );
-    } catch (inventoryError) {
-      return res.status(400).json({
-        success: false,
-        message: inventoryError.message,
-      });
-    }
-
     // Get menu costing to calculate expected cost and SRP
     const costing = await MenuCosting.findOne({ menu_id });
     let expectedCost = 0;
@@ -283,6 +273,8 @@ router.post("/", verifyStaffOrAdmin, async (req, res) => {
       expectedCost = costing.production_cost_per_piece * quantity;
       srp = costing.srp || 0;
     }
+
+    const isAdmin = req.user.role === "Admin";
 
     const production = new Production({
       menu_id,
@@ -293,44 +285,78 @@ router.post("/", verifyStaffOrAdmin, async (req, res) => {
       srp: srp,
       notes: notes || "",
       created_by: req.user._id,
+      requested_by: !isAdmin ? req.user._id : undefined,
+      approval_status: isAdmin ? "Approved" : "Pending",
+      approval_action: "Create",
+      inventory_deducted: false,
     });
+
+    let inventoryDeductions = { deductions: [] };
+    let menuUpdateMessage = "";
+    let menuData = null;
+
+    // For admin-created productions, perform inventory deduction + menu update immediately
+    if (isAdmin) {
+      try {
+        inventoryDeductions = await deductInventoryForProduction(
+          menu_id,
+          parseInt(quantity)
+        );
+        production.inventory_deducted = true;
+      } catch (inventoryError) {
+        return res.status(400).json({
+          success: false,
+          message: inventoryError.message,
+        });
+      }
+
+      // If production status is "Completed", automatically add to Menu
+      if (production.status === "Completed") {
+        try {
+          console.log("🔄 Creating/Updating Menu from Production:");
+          console.log("  Production ID:", production._id);
+          console.log("  Menu Maintenance ID:", production.menu_id);
+          console.log("  Quantity:", production.quantity);
+
+          const updatedMenu = await Menu.createOrUpdateFromProduction(
+            production,
+            req.user._id
+          );
+
+          console.log("✅ Menu created/updated successfully:");
+          console.log("  Menu ID:", updatedMenu._id);
+          console.log("  Menu Name:", updatedMenu.name);
+          console.log("  Servings:", updatedMenu.servings);
+
+          menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
+          menuData = updatedMenu;
+        } catch (menuError) {
+          console.error("❌ Error updating menu:", menuError);
+          console.error("Error details:", menuError.message);
+          console.error("Stack:", menuError.stack);
+          menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
+        }
+      } else {
+        console.log(
+          `ℹ️ Production created with status: ${production.status} (Menu will be updated when status changes to "Completed")`
+        );
+      }
+    }
 
     await production.save();
 
     // Populate before sending response
     await production.populate("menu_id", "name category description image");
-    await production.populate("created_by", "firstName lastName email");
+    await production.populate("created_by", "firstName lastName email role");
+    await production.populate("requested_by", "firstName lastName email role");
+    await production.populate("approved_by", "firstName lastName email role");
 
-    // If production status is "Completed", automatically add to Menu
-    let menuUpdateMessage = "";
-    let menuData = null;
-    if (production.status === "Completed") {
-      try {
-        console.log("🔄 Creating/Updating Menu from Production:");
-        console.log("  Production ID:", production._id);
-        console.log("  Menu Maintenance ID:", production.menu_id);
-        console.log("  Quantity:", production.quantity);
-        
-        const updatedMenu = await Menu.createOrUpdateFromProduction(
-          production,
-          req.user._id
-        );
-        
-        console.log("✅ Menu created/updated successfully:");
-        console.log("  Menu ID:", updatedMenu._id);
-        console.log("  Menu Name:", updatedMenu.name);
-        console.log("  Servings:", updatedMenu.servings);
-        
-        menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
-        menuData = updatedMenu;
-      } catch (menuError) {
-        console.error("❌ Error updating menu:", menuError);
-        console.error("Error details:", menuError.message);
-        console.error("Stack:", menuError.stack);
-        menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
-      }
-    } else {
-      console.log(`ℹ️ Production created with status: ${production.status} (Menu will be updated when status changes to "Completed")`);
+    if (!isAdmin) {
+      return res.status(201).json({
+        success: true,
+        data: production,
+        message: "Production request created. Waiting for admin approval.",
+      });
     }
 
     res.status(201).json({
@@ -358,6 +384,7 @@ router.put("/:id", verifyStaffOrAdmin, async (req, res) => {
     }
 
     const oldStatus = production.status;
+    const isAdmin = req.user.role === "Admin";
     const { quantity, production_date, status, actual_cost, notes } = req.body;
 
     const fields = [
@@ -391,30 +418,45 @@ router.put("/:id", verifyStaffOrAdmin, async (req, res) => {
       }
     }
 
+    // For staff, mark update as pending approval
+    if (!isAdmin) {
+      production.approval_status = "Pending";
+      production.approval_action = "Update";
+      production.requested_by = req.user._id;
+      production.approved_by = undefined;
+      production.approval_notes = undefined;
+    }
+
     await production.save();
     await production.populate("menu_id", "name category description image");
-    await production.populate("created_by", "firstName lastName email");
+    await production.populate("created_by", "firstName lastName email role");
+    await production.populate("requested_by", "firstName lastName email role");
+    await production.populate("approved_by", "firstName lastName email role");
 
-    // If status changed to "Completed", automatically add to Menu
+    // If status changed to "Completed", automatically add to Menu (admin-only)
     let menuUpdateMessage = "";
     let menuData = null;
-    if (oldStatus !== "Completed" && production.status === "Completed") {
+    if (
+      isAdmin &&
+      oldStatus !== "Completed" &&
+      production.status === "Completed"
+    ) {
       try {
         console.log("🔄 Status changed to Completed - Creating/Updating Menu:");
         console.log("  Production ID:", production._id);
         console.log("  Menu Maintenance ID:", production.menu_id);
         console.log("  Quantity:", production.quantity);
-        
+
         const updatedMenu = await Menu.createOrUpdateFromProduction(
           production,
           req.user._id
         );
-        
+
         console.log("✅ Menu created/updated successfully:");
         console.log("  Menu ID:", updatedMenu._id);
         console.log("  Menu Name:", updatedMenu.name);
         console.log("  Servings:", updatedMenu.servings);
-        
+
         menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
         menuData = updatedMenu;
       } catch (menuError) {
@@ -422,6 +464,14 @@ router.put("/:id", verifyStaffOrAdmin, async (req, res) => {
         console.error("Error details:", menuError.message);
         menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
       }
+    }
+
+    if (!isAdmin) {
+      return res.json({
+        success: true,
+        data: production,
+        message: "Production update request sent. Waiting for admin approval.",
+      });
     }
 
     res.json({
@@ -445,6 +495,23 @@ router.delete("/:id", verifyStaffOrAdmin, async (req, res) => {
       return res
         .status(404)
         .json({ success: false, message: "Production not found" });
+    }
+
+    const isAdmin = req.user.role === "Admin";
+
+    // Staff delete becomes a delete request for admin approval
+    if (!isAdmin) {
+      production.approval_status = "Pending";
+      production.approval_action = "Delete";
+      production.requested_by = req.user._id;
+      production.approved_by = undefined;
+      production.approval_notes = undefined;
+      await production.save();
+      return res.json({
+        success: true,
+        data: production,
+        message: "Delete request sent. Waiting for admin approval.",
+      });
     }
 
     await Production.findByIdAndDelete(req.params.id);
@@ -483,6 +550,133 @@ router.get("/stats/summary", verifyStaffOrAdmin, async (req, res) => {
     res
       .status(500)
       .json({ success: false, message: "Server error", error: error.message });
+  }
+});
+
+// Admin approval endpoint for staff requests
+router.put("/:id/approve", verifyAdmin, async (req, res) => {
+  try {
+    const { decision, approval_notes } = req.body; // decision: "Approved" | "Rejected"
+
+    if (!decision || !["Approved", "Rejected"].includes(decision)) {
+      return res.status(400).json({
+        success: false,
+        message: 'decision is required and must be "Approved" or "Rejected"',
+      });
+    }
+
+    const production = await Production.findById(req.params.id);
+    if (!production) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Production not found" });
+    }
+
+    if (production.approval_status !== "Pending") {
+      return res.status(400).json({
+        success: false,
+        message: "This production is not pending approval.",
+      });
+    }
+
+    // Handle rejection
+    if (decision === "Rejected") {
+      production.approval_status = "Rejected";
+      production.approval_notes = approval_notes || "";
+      production.approved_by = req.user._id;
+      await production.save();
+      await production.populate("menu_id", "name category description image");
+      await production.populate("created_by", "firstName lastName email role");
+      await production.populate("requested_by", "firstName lastName email role");
+      await production.populate("approved_by", "firstName lastName email role");
+
+      return res.json({
+        success: true,
+        data: production,
+        message: "Production request rejected.",
+      });
+    }
+
+    // decision === "Approved"
+    let inventoryDeductions = { deductions: [] };
+    let menuUpdateMessage = "";
+    let menuData = null;
+
+    // For create/update actions that haven't deducted inventory yet, do it now
+    if (!production.inventory_deducted && production.approval_action !== "Delete") {
+      try {
+        inventoryDeductions = await deductInventoryForProduction(
+          production.menu_id,
+          production.quantity
+        );
+        production.inventory_deducted = true;
+      } catch (inventoryError) {
+        return res.status(400).json({
+          success: false,
+          message: inventoryError.message,
+        });
+      }
+    }
+
+    // For delete requests, actually delete on approval
+    if (production.approval_action === "Delete") {
+      await Production.findByIdAndDelete(production._id);
+      return res.json({
+        success: true,
+        message: "Production delete request approved and record deleted.",
+      });
+    }
+
+    // If status is "Completed", automatically add to Menu
+    if (production.status === "Completed") {
+      try {
+        console.log("🔄 Approve request - Creating/Updating Menu from Production:");
+        console.log("  Production ID:", production._id);
+        console.log("  Menu Maintenance ID:", production.menu_id);
+        console.log("  Quantity:", production.quantity);
+
+        const updatedMenu = await Menu.createOrUpdateFromProduction(
+          production,
+          req.user._id
+        );
+
+        console.log("✅ Menu created/updated successfully:");
+        console.log("  Menu ID:", updatedMenu._id);
+        console.log("  Menu Name:", updatedMenu.name);
+        console.log("  Servings:", updatedMenu.servings);
+
+        menuUpdateMessage = ` Menu updated: ${updatedMenu.name} now has ${updatedMenu.servings} servings available.`;
+        menuData = updatedMenu;
+      } catch (menuError) {
+        console.error("❌ Error updating menu:", menuError);
+        console.error("Error details:", menuError.message);
+        menuUpdateMessage = ` (Warning: Menu update failed - ${menuError.message})`;
+      }
+    }
+
+    production.approval_status = "Approved";
+    production.approval_notes = approval_notes || "";
+    production.approved_by = req.user._id;
+
+    await production.save();
+    await production.populate("menu_id", "name category description image");
+    await production.populate("created_by", "firstName lastName email role");
+    await production.populate("requested_by", "firstName lastName email role");
+    await production.populate("approved_by", "firstName lastName email role");
+
+    res.json({
+      success: true,
+      data: production,
+      menuData,
+      inventoryDeductions: inventoryDeductions.deductions,
+      message: `Production request approved.${menuUpdateMessage}`,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
   }
 });
 

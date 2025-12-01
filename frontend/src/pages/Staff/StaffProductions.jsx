@@ -269,12 +269,20 @@ const StaffProductions = () => {
         throw new Error(data?.message || "Failed to save production");
       }
 
-      // Show success message with inventory deduction details if available
-      if (
+      const approvalStatus = data?.data?.approval_status;
+
+      if (approvalStatus === "Pending") {
+        toast.success(
+          editingId
+            ? "Update request sent. Waiting for admin approval."
+            : "Production request created. Waiting for admin approval."
+        );
+      } else if (
         !editingId &&
         data.inventoryDeductions &&
         data.inventoryDeductions.length > 0
       ) {
+        // Should normally only happen for admin, but keep logic defensive
         const deductionSummary = data.inventoryDeductions
           .map((d) => `${d.materialName}: -${d.deducted.toFixed(2)} ${d.unit}`)
           .join(", ");
@@ -313,7 +321,12 @@ const StaffProductions = () => {
       if (!response.ok || data?.success === false) {
         throw new Error(data?.message || "Delete failed");
       }
-      toast.success("Production deleted");
+
+      if (data?.data?.approval_status === "Pending") {
+        toast.success("Delete request sent. Waiting for admin approval.");
+      } else {
+        toast.success("Production deleted");
+      }
       await fetchProductions();
       setIsDeleteOpen(false);
       setDeleteTarget(null);
@@ -437,6 +450,9 @@ const StaffProductions = () => {
                     <th className="px-6 py-3 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       SRP
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Approval
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       Actions
                     </th>
@@ -498,6 +514,21 @@ const StaffProductions = () => {
                       </td>
                       <td className="px-6 py-4 text-right text-[#f6b100] font-medium">
                         ₱{production.srp?.toFixed(2) || "0.00"}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                            production.approval_status === "Pending"
+                              ? "bg-yellow-600 text-white"
+                              : production.approval_status === "Rejected"
+                              ? "bg-red-700 text-white"
+                              : "bg-green-700 text-white"
+                          }`}
+                        >
+                          {production.approval_status === "Pending"
+                            ? "For Approval"
+                            : production.approval_status || "Approved"}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">

@@ -12,6 +12,7 @@ import {
   ChefHat,
   TrendingUp,
   Eye,
+  Check,
 } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE || "http://localhost:5000";
@@ -32,6 +33,7 @@ const AdminProductions = () => {
   const [recipeDetails, setRecipeDetails] = useState(null);
   const [costingDetails, setCostingDetails] = useState(null);
   const [filterStatus, setFilterStatus] = useState("");
+  const [isApprovingId, setIsApprovingId] = useState(null);
 
   const [formData, setFormData] = useState({
     category: "",
@@ -349,6 +351,40 @@ const AdminProductions = () => {
     }
   };
 
+  const handleApprovalDecision = async (productionId, decision) => {
+    try {
+      setIsApprovingId(productionId);
+      const response = await fetch(
+        `${API_BASE}/productions/${productionId}/approve`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            ...authHeaders,
+          },
+          body: JSON.stringify({ decision }),
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok || data?.success === false) {
+        throw new Error(data?.message || "Failed to process approval");
+      }
+
+      toast.success(
+        decision === "Approved"
+          ? "Production request approved"
+          : "Production request rejected"
+      );
+      await fetchProductions();
+    } catch (error) {
+      console.error("Error processing approval:", error);
+      toast.error(error.message || "Error processing approval");
+    } finally {
+      setIsApprovingId(null);
+    }
+  };
+
   const calculateTotalIngredientsCost = () => {
     if (!recipeDetails?.ingredients) return 0;
     return recipeDetails.ingredients.reduce((total, item) => {
@@ -437,6 +473,9 @@ const AdminProductions = () => {
                     <th className="px-6 py-3 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       SRP
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-[#cccccc] uppercase tracking-wider">
+                      Approval
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-[#cccccc] uppercase tracking-wider">
                       Actions
                     </th>
@@ -500,6 +539,19 @@ const AdminProductions = () => {
                         ₱{production.srp?.toFixed(2) || "0.00"}
                       </td>
                       <td className="px-6 py-4">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                            production.approval_status === "Pending"
+                              ? "bg-yellow-600 text-white"
+                              : production.approval_status === "Rejected"
+                              ? "bg-red-700 text-white"
+                              : "bg-green-700 text-white"
+                          }`}
+                        >
+                          {production.approval_status || "Approved"}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => fetchProductionDetails(production)}
@@ -520,6 +572,35 @@ const AdminProductions = () => {
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
+                          {production.approval_status === "Pending" &&
+                            production.requested_by && (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    handleApprovalDecision(
+                                      production._id,
+                                      "Approved"
+                                    )
+                                  }
+                                  disabled={isApprovingId === production._id}
+                                  className="px-3 py-1 bg-green-700 text-white rounded text-sm font-bold hover:bg-green-600 transition-colors flex items-center gap-1 disabled:opacity-70"
+                                >
+                                  <Check className="w-3 h-3" /> Approve
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleApprovalDecision(
+                                      production._id,
+                                      "Rejected"
+                                    )
+                                  }
+                                  disabled={isApprovingId === production._id}
+                                  className="px-3 py-1 bg-gray-700 text-white rounded text-sm font-bold hover:bg-gray-600 transition-colors flex items-center gap-1 disabled:opacity-70"
+                                >
+                                  <X className="w-3 h-3" /> Reject
+                                </button>
+                              </>
+                            )}
                         </div>
                       </td>
                     </tr>
