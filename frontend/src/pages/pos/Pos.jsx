@@ -118,8 +118,8 @@ const Pos = () => {
   const [showConfirmOrderModal, setShowConfirmOrderModal] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
-    { label: "PWD 20%", value: "pwd", helper: "Requires valid ID" },
-    { label: "Senior 20%", value: "senior", helper: "Requires valid ID" },
+    { label: "PWD", value: "pwd", helper: "Requires valid ID" },
+    { label: "Senior", value: "senior", helper: "Requires valid ID" },
   ];
   const packagingBoxes = Number(orderForm.packaging_boxes) || 0;
   const handlePackagingBoxesChange = (value) => {
@@ -632,33 +632,36 @@ const Pos = () => {
     );
   };
 
-  const getDiscountRate = () => {
-    if (
-      orderForm.discount_type === "pwd" ||
-      orderForm.discount_type === "senior"
-    ) {
-      return 0.2;
-    }
-    return 0;
-  };
-
   const calculateDiscountAmount = () => {
-    return calculateSubtotal() * getDiscountRate();
+    const subtotal = calculateSubtotal();
+
+    // Apply PWD/Senior discount using VAT-removal formula: Total Amount / 1.12
+    // Discount = subtotal - (subtotal / 1.12)
+    if (
+      subtotal > 0 &&
+      (orderForm.discount_type === "pwd" ||
+        orderForm.discount_type === "senior")
+    ) {
+      const discountedTotal = subtotal / 1.12;
+      return subtotal - discountedTotal;
+    }
+
+    return 0;
   };
 
   const getDiscountLabel = () => {
     if (orderForm.discount_type === "pwd") {
-      return "PWD 20%";
+      return "PWD";
     }
     if (orderForm.discount_type === "senior") {
-      return "Senior 20%";
+      return "Senior";
     }
     return "";
   };
 
   const calculateTotal = () => {
     const subtotal = calculateSubtotal();
-    const discount = subtotal * getDiscountRate();
+    const discount = calculateDiscountAmount();
     const totalAfterDiscount = Math.max(0, subtotal - discount);
     return (
       totalAfterDiscount +
@@ -1991,7 +1994,7 @@ const Pos = () => {
                   ))}
                 </div>
                 <p className="text-xs text-[#ababab] mt-2">
-                  Apply 20% discount for qualified PWD or Senior customers upon
+                  Apply discount for qualified PWD or Senior customers upon
                   presenting a valid ID.
                 </p>
 

@@ -72,7 +72,7 @@ const LandingPage = () => {
           </Link>
 
           {/* Sign Up Button */}
-          <Link
+          {/* <Link
             to="/signup"
             onClick={() => handleButtonClick("signup")}
             className={`bg-transparent border-2 border-white text-white hover:bg-white hover:text-gray-900 font-semibold py-3 px-8 rounded-lg transition-all duration-200 inline-block text-center transform hover:scale-105 hover:shadow-lg ${
@@ -87,7 +87,7 @@ const LandingPage = () => {
             ) : (
               "Sign Up"
             )}
-          </Link>
+          </Link> */}
         </div>
       </div>
     </div>

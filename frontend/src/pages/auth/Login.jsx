@@ -245,7 +245,7 @@ const Login = () => {
               </button>
 
               {/* Sign Up Link */}
-              <div className="text-center">
+              {/* <div className="text-center">
                 <p className="text-white/80">
                   Don't have an account?{" "}
                   <Link
@@ -255,7 +255,7 @@ const Login = () => {
                     Sign up here
                   </Link>
                 </p>
-              </div>
+              </div> */}
             </form>
           </div>
         </div>
