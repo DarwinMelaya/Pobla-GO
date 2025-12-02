@@ -43,11 +43,15 @@ const MenuSchema = new mongoose.Schema({
     min: 0,
     default: 0,
   },
-  // Critical level from MenuMaintenance
+  // Critical level threshold (copied from MenuMaintenance)
   critical_level: {
     type: Number,
-    min: 1,
-    max: 4,
+    min: 0,
+    default: 5,
+    validate: {
+      validator: Number.isFinite,
+      message: "Critical level must be a valid number",
+    },
   },
   // Availability status (auto-calculated based on servings, but can be manually overridden)
   is_available: {
@@ -168,18 +172,15 @@ MenuSchema.methods.getStockStatus = function () {
   if (this.servings <= 0) {
     return "out_of_stock";
   }
+  // Use per-item critical_level as the low-stock threshold.
+  // Fallback to a sensible default if not set.
+  const DEFAULT_THRESHOLD = 5;
+  const level =
+    typeof this.critical_level === "number" && !Number.isNaN(this.critical_level)
+      ? this.critical_level
+      : DEFAULT_THRESHOLD;
 
-  // Critical level threshold logic
-  const thresholds = {
-    1: 10, // Low critical - alert at 10 servings
-    2: 20, // Medium critical - alert at 20 servings
-    3: 30, // High critical - alert at 30 servings
-    4: 50, // Critical - alert at 50 servings
-  };
-
-  const threshold = thresholds[this.critical_level] || 10;
-
-  if (this.servings <= threshold) {
+  if (this.servings <= level) {
     return "low_stock";
   }
 
