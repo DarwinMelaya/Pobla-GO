@@ -39,9 +39,9 @@ const AdminMenu = () => {
     try {
       const token = getAuthToken();
       const queryParams = new URLSearchParams();
+      // Admin view: always fetch ALL items (including unavailable)
+      queryParams.append("available_only", "false");
       if (categoryFilter) queryParams.append("category", categoryFilter);
-      if (availabilityFilter)
-        queryParams.append("available", availabilityFilter);
 
       const response = await fetch(`${API_BASE}/menu?${queryParams}`, {
         headers: {
@@ -55,18 +55,21 @@ const AdminMenu = () => {
       }
 
       const data = await response.json();
-      
+
       // Handle response format from /menu endpoint
-      const itemsArray = data.success && Array.isArray(data.items) 
-        ? data.items 
-        : Array.isArray(data) 
-        ? data 
-        : [];
-      
+      const itemsArray =
+        data.success && Array.isArray(data.items)
+          ? data.items
+          : Array.isArray(data)
+          ? data
+          : [];
+
       setMenuItems(itemsArray);
-      
+
       // Extract unique categories
-      const uniqueCategories = [...new Set(itemsArray.map(item => item.category))];
+      const uniqueCategories = [
+        ...new Set(itemsArray.map((item) => item.category)),
+      ];
       setCategories(uniqueCategories);
     } catch (err) {
       toast.error(err.message);
@@ -143,11 +146,21 @@ const AdminMenu = () => {
     }
   };
 
-  // Filter menu items by search term
-  const filteredMenuItems = menuItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter menu items by search term and availability (client-side)
+  const filteredMenuItems = menuItems.filter((item) => {
+    const matchesSearch =
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesAvailability =
+      availabilityFilter === ""
+        ? true
+        : availabilityFilter === "true"
+        ? item.is_available
+        : !item.is_available;
+
+    return matchesSearch && matchesAvailability;
+  });
 
   // Load data on component mount
   useEffect(() => {
@@ -198,12 +211,17 @@ const AdminMenu = () => {
               <h1 className="text-3xl font-bold text-[#f5f5f5] tracking-wide flex items-center gap-3">
                 <Package className="w-8 h-8 text-[#f6b100]" />
                 Menu Management
-          </h1>
+              </h1>
               <p className="text-[#b5b5b5] mt-2">
-                View and manage production-based menu items. To add new items, go to{" "}
-                <a href="/admin/productions" className="text-[#f6b100] hover:underline font-medium">
+                View and manage production-based menu items. To add new items,
+                go to{" "}
+                <a
+                  href="/admin/productions"
+                  className="text-[#f6b100] hover:underline font-medium"
+                >
                   Productions
-                </a>.
+                </a>
+                .
               </p>
             </div>
           </div>
@@ -215,7 +233,9 @@ const AdminMenu = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[#cccccc] text-sm">Total Items</p>
-                    <p className="text-2xl font-bold text-[#f5f5f5]">{stats.total}</p>
+                    <p className="text-2xl font-bold text-[#f5f5f5]">
+                      {stats.total}
+                    </p>
                   </div>
                   <Package className="w-8 h-8 text-blue-500" />
                 </div>
@@ -224,7 +244,9 @@ const AdminMenu = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[#cccccc] text-sm">Available</p>
-                    <p className="text-2xl font-bold text-green-500">{stats.available}</p>
+                    <p className="text-2xl font-bold text-green-500">
+                      {stats.available}
+                    </p>
                   </div>
                   <CheckCircle className="w-8 h-8 text-green-500" />
                 </div>
@@ -233,7 +255,9 @@ const AdminMenu = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[#cccccc] text-sm">Low Stock</p>
-                    <p className="text-2xl font-bold text-yellow-500">{stats.lowStock}</p>
+                    <p className="text-2xl font-bold text-yellow-500">
+                      {stats.lowStock}
+                    </p>
                   </div>
                   <AlertTriangle className="w-8 h-8 text-yellow-500" />
                 </div>
@@ -242,7 +266,9 @@ const AdminMenu = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[#cccccc] text-sm">Out of Stock</p>
-                    <p className="text-2xl font-bold text-red-500">{stats.outOfStock}</p>
+                    <p className="text-2xl font-bold text-red-500">
+                      {stats.outOfStock}
+                    </p>
                   </div>
                   <XCircle className="w-8 h-8 text-red-500" />
                 </div>
@@ -353,7 +379,7 @@ const AdminMenu = () => {
                     <Package className="w-16 h-16 text-[#666]" />
                   </div>
                 )}
-                
+
                 {/* Content */}
                 <div className="p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -370,37 +396,41 @@ const AdminMenu = () => {
                       {item.is_available ? "Available" : "Unavailable"}
                     </span>
                   </div>
-                  
+
                   <p className="text-[#b5b5b5] text-sm mb-3 line-clamp-2">
                     {item.description || "No description available"}
                   </p>
-                  
+
                   <div className="space-y-2 mb-3">
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#cccccc]">Category</span>
-                      <span className="text-sm font-medium text-[#f5f5f5]">{item.category}</span>
+                      <span className="text-sm font-medium text-[#f5f5f5]">
+                        {item.category}
+                      </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#cccccc]">Price</span>
-                    <span className="text-lg font-bold text-[#f6b100]">
+                      <span className="text-lg font-bold text-[#f6b100]">
                         ₱{item.price?.toFixed(2) || "0.00"}
-                    </span>
-                  </div>
-                    
+                      </span>
+                    </div>
+
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-[#cccccc]">Servings</span>
-                    <span className="text-sm font-bold text-[#f5f5f5]">
+                      <span className="text-sm font-bold text-[#f5f5f5]">
                         {item.servings || 0}
-                    </span>
+                      </span>
                     </div>
-                    
+
                     <div className="flex justify-between items-center">
-                      <span className="text-sm text-[#cccccc]">Stock Status</span>
+                      <span className="text-sm text-[#cccccc]">
+                        Stock Status
+                      </span>
                       <div>{getStockStatusBadge(item.stock_status)}</div>
                     </div>
                   </div>
-                  
+
                   {/* Actions */}
                   <div className="flex gap-2 pt-3 border-t border-[#383838]">
                     <button
@@ -414,7 +444,11 @@ const AdminMenu = () => {
                     <button
                       onClick={() => handleToggleAvailability(item)}
                       className="px-3 py-2 bg-[#181818] text-[#b5b5b5] border border-[#383838] rounded text-sm font-bold hover:bg-[#262626] transition-colors flex items-center justify-center"
-                      title={item.is_available ? "Mark as Unavailable" : "Mark as Available"}
+                      title={
+                        item.is_available
+                          ? "Mark as Unavailable"
+                          : "Mark as Available"
+                      }
                     >
                       {item.is_available ? (
                         <ToggleRight className="w-5 h-5 text-green-500" />
@@ -470,17 +504,25 @@ const AdminMenu = () => {
                 {/* Details */}
                 <div className="space-y-4">
                   <div>
-                    <label className="text-xs text-[#cccccc] uppercase">Name</label>
-                    <p className="text-[#f5f5f5] font-medium text-lg">{itemToView.name}</p>
+                    <label className="text-xs text-[#cccccc] uppercase">
+                      Name
+                    </label>
+                    <p className="text-[#f5f5f5] font-medium text-lg">
+                      {itemToView.name}
+                    </p>
                   </div>
 
                   <div>
-                    <label className="text-xs text-[#cccccc] uppercase">Category</label>
+                    <label className="text-xs text-[#cccccc] uppercase">
+                      Category
+                    </label>
                     <p className="text-[#f5f5f5]">{itemToView.category}</p>
                   </div>
 
                   <div>
-                    <label className="text-xs text-[#cccccc] uppercase">Price</label>
+                    <label className="text-xs text-[#cccccc] uppercase">
+                      Price
+                    </label>
                     <p className="text-[#f6b100] font-bold text-2xl">
                       ₱{itemToView.price?.toFixed(2) || "0.00"}
                     </p>
@@ -488,28 +530,42 @@ const AdminMenu = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-xs text-[#cccccc] uppercase">Servings Available</label>
-                      <p className="text-[#f5f5f5] font-semibold text-xl">{itemToView.servings || 0}</p>
+                      <label className="text-xs text-[#cccccc] uppercase">
+                        Servings Available
+                      </label>
+                      <p className="text-[#f5f5f5] font-semibold text-xl">
+                        {itemToView.servings || 0}
+                      </p>
                     </div>
 
                     <div>
-                      <label className="text-xs text-[#cccccc] uppercase">Stock Status</label>
-                      <div className="mt-1">{getStockStatusBadge(itemToView.stock_status)}</div>
+                      <label className="text-xs text-[#cccccc] uppercase">
+                        Stock Status
+                      </label>
+                      <div className="mt-1">
+                        {getStockStatusBadge(itemToView.stock_status)}
+                      </div>
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-xs text-[#cccccc] uppercase">Availability</label>
+                    <label className="text-xs text-[#cccccc] uppercase">
+                      Availability
+                    </label>
                     <p className="text-[#f5f5f5] flex items-center gap-2 mt-1">
                       {itemToView.is_available ? (
                         <>
                           <CheckCircle className="w-4 h-4 text-green-500" />
-                          <span className="text-green-500 font-medium">Available for Order</span>
+                          <span className="text-green-500 font-medium">
+                            Available for Order
+                          </span>
                         </>
                       ) : (
                         <>
                           <XCircle className="w-4 h-4 text-red-500" />
-                          <span className="text-red-500 font-medium">Not Available</span>
+                          <span className="text-red-500 font-medium">
+                            Not Available
+                          </span>
                         </>
                       )}
                     </p>
@@ -519,45 +575,52 @@ const AdminMenu = () => {
                 {/* Description */}
                 {itemToView.description && (
                   <div className="md:col-span-2">
-                    <label className="text-xs text-[#cccccc] uppercase">Description</label>
-                    <p className="text-[#f5f5f5] mt-1">{itemToView.description}</p>
+                    <label className="text-xs text-[#cccccc] uppercase">
+                      Description
+                    </label>
+                    <p className="text-[#f5f5f5] mt-1">
+                      {itemToView.description}
+                    </p>
                   </div>
                 )}
 
                 {/* Production History */}
-                {itemToView.production_history && itemToView.production_history.length > 0 && (
-                  <div className="md:col-span-2">
-                    <label className="text-xs text-[#cccccc] uppercase mb-2 block">
-                      Production History
-                    </label>
-                    <div className="bg-[#181818] rounded-lg p-4 border border-[#383838]">
-                      <div className="space-y-2">
-                        {itemToView.production_history.map((prod, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center text-sm py-2 border-b border-[#383838] last:border-0"
-                          >
-                            <span className="text-[#f5f5f5] flex items-center gap-2">
-                              <Package className="w-4 h-4 text-[#f6b100]" />
-                              +{prod.quantity_added} servings added
+                {itemToView.production_history &&
+                  itemToView.production_history.length > 0 && (
+                    <div className="md:col-span-2">
+                      <label className="text-xs text-[#cccccc] uppercase mb-2 block">
+                        Production History
+                      </label>
+                      <div className="bg-[#181818] rounded-lg p-4 border border-[#383838]">
+                        <div className="space-y-2">
+                          {itemToView.production_history.map((prod, index) => (
+                            <div
+                              key={index}
+                              className="flex justify-between items-center text-sm py-2 border-b border-[#383838] last:border-0"
+                            >
+                              <span className="text-[#f5f5f5] flex items-center gap-2">
+                                <Package className="w-4 h-4 text-[#f6b100]" />+
+                                {prod.quantity_added} servings added
+                              </span>
+                              <span className="text-[#888]">
+                                {new Date(prod.date_added).toLocaleDateString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-[#383838]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[#cccccc] font-medium">
+                              Total Productions:
                             </span>
-                            <span className="text-[#888]">
-                              {new Date(prod.date_added).toLocaleDateString()}
+                            <span className="text-[#f6b100] font-bold">
+                              {itemToView.production_history.length}
                             </span>
                           </div>
-                        ))}
-                      </div>
-                      <div className="mt-3 pt-3 border-t border-[#383838]">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[#cccccc] font-medium">Total Productions:</span>
-                          <span className="text-[#f6b100] font-bold">
-                            {itemToView.production_history.length}
-                          </span>
                         </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-[#383838] flex justify-end">
