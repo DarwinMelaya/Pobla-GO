@@ -32,6 +32,7 @@ const AdminProductions = () => {
   const [selectedProduction, setSelectedProduction] = useState(null);
   const [recipeDetails, setRecipeDetails] = useState(null);
   const [costingDetails, setCostingDetails] = useState(null);
+  const [unitConversions, setUnitConversions] = useState([]);
   const [filterStatus, setFilterStatus] = useState("");
   const [isApprovingId, setIsApprovingId] = useState(null);
 
@@ -154,9 +155,12 @@ const AdminProductions = () => {
       const costingData = await costingRes.json();
       const expensesData = await expensesRes.json();
 
+      let ingredients = [];
+
       if (recipeData?.success) {
+        ingredients = Array.isArray(recipeData.data) ? recipeData.data : [];
         setRecipeDetails({
-          ingredients: Array.isArray(recipeData.data) ? recipeData.data : [],
+          ingredients,
           expenses:
             expensesData?.success && Array.isArray(expensesData.data)
               ? expensesData.data
@@ -166,6 +170,36 @@ const AdminProductions = () => {
 
       if (costingData?.success) {
         setCostingDetails(costingData.data);
+      }
+
+      // Fetch unit conversions for all materials used in this recipe,
+      // to match costing logic in Maintenance → Recipe screen.
+      try {
+        const materialIds = Array.from(
+          new Set(
+            ingredients
+              .map((item) => item.raw_material_id?._id || item.raw_material_id)
+              .filter(Boolean)
+          )
+        );
+
+        const conversionPromises = materialIds.map((materialId) =>
+          fetch(`${API_BASE}/unit-conversions/material/${materialId}`, {
+            headers: { ...authHeaders },
+          }).then((res) => res.json())
+        );
+
+        const conversionResults = await Promise.all(conversionPromises);
+        const allConversions = conversionResults
+          .filter((result) => result.success)
+          .flatMap((result) => (Array.isArray(result.data) ? result.data : []));
+
+        setUnitConversions(allConversions);
+      } catch (convError) {
+        console.error(
+          "Error fetching unit conversions for production view:",
+          convError
+        );
       }
 
       setIsViewModalOpen(true);
@@ -387,9 +421,38 @@ const AdminProductions = () => {
 
   const calculateTotalIngredientsCost = () => {
     if (!recipeDetails?.ingredients) return 0;
+
+    // Match costing logic used in Maintenance → Recipe component:
+    // respect unit conversions per raw material.
     return recipeDetails.ingredients.reduce((total, item) => {
       const material = item.raw_material_id;
-      const unitPrice = material?.unit_price || 0;
+      if (!material) return total;
+
+      const materialId = material._id || material;
+      const materialIdStr = String(materialId);
+
+      // Check if the unit matches the material's base unit
+      const isBaseUnit = material.unit === item.unit;
+
+      // Find unit conversion for this item's unit AND material
+      const unitConversion = unitConversions.find((conversion) => {
+        const convMaterialId =
+          conversion.raw_material_id?._id ||
+          conversion.raw_material_id ||
+          conversion.raw_material;
+        return (
+          conversion.equivalent_unit === item.unit &&
+          String(convMaterialId) === materialIdStr
+        );
+      });
+
+      // Use unit conversion price if available and not base unit,
+      // otherwise use material's base price
+      const unitPrice =
+        !isBaseUnit && unitConversion?.unit_price
+          ? unitConversion.unit_price
+          : material.unit_price || 0;
+
       return total + unitPrice * item.quantity;
     }, 0);
   };
@@ -796,6 +859,7 @@ const AdminProductions = () => {
                 setSelectedProduction(null);
                 setRecipeDetails(null);
                 setCostingDetails(null);
+                setUnitConversions([]);
               }}
             />
             <div className="relative bg-[#232323] w-full max-w-5xl mx-4 my-8 rounded-lg border border-[#383838] shadow p-6 max-h-[90vh] overflow-y-auto">
@@ -810,6 +874,7 @@ const AdminProductions = () => {
                     setSelectedProduction(null);
                     setRecipeDetails(null);
                     setCostingDetails(null);
+                    setUnitConversions([]);
                   }}
                   className="text-[#b5b5b5] hover:text-white"
                   aria-label="Close"
@@ -922,7 +987,34 @@ const AdminProductions = () => {
                       <tbody className="divide-y divide-[#383838]">
                         {recipeDetails.ingredients.map((item, index) => {
                           const material = item.raw_material_id;
-                          const unitPrice = material?.unit_price || 0;
+                          const materialId = material?._id || material;
+                          const materialIdStr = String(materialId);
+
+                          // Find unit conversion for this item's unit AND material
+                          const unitConversion = unitConversions.find(
+                            (conversion) => {
+                              const convMaterialId =
+                                conversion.raw_material_id?._id ||
+                                conversion.raw_material_id ||
+                                conversion.raw_material;
+                              return (
+                                conversion.equivalent_unit === item.unit &&
+                                String(convMaterialId) === materialIdStr
+                              );
+                            }
+                          );
+
+                          // Check if the unit matches the material's base unit
+                          const isBaseUnit = material?.unit === item.unit;
+
+                          // Use unit conversion price if available and not base unit,
+                          // otherwise use material's base price
+                          const baseUnitPrice = material?.unit_price || 0;
+                          const unitPrice =
+                            !isBaseUnit && unitConversion?.unit_price
+                              ? unitConversion.unit_price
+                              : baseUnitPrice;
+
                           const qtyPerPiece = item.quantity;
                           const totalQty =
                             qtyPerPiece * selectedProduction.quantity;
