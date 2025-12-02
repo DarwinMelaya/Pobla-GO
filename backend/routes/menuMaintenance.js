@@ -3,6 +3,7 @@ const router = express.Router();
 const MenuMaintenance = require("../models/MenuMaintenance");
 const User = require("../models/User");
 const Category = require("../models/Category");
+const Menu = require("../models/Menu");
 const {
   uploadImageToSupabase,
   deleteImageFromSupabase,
@@ -286,6 +287,28 @@ router.put("/:id", verifyAdmin, async (req, res) => {
     if (description !== undefined) menuItem.description = description;
 
     await menuItem.save();
+
+    // Keep related Menu items in sync with latest maintenance data
+    try {
+      await Menu.updateMany(
+        { menu_maintenance_id: menuItem._id },
+        {
+          $set: {
+            name: menuItem.name,
+            category: menuItem.category,
+            description: menuItem.description || "",
+            image: menuItem.image || "",
+            critical_level: menuItem.critical_level,
+          },
+        }
+      );
+    } catch (syncError) {
+      console.error(
+        "Error syncing Menu from MenuMaintenance update:",
+        menuItem._id,
+        syncError
+      );
+    }
 
     // Populate the response
     await menuItem.populate("created_by", "name");

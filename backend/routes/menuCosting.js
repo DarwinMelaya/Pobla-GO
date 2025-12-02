@@ -4,6 +4,8 @@ const MenuCosting = require("../models/MenuCosting");
 const MenuRecipe = require("../models/MenuRecipe");
 const MenuExpense = require("../models/MenuExpense");
 const UnitConversion = require("../models/UnitConversion");
+const Menu = require("../models/Menu");
+const Production = require("../models/Production");
 const jwt = require("jsonwebtoken");
 
 // Middleware to verify admin role using JWT
@@ -38,6 +40,37 @@ const verifyAdmin = async (req, res, next) => {
       success: false,
       message: "Invalid token.",
     });
+  }
+};
+
+// Helper to sync SRP/price changes to related collections
+const syncSRPToMenuAndProductions = async ({
+  menuId,
+  finalSRP,
+}) => {
+  if (!menuId || typeof finalSRP !== "number" || Number.isNaN(finalSRP)) {
+    return;
+  }
+
+  try {
+    // Update all Menu documents that use this MenuMaintenance as source
+    await Menu.updateMany(
+      { menu_maintenance_id: menuId },
+      { $set: { price: finalSRP } }
+    );
+
+    // Update all existing productions' SRP so admin screens see the new price
+    await Production.updateMany(
+      { menu_id: menuId },
+      { $set: { srp: finalSRP } }
+    );
+  } catch (syncError) {
+    // Log but don't fail the main costing request
+    console.error(
+      "Error syncing SRP to Menu/Productions for menu_id:",
+      menuId,
+      syncError
+    );
   }
 };
 
@@ -198,6 +231,12 @@ router.post("/", verifyAdmin, async (req, res) => {
       await costing.save();
     }
 
+    // Propagate SRP changes to Menu and existing Productions
+    await syncSRPToMenuAndProductions({
+      menuId: menu_id,
+      finalSRP,
+    });
+
     res.json({
       success: true,
       data: costing,
@@ -337,6 +376,12 @@ router.put("/:id", verifyAdmin, async (req, res) => {
       },
       { new: true }
     );
+
+    // Propagate SRP changes to Menu and existing Productions
+    await syncSRPToMenuAndProductions({
+      menuId: costing.menu_id,
+      finalSRP,
+    });
 
     res.json({
       success: true,
