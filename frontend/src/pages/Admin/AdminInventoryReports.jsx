@@ -583,7 +583,7 @@ const AdminInventoryReports = () => {
                     </td>
                     <td className="py-3 text-[#a0a0a0]">{item.category}</td>
                     <td className="py-3 text-right text-[#f5f5f5]">
-                      {item.quantity} {item.unit}
+                      {Math.round(item.quantity).toLocaleString()} {item.unit}
                     </td>
                     <td className="py-3 text-right text-[#f5f5f5]">
                       {formatCurrency(item.purchase_price || 0)}
