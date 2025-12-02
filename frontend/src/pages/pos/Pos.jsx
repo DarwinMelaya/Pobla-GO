@@ -116,6 +116,10 @@ const Pos = () => {
   const [deliveryBarangayList, setDeliveryBarangayList] = useState([]);
   const [deliveryAddressLoading, setDeliveryAddressLoading] = useState(false);
   const [showConfirmOrderModal, setShowConfirmOrderModal] = useState(false);
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [customerSuggestionsLoading, setCustomerSuggestionsLoading] =
+    useState(false);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
   const discountOptions = [
     { label: "No Discount", value: "none", helper: "Regular price" },
     { label: "PWD", value: "pwd", helper: "Requires valid ID" },
@@ -507,6 +511,46 @@ const Pos = () => {
       toast.error("Failed to fetch menu items");
     } finally {
       setMenuItemsLoading(false);
+    }
+  };
+
+  // Fetch recent customer name suggestions
+  const fetchCustomerSuggestions = async (search) => {
+    if (!search || !search.trim()) {
+      setCustomerSuggestions([]);
+      return;
+    }
+
+    try {
+      setCustomerSuggestionsLoading(true);
+      const token = getAuthToken();
+      const params = new URLSearchParams({
+        search: search.trim(),
+        limit: "8",
+      });
+
+      const response = await fetch(
+        `${API_BASE}/orders/customers?${params.toString()}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch customer suggestions");
+      }
+
+      const data = await response.json();
+      setCustomerSuggestions(data.customers || []);
+      setShowCustomerSuggestions(true);
+    } catch (error) {
+      console.error("Error fetching customer suggestions:", error);
+      setCustomerSuggestions([]);
+    } finally {
+      setCustomerSuggestionsLoading(false);
     }
   };
 
@@ -1140,6 +1184,22 @@ const Pos = () => {
     fetchMenuItems();
   }, []);
 
+  // Debounce customer name suggestions while typing
+  useEffect(() => {
+    const value = orderForm.customer_name;
+    if (!value || !value.trim()) {
+      setCustomerSuggestions([]);
+      setShowCustomerSuggestions(false);
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      fetchCustomerSuggestions(value);
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [orderForm.customer_name]);
+
   return (
     <div className="bg-[#1f1f1f] min-h-screen dark touch-manipulation overflow-x-hidden flex flex-col">
       {/* Top Bar - Quick Order Info (Always Visible) */}
@@ -1164,7 +1224,7 @@ const Pos = () => {
           </div>
 
           {/* Customer Name - Large Touch Input */}
-          <div className="flex-1 min-w-[220px]">
+          <div className="flex-1 min-w-[220px] relative">
             <label className="block text-xs font-semibold text-[#ababab] mb-1">
               Customer Name *
             </label>
@@ -1177,9 +1237,52 @@ const Pos = () => {
                   customer_name: e.target.value,
                 }))
               }
+              onFocus={() => {
+                if (customerSuggestions.length > 0) {
+                  setShowCustomerSuggestions(true);
+                }
+              }}
+              onBlur={() => {
+                // Slight delay so click on suggestion still registers
+                setTimeout(() => setShowCustomerSuggestions(false), 150);
+              }}
               className="w-full px-3 md:px-4 py-2 md:py-3 bg-[#181818] border-2 border-[#353535] rounded-lg text-base md:text-lg text-[#f5f5f5] focus:ring-2 focus:ring-[#f6b100] focus:border-[#f6b100] placeholder-[#ababab] touch-manipulation"
               placeholder="Enter customer name"
             />
+            {showCustomerSuggestions &&
+              (customerSuggestionsLoading || customerSuggestions.length > 0) && (
+                <div className="absolute z-30 mt-1 w-full bg-[#181818] border border-[#353535] rounded-lg shadow-lg max-h-56 overflow-y-auto">
+                  {customerSuggestionsLoading && (
+                    <div className="px-3 py-2 text-xs text-[#ababab]">
+                      Searching previous customers...
+                    </div>
+                  )}
+                  {!customerSuggestionsLoading &&
+                    customerSuggestions.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setOrderForm((prev) => ({
+                            ...prev,
+                            customer_name: name,
+                          }));
+                          setShowCustomerSuggestions(false);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-[#f5f5f5] hover:bg-[#2b2b2b] focus:bg-[#2b2b2b]"
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  {!customerSuggestionsLoading &&
+                    customerSuggestions.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-[#555]">
+                        No previous customer found for this name
+                      </div>
+                    )}
+                </div>
+              )}
           </div>
 
           {/* Order Type */}

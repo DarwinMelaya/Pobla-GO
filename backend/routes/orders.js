@@ -256,6 +256,54 @@ const verifyAdmin = async (req, res, next) => {
   next();
 };
 
+// GET /orders/customers - Get recent unique customer names for suggestions
+router.get("/customers", verifyAuth, async (req, res) => {
+  try {
+    const { search = "", limit = 10 } = req.query;
+
+    // Use aggregation to get recent distinct customer names
+    const pipeline = [];
+
+    if (search) {
+      pipeline.push({
+        $match: {
+          customer_name: { $regex: search, $options: "i" },
+        },
+      });
+    }
+
+    pipeline.push(
+      {
+        $group: {
+          _id: { $toLower: "$customer_name" },
+          customer_name: { $first: "$customer_name" },
+          last_order_at: { $max: "$created_at" },
+        },
+      },
+      {
+        $sort: { last_order_at: -1 },
+      },
+      {
+        $limit: Number(limit) || 10,
+      }
+    );
+
+    const results = await Order.aggregate(pipeline);
+    const names = results.map((r) => r.customer_name).filter(Boolean);
+
+    res.json({
+      success: true,
+      customers: names,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message,
+    });
+  }
+});
+
 // GET /orders - Get all orders (Admin and Staff)
 router.get("/", verifyAuth, async (req, res) => {
   try {
